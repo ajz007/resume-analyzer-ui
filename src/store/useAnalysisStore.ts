@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { analyzeResume } from '../api/endpoints'
 import type { AnalysisResponse } from '../api/types'
+import type { UploadedDoc } from '../api/documents'
 
 export type AnalysisStatus = 'idle' | 'uploading' | 'analyzing' | 'success' | 'error'
 
@@ -11,12 +12,14 @@ type AnalysisState = {
   analysisId?: string
   result?: AnalysisResponse
   error?: string
+  uploadedDoc?: UploadedDoc
   setResumeFile: (file: File | null) => void
   setJdText: (text: string) => void
   submitAnalysis: () => Promise<void>
   setError: (message?: string) => void
   reset: () => void
   addToHistory?: (item: { analysisId: string; createdAt: string; matchScore: number }) => void
+  setUploadedDoc: (doc?: UploadedDoc) => void
   resetJdOnly: () => void
 }
 
@@ -27,6 +30,7 @@ const initialState = {
   analysisId: undefined,
   result: undefined,
   error: undefined,
+  uploadedDoc: undefined,
 }
 
 export const useAnalysisStore = create<AnalysisState>((set, get) => ({
@@ -37,6 +41,8 @@ export const useAnalysisStore = create<AnalysisState>((set, get) => ({
   setJdText: (text) => set({ jdText: text }),
 
   setError: (message) => set({ error: message }),
+
+  setUploadedDoc: (doc) => set({ uploadedDoc: doc }),
 
   resetJdOnly: () => set({ jdText: '', status: 'idle', error: undefined }),
 

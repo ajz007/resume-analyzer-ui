@@ -2,6 +2,7 @@ import type { FormEvent } from 'react'
 import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDropzone } from 'react-dropzone'
+import { uploadDocument, getCurrentDocument } from '../api/documents'
 import { useAnalysisStore } from '../store/useAnalysisStore'
 import { useHistoryStore } from '../store/useHistoryStore'
 import { useUsageStore } from '../store/useUsageStore'
@@ -29,6 +30,8 @@ const ResumeForm = () => {
     submitAnalysis,
     setError,
     reset,
+    uploadedDoc,
+    setUploadedDoc,
   } = useAnalysisStore()
   const { addItem } = useHistoryStore()
   const { usage, fetch: fetchUsage } = useUsageStore()
@@ -39,6 +42,18 @@ const ResumeForm = () => {
       void fetchUsage()
     }
   }, [usage, fetchUsage])
+
+  useEffect(() => {
+    const loadCurrent = async () => {
+      try {
+        const doc = await getCurrentDocument()
+        if (doc) setUploadedDoc(doc)
+      } catch {
+        // silent fail in demo mode
+      }
+    }
+    void loadCurrent()
+  }, [setUploadedDoc])
 
   // wire store to push to history on successful analyze
   const submitWithHistory = async () => {
@@ -55,9 +70,10 @@ const ResumeForm = () => {
   const jdTooShort = trimmedLength < JD_MIN_CHARS
   const jdLength = jdText.length
 
-  const validateAndSetFile = (file: File | null) => {
+  const validateAndSetFile = async (file: File | null) => {
     if (!file) {
       setResumeFile(null)
+      setUploadedDoc(undefined)
       setError(undefined)
       return
     }
@@ -67,18 +83,29 @@ const ResumeForm = () => {
 
     if (!isTypeAllowed) {
       setResumeFile(null)
+      setUploadedDoc(undefined)
       setError('Please upload a PDF or DOC/DOCX file.')
       return
     }
 
     if (file.size > MAX_RESUME_FILE_BYTES) {
       setResumeFile(null)
+      setUploadedDoc(undefined)
       setError('File size must be under 5MB.')
       return
     }
 
     setError(undefined)
     setResumeFile(file)
+    try {
+      const doc = await uploadDocument(file)
+      setUploadedDoc(doc)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to upload resume.'
+      setError(message)
+      setResumeFile(null)
+      setUploadedDoc(undefined)
+    }
   }
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -89,7 +116,7 @@ const ResumeForm = () => {
       'application/msword': ['.doc'],
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
     },
-    onDrop: (acceptedFiles, fileRejections) => {
+    onDrop: async (acceptedFiles, fileRejections) => {
       if (fileRejections.length > 0) {
         const firstRejection = fileRejections[0]
         const message =
@@ -97,10 +124,11 @@ const ResumeForm = () => {
           'File was rejected. Please upload a PDF or DOC/DOCX under 5MB.'
         setError(message)
         setResumeFile(null)
+        setUploadedDoc(undefined)
         return
       }
       const file = acceptedFiles[0] ?? null
-      validateAndSetFile(file ?? null)
+      await validateAndSetFile(file ?? null)
     },
   })
   const inputProps = getInputProps({
@@ -150,13 +178,13 @@ const ResumeForm = () => {
               }
             }}
           />
-          {resumeFile ? (
+          {uploadedDoc ? (
             <div className="text-left space-y-2">
               <div className="flex items-center gap-2 text-sm text-gray-800">
                 <span aria-hidden>✅</span>
-                <span className="font-semibold truncate">{resumeFile.name}</span>
+                <span className="font-semibold truncate">{uploadedDoc.fileName}</span>
               </div>
-              <p className="text-xs text-gray-600">Size: {formatFileSize(resumeFile.size)}</p>
+              <p className="text-xs text-gray-600">Size: {formatFileSize(uploadedDoc.sizeBytes)}</p>
               <div className="flex gap-2 justify-center">
                 <button
                   type="button"
@@ -170,6 +198,7 @@ const ResumeForm = () => {
                   className="border border-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-50 disabled:opacity-50"
                   onClick={() => {
                     setResumeFile(null)
+                    setUploadedDoc(undefined)
                     setError(undefined)
                     if (fileInputRef.current) fileInputRef.current.value = ''
                   }}
@@ -202,8 +231,8 @@ const ResumeForm = () => {
             {jdLength === 0
               ? `Minimum ${JD_MIN_CHARS} characters recommended.`
               : jdTooShort
-                ? `Add ${Math.max(JD_MIN_CHARS - trimmedLength, 0)} more characters.`
-                : 'Looks good.'}
+              ? `Add ${Math.max(JD_MIN_CHARS - trimmedLength, 0)} more characters.`
+              : 'Looks good.'}
           </span>
           <span className={jdTooShort ? 'text-gray-600' : 'text-green-700'}>
             {jdLength} / {JD_MIN_CHARS} characters
@@ -242,7 +271,6 @@ const ResumeForm = () => {
           Reset
         </button>
       </div>
-
     </form>
   )
 }
