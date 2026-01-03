@@ -21,7 +21,6 @@ const ResumeForm = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const {
-    resumeFile,
     jdText,
     status,
     error,
@@ -139,7 +138,7 @@ const ResumeForm = () => {
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault()
-    if (!resumeFile) {
+    if (!uploadedDoc) {
       setError('Please upload a resume.')
       return
     }
@@ -258,7 +257,9 @@ const ResumeForm = () => {
         <button
           type="submit"
           className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
-          disabled={loading || !resumeFile || jdTooShort || (usage ? usage.used >= usage.limit : false)}
+          disabled={
+            loading || !uploadedDoc || jdTooShort || (usage ? usage.used >= usage.limit : false)
+          }
         >
           {loading ? 'Analyzing...' : 'Analyze'}
         </button>

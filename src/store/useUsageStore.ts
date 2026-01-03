@@ -6,14 +6,17 @@ type UsageState = {
   usage: UsageResponse | null
   loading: boolean
   error?: string
-  fetch: () => Promise<void>
+  fetch: (force?: boolean) => Promise<void>
 }
 
-export const useUsageStore = create<UsageState>((set) => ({
+export const useUsageStore = create<UsageState>((set, get) => ({
   usage: null,
   loading: false,
   error: undefined,
-  fetch: async () => {
+  fetch: async (force = false) => {
+    if (!force && get().usage) {
+      return
+    }
     set({ loading: true, error: undefined })
     try {
       const data = await fetchUsage()

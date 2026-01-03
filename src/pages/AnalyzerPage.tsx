@@ -7,11 +7,37 @@ import { env } from '../app/env'
 import { ui } from '../app/uiTokens'
 import { useAnalysisStore } from '../store/useAnalysisStore'
 import { useUsageStore } from '../store/useUsageStore'
+import { useEffect } from 'react'
 
 const AnalyzerPage = () => {
   const { error: analysisError } = useAnalysisStore()
-  const { error: usageError } = useUsageStore()
+  const { error: usageError, fetch: fetchUsage } = useUsageStore()
   const showBackendWarning = !env.useMockApi && (!!analysisError || !!usageError)
+
+  useEffect(() => {
+    let cancelled = false
+    const runFetch = async () => {
+      try {
+        await fetchUsage()
+      } catch {
+        // swallow errors; toasts already handled at client layer
+      }
+    }
+
+    void runFetch()
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        void runFetch()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    return () => {
+      cancelled = true
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
+  }, [fetchUsage])
 
   return (
     <div className={ui.layout.stack}>
