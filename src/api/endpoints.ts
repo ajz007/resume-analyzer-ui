@@ -1,10 +1,12 @@
 import { env } from '../app/env'
 import { apiRequest } from './client'
 import type { AnalysisResponse, UsageResponse } from './types'
+import type { BackendAnalysisResult } from './backendTypes'
 import type { UploadedDoc } from './documents'
+import { fromBackendResult } from '../analysis/adapters/fromBackend'
 
 type AnalyzeStartResponse = { analysisId: string; status: string }
-type AnalyzeStatusResponse = { id: string; status: string; result?: AnalysisResponse }
+type AnalyzeStatusResponse = { id: string; status: string; result?: BackendAnalysisResult }
 type ListParams = { limit?: number; offset?: number }
 type AnalysisListItem = Pick<AnalysisResponse, 'analysisId' | 'createdAt' | 'matchScore'> & {
   status?: string
@@ -15,8 +17,34 @@ const mockAnalysis: AnalysisResponse = {
   analysisId: 'mock-123',
   createdAt: new Date().toISOString(),
   matchScore: 72,
+  analysisMode: 'job_match',
   missingKeywords: ['Kubernetes', 'TypeScript'],
   weakKeywords: ['API design'],
+  matchedKeywords: ['Python', 'AWS', 'REST APIs'],
+  missingKeywordBuckets: {
+    fromJobDescription: ['Kubernetes', 'TypeScript'],
+    industryCommon: ['Docker', 'Terraform'],
+  },
+  recommendations: [
+    {
+      id: 'rec-1',
+      title: 'Add missing Kubernetes experience',
+      summary: 'Highlight any hands-on work with Kubernetes in recent projects.',
+      details: 'Include the cluster size, workloads, or tools used to show depth.',
+      severity: 'warning',
+      category: 'Skills',
+      order: 1,
+    },
+    {
+      id: 'rec-2',
+      title: 'Tighten resume length',
+      summary: 'Consider reducing to two pages for faster screening.',
+      details: 'Focus on the last 5-7 years and consolidate older roles.',
+      severity: 'info',
+      category: 'Structure',
+      order: 2,
+    },
+  ],
   atsChecks: [
     { id: 'ats-format', title: 'Formatting', severity: 'low', message: 'Header looks OK' },
     { id: 'ats-length', title: 'Length', severity: 'medium', message: 'Resume is 3 pages' },
@@ -45,8 +73,14 @@ const analyzeMock = async (documentId: string, jobDescription: string): Promise<
 
 const normalizeAnalysis = (analysis: AnalysisResponse): AnalysisResponse => ({
   ...analysis,
+  analysisMode: analysis.analysisMode ?? 'job_match',
+  missingKeywordBuckets: analysis.missingKeywordBuckets ?? {
+    fromJobDescription: analysis.missingKeywords ?? [],
+  },
   missingKeywords: analysis.missingKeywords ?? [],
   weakKeywords: analysis.weakKeywords ?? [],
+  matchedKeywords: analysis.matchedKeywords ?? [],
+  recommendations: analysis.recommendations ?? [],
   atsChecks: analysis.atsChecks ?? [],
   bulletSuggestions: analysis.bulletSuggestions ?? [],
   nextSteps: analysis.nextSteps ?? [],
@@ -66,7 +100,8 @@ const pollAnalysisResult = async (analysisId: string): Promise<AnalysisResponse>
     })
 
     if (statusBody.status === 'completed' && statusBody.result) {
-      return normalizeAnalysis(statusBody.result)
+      const adapted = fromBackendResult(statusBody.result)
+      return normalizeAnalysis(adapted)
     }
 
     await new Promise((resolve) => setTimeout(resolve, intervalMs))

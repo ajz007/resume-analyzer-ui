@@ -1,5 +1,8 @@
 import type { ReactNode } from 'react'
 import type { AnalysisResponse } from '../api/types'
+import { buildScoreExplanation } from '../analysis/scoreExplanation'
+import ScoreBreakdown from './ScoreBreakdown'
+import SkillGapSection from './SkillGapSection'
 
 type ResultBoxProps = {
   result: AnalysisResponse
@@ -19,6 +22,7 @@ const Section = ({
 )
 
 const ResultBox = ({ result }: ResultBoxProps) => {
+  const scoreExplanation = buildScoreExplanation(result)
   return (
     <div className="mt-6 space-y-4">
       <div className="bg-white rounded border p-4 flex items-center justify-between">
@@ -32,29 +36,9 @@ const ResultBox = ({ result }: ResultBoxProps) => {
         </div>
       </div>
 
-      <Section title="Missing Keywords">
-        {result.missingKeywords.length ? (
-          <ul className="list-disc list-inside">
-            {result.missingKeywords.map((kw) => (
-              <li key={kw}>{kw}</li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-gray-600 text-sm">No missing keywords detected.</p>
-        )}
-      </Section>
+      <ScoreBreakdown explanation={scoreExplanation} />
 
-      <Section title="Weak Keywords">
-        {result.weakKeywords.length ? (
-          <ul className="list-disc list-inside">
-            {result.weakKeywords.map((kw) => (
-              <li key={kw}>{kw}</li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-gray-600 text-sm">No weak keywords detected.</p>
-        )}
-      </Section>
+      <SkillGapSection result={result} />
 
       <Section title="ATS Checks">
         {result.atsChecks.length ? (

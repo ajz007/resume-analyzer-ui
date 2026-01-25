@@ -1,0 +1,41 @@
+{
+  "totalScore": 72,
+  "components": [
+    {
+      "id": "ats_readability",
+      "title": "ATS Readability",
+      "score": 78,
+      "weight": 0.25,
+      "explanation": "Measures how easily automated screeners can read your resume.",
+      "helpedBy": ["Most formatting and parsing rules are met."],
+      "draggedBy": ["Length: Resume is 3 pages"]
+    },
+    {
+      "id": "skill_match",
+      "title": "Skill Match",
+      "score": 70,
+      "weight": 0.35,
+      "explanation": "Compares your listed skills to the job requirements.",
+      "helpedBy": ["Several skills align with the job description."],
+      "draggedBy": ["Missing: Kubernetes, TypeScript", "Low emphasis: API design"]
+    },
+    {
+      "id": "experience_relevance",
+      "title": "Experience Relevance",
+      "score": 65,
+      "weight": 0.25,
+      "explanation": "Looks for clear, measurable impact in your experience.",
+      "helpedBy": ["Some bullets already include measurable outcomes."],
+      "draggedBy": ["Several bullets need stronger results or metrics."]
+    },
+    {
+      "id": "resume_structure",
+      "title": "Resume Structure",
+      "score": 80,
+      "weight": 0.15,
+      "explanation": "Checks layout, length, and section clarity.",
+      "helpedBy": ["Key sections are present and labeled."],
+      "draggedBy": ["Formatting: Header looks OK"]
+    }
+  ]
+}

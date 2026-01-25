@@ -1,5 +1,6 @@
 import { useNavigate, useParams } from 'react-router-dom'
 import ResultBox from '../components/ResultBox'
+import RecommendationsPanel from '../components/RecommendationsPanel'
 import { useAnalysisStore } from '../store/useAnalysisStore'
 import { useEffect, useState } from 'react'
 import type { AnalysisResponse } from '../api/types'
@@ -10,6 +11,13 @@ const ResultsPage = () => {
   const navigate = useNavigate()
   const { result, analysisId: latestId, reset, resetJdOnly } = useAnalysisStore()
   const [cachedResult, setCachedResult] = useState<AnalysisResponse | null>(null)
+
+  const normalizeCachedResult = (parsed: AnalysisResponse): AnalysisResponse => ({
+    ...parsed,
+    scoreExplanation: Array.isArray(parsed.scoreExplanation?.components)
+      ? parsed.scoreExplanation
+      : undefined,
+  })
 
   useEffect(() => {
     if (!analysisId) return
@@ -22,7 +30,7 @@ const ResultsPage = () => {
       const stored = localStorage.getItem(`analysis:${analysisId}`)
       if (stored) {
         const parsed = JSON.parse(stored) as AnalysisResponse
-        setCachedResult(parsed)
+        setCachedResult(normalizeCachedResult(parsed))
       } else {
         setCachedResult(null)
       }
@@ -53,7 +61,10 @@ const ResultsPage = () => {
       </div>
 
       {toRender ? (
-        <ResultBox result={toRender} />
+        <>
+          <ResultBox result={toRender} />
+          <RecommendationsPanel recommendations={toRender.recommendations} />
+        </>
       ) : (
         <div className={`${ui.card.padded} space-y-3`}>
           <p className="text-gray-700 font-semibold">Result not found.</p>
