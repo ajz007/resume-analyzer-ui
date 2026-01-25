@@ -1,21 +1,20 @@
-import { useEffect } from 'react'
 import { useUsageStore } from '../store/useUsageStore'
 import { ui } from '../app/uiTokens'
 
 const UsageBadge = () => {
-  const { usage, loading, error, fetch } = useUsageStore()
-
-  useEffect(() => {
-    if (!usage && !loading && !error) {
-      void fetch()
-    }
-  }, [usage, loading, error, fetch])
+  const { usage, loading, error, errorStatus } = useUsageStore()
 
   if (loading) {
     return <div className={ui.text.smallMuted}>Loading usage...</div>
   }
 
   if (error) {
+    if (errorStatus === 401) {
+      return <div className={ui.badge.usageUnavailable}>Sign in to see usage</div>
+    }
+    if (errorStatus === 420 || errorStatus === 429) {
+      return <div className={ui.badge.usageUnavailable}>Usage temporarily unavailable</div>
+    }
     return (
       <div className={ui.badge.usageUnavailable}>
         Usage unavailable

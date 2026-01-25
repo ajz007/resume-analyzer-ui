@@ -11,14 +11,14 @@ import { useEffect } from 'react'
 
 const AnalyzerPage = () => {
   const { error: analysisError } = useAnalysisStore()
-  const { error: usageError, fetch: fetchUsage } = useUsageStore()
+  const { error: usageError, fetch: fetchUsage, reset: resetUsage } = useUsageStore()
   const showBackendWarning = !env.useMockApi && (!!analysisError || !!usageError)
 
   useEffect(() => {
     let cancelled = false
     const runFetch = async () => {
       try {
-        await fetchUsage()
+        await fetchUsage({ silent: true })
       } catch {
         // swallow errors; toasts already handled at client layer
       }
@@ -33,11 +33,18 @@ const AnalyzerPage = () => {
     }
     document.addEventListener('visibilitychange', handleVisibility)
 
+    const handleAuthUpdate = () => {
+      resetUsage()
+      void runFetch()
+    }
+    window.addEventListener('auth-updated', handleAuthUpdate)
+
     return () => {
       cancelled = true
       document.removeEventListener('visibilitychange', handleVisibility)
+      window.removeEventListener('auth-updated', handleAuthUpdate)
     }
-  }, [fetchUsage])
+  }, [fetchUsage, resetUsage])
 
   return (
     <div className={ui.layout.stack}>

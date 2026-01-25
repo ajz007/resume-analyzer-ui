@@ -1,4 +1,4 @@
-export const MAX_RESUME_FILE_BYTES = 5 * 1024 * 1024 // 5MB
+export const MAX_RESUME_FILE_BYTES = 7 * 1024 * 1024 // 7MB
 
 export const JD_MIN_CHARS = 300
 

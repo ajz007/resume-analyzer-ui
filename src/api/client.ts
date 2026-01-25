@@ -7,6 +7,7 @@ export type ApiError = {
   message: string
   status: number
   details?: unknown
+  retryAfterMs?: number
 }
 
 const baseUrl = (env.apiBaseUrl || '').replace(/\/$/, '')
@@ -19,17 +20,26 @@ const buildUrl = (path: string) => {
   return `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`
 }
 
-export async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+type ApiRequestOptions = {
+  suppressToast?: boolean
+  suppressToastOnStatus?: number[]
+}
+
+export async function apiRequest<T>(
+  path: string,
+  init: RequestInit = {},
+  options: ApiRequestOptions = {},
+): Promise<T> {
   const url = buildUrl(path)
   let response: Response
 
   const headers = new Headers(init.headers ?? {})
   const token = getAuthToken()
+  const guestId = getOrCreateGuestId()
   if (token) {
     headers.set('Authorization', `Bearer ${token}`)
-  } else {
-    headers.set('X-Guest-Id', getOrCreateGuestId())
   }
+  headers.set('X-Guest-Id', guestId)
 
   try {
     response = await fetch(url, { ...init, headers })
@@ -59,13 +69,34 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
       (errBody?.message as string | undefined) ??
       `HTTP ${response.status}`
 
-    useToastStore
-      .getState()
-      .showToast({
-        type: 'error',
-        title: 'Request failed',
-        message: messageFromBody,
-      })
+    const suppressToast =
+      options.suppressToast ||
+      (Array.isArray(options.suppressToastOnStatus) &&
+        options.suppressToastOnStatus.includes(response.status))
+
+    if (!suppressToast) {
+      useToastStore
+        .getState()
+        .showToast({
+          type: 'error',
+          title: 'Request failed',
+          message: messageFromBody,
+        })
+    }
+
+    const retryAfterHeader = response.headers.get('Retry-After')
+    let retryAfterMs: number | undefined
+    if (retryAfterHeader) {
+      const seconds = Number(retryAfterHeader)
+      if (Number.isFinite(seconds)) {
+        retryAfterMs = Math.max(0, seconds * 1000)
+      } else {
+        const parsedDate = Date.parse(retryAfterHeader)
+        if (!Number.isNaN(parsedDate)) {
+          retryAfterMs = Math.max(0, parsedDate - Date.now())
+        }
+      }
+    }
 
     const error: ApiError = {
       code: typeof errBody?.code === 'string' ? errBody.code : 'unknown_error',
@@ -77,6 +108,7 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
           : `Request failed with status ${response.status}`,
       status: response.status,
       details: errBody?.details ?? parsed,
+      retryAfterMs,
     }
     throw error
   }

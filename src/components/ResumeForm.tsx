@@ -14,6 +14,7 @@ import {
 } from '../app/config'
 
 const formatFileSize = (bytes: number) => `${Math.round(bytes / 1024)} KB`
+const formatFileLimit = (bytes: number) => `${Math.round(bytes / (1024 * 1024))}MB`
 
 const ResumeForm = () => {
   const allowedMimeTypes = new Set(ALLOWED_RESUME_MIME_TYPES)
@@ -24,6 +25,8 @@ const ResumeForm = () => {
     jdText,
     status,
     error,
+    lastStatus,
+    lastErrorCode,
     setResumeFile,
     setJdText,
     submitAnalysis,
@@ -33,19 +36,13 @@ const ResumeForm = () => {
     setUploadedDoc,
   } = useAnalysisStore()
   const { addItem } = useHistoryStore()
-  const { usage, fetch: fetchUsage } = useUsageStore()
+  const { usage } = useUsageStore()
   const navigate = useNavigate()
-
-  useEffect(() => {
-    if (!usage) {
-      void fetchUsage()
-    }
-  }, [usage, fetchUsage])
 
   useEffect(() => {
     const loadCurrent = async () => {
       try {
-        const doc = await getCurrentDocument()
+        const doc = await getCurrentDocument({ silent: true })
         if (doc) setUploadedDoc(doc)
       } catch {
         // silent fail in demo mode
@@ -68,6 +65,9 @@ const ResumeForm = () => {
   const trimmedLength = jdText.trim().length
   const jdTooShort = trimmedLength < JD_MIN_CHARS
   const jdLength = jdText.length
+  const shouldRetry =
+    lastStatus === 'failed' || lastStatus === 'timed_out' || lastErrorCode === 'retry_required'
+  const analyzeLabel = loading ? 'Analyzing...' : shouldRetry ? 'Retry analysis' : 'Analyze'
 
   const validateAndSetFile = async (file: File | null) => {
     if (!file) {
@@ -90,7 +90,7 @@ const ResumeForm = () => {
     if (file.size > MAX_RESUME_FILE_BYTES) {
       setResumeFile(null)
       setUploadedDoc(undefined)
-      setError('File size must be under 5MB.')
+      setError(`File size must be under ${formatFileLimit(MAX_RESUME_FILE_BYTES)}.`)
       return
     }
 
@@ -100,7 +100,12 @@ const ResumeForm = () => {
       const doc = await uploadDocument(file)
       setUploadedDoc(doc)
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to upload resume.'
+      const message =
+        err instanceof Error
+          ? err.message
+          : typeof (err as { message?: unknown })?.message === 'string'
+          ? String((err as { message?: unknown }).message)
+          : 'Failed to upload resume.'
       setError(message)
       setResumeFile(null)
       setUploadedDoc(undefined)
@@ -118,9 +123,14 @@ const ResumeForm = () => {
     onDrop: async (acceptedFiles, fileRejections) => {
       if (fileRejections.length > 0) {
         const firstRejection = fileRejections[0]
+        const code = firstRejection.errors[0]?.code
         const message =
-          firstRejection.errors[0]?.message ||
-          'File was rejected. Please upload a PDF or DOC/DOCX under 5MB.'
+          code === 'file-too-large'
+            ? `File size must be under ${formatFileLimit(MAX_RESUME_FILE_BYTES)}.`
+            : firstRejection.errors[0]?.message ||
+              `File was rejected. Please upload a PDF or DOC/DOCX under ${formatFileLimit(
+                MAX_RESUME_FILE_BYTES,
+              )}.`
         setError(message)
         setResumeFile(null)
         setUploadedDoc(undefined)
@@ -208,10 +218,14 @@ const ResumeForm = () => {
             </div>
           ) : (
             <p className="text-sm text-gray-700">
-              Drag and drop your resume here, or click to browse (PDF/DOCX, &lt;5MB)
+              Drag and drop your resume here, or click to browse (PDF/DOCX, &lt;
+              {formatFileLimit(MAX_RESUME_FILE_BYTES)})
             </p>
           )}
         </div>
+        <p className="text-xs text-gray-500 mt-2">
+          Max file size: {formatFileLimit(MAX_RESUME_FILE_BYTES)}. PDF/DOC/DOCX only.
+        </p>
       </div>
 
       <div>
@@ -258,10 +272,14 @@ const ResumeForm = () => {
           type="submit"
           className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
           disabled={
-            loading || !uploadedDoc || jdTooShort || (usage ? usage.used >= usage.limit : false)
+            loading ||
+            lastStatus === 'processing' ||
+            !uploadedDoc ||
+            jdTooShort ||
+            (usage ? usage.used >= usage.limit : false)
           }
         >
-          {loading ? 'Analyzing...' : 'Analyze'}
+          {analyzeLabel}
         </button>
         <button
           type="button"

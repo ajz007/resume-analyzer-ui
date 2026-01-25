@@ -6,6 +6,7 @@ import { useToastStore } from '../store/useToastStore'
 import { ui } from '../app/uiTokens'
 import { isLoggedIn } from '../auth/identity'
 import { env } from '../app/env'
+import { getMatchScore, getOverallScore } from './historyScore'
 
 const HistoryPage = () => {
   const navigate = useNavigate()
@@ -22,12 +23,12 @@ const HistoryPage = () => {
 
   useEffect(() => {
     let cancelled = false
-    if (!loggedIn) {
-      setAnalyses([])
-      setItems([])
-      return
-    }
     const load = async () => {
+      if (!loggedIn) {
+        setAnalyses([])
+        setItems([])
+        return
+      }
       setLoading(true)
       try {
         const data = await fetchAnalyses({ limit: 20, offset: 0 })
@@ -49,9 +50,17 @@ const HistoryPage = () => {
         if (!cancelled) setLoading(false)
       }
     }
+
     void load()
+
+    const handleClaim = () => {
+      void load()
+    }
+    window.addEventListener('guest-claim-complete', handleClaim)
+
     return () => {
       cancelled = true
+      window.removeEventListener('guest-claim-complete', handleClaim)
     }
   }, [loggedIn, setItems, showToast])
 
@@ -59,6 +68,46 @@ const HistoryPage = () => {
     () => [...analyses].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
     [analyses],
   )
+
+  const getJobSnippet = (jobDescription?: string) => {
+    if (!jobDescription) return undefined
+    const lines = jobDescription.split('\n').map((line) => line.trim())
+    const firstLine = lines.find((line) => line.length > 0) ?? ''
+    const snippet = firstLine.length ? firstLine : jobDescription.trim()
+    if (!snippet) return undefined
+    return snippet.length > 60 ? `${snippet.slice(0, 60)}…` : snippet
+  }
+
+  const getTitle = (item: (typeof analyses)[number]) => {
+    if (item.resumeFileName) return item.resumeFileName
+    const snippet = getJobSnippet(item.jobDescription)
+    if (snippet) return snippet
+    const shortId = item.analysisId.slice(0, 8)
+    return shortId ? `Analysis ${shortId}` : 'Analysis'
+  }
+
+  const getSubtitle = (item: (typeof analyses)[number]) => {
+    if (item.resumeFileName) return `Resume: ${item.resumeFileName}`
+    const snippet = getJobSnippet(item.jobDescription)
+    if (snippet) return `JD: ${snippet}`
+    return undefined
+  }
+
+  const getSummaryText = (summary: unknown) => {
+    if (!summary) return undefined
+    if (typeof summary === 'string') return summary
+    if (typeof summary === 'object') {
+      const record = summary as {
+        overallAssessment?: string
+        strengths?: string[]
+        weaknesses?: string[]
+      }
+      if (record.overallAssessment) return record.overallAssessment
+      const parts = [...(record.strengths ?? []), ...(record.weaknesses ?? [])].filter(Boolean)
+      if (parts.length) return parts.join(' ')
+    }
+    return undefined
+  }
 
   return (
     <div className="p-6">
@@ -118,8 +167,8 @@ const HistoryPage = () => {
       ) : (
         <div className={ui.card.list}>
           {sorted.map((item, idx) => {
-            const shortId = item.analysisId.slice(0, 8)
-            const matchScore = typeof item.matchScore === 'number' ? item.matchScore : undefined
+            const overallScore = getOverallScore(item)
+            const matchScore = getMatchScore(item)
             return (
               <div
                 key={item.analysisId}
@@ -133,15 +182,25 @@ const HistoryPage = () => {
                   </span>
                 </div>
                 <div className="mt-2 text-sm font-semibold text-gray-900">
-                  {shortId ? `Analysis ${shortId}` : 'Analysis'}
+                  {getTitle(item)}
                 </div>
-                {typeof matchScore === 'number' && (
-                  <div className="mt-1 inline-flex items-center px-3 py-1 rounded-full bg-blue-50 text-blue-800 border border-blue-100 text-sm font-semibold">
-                    Score: {matchScore}/100
-                  </div>
+                {getSubtitle(item) && (
+                  <p className="text-xs text-gray-600 mt-1">{getSubtitle(item)}</p>
                 )}
-                {item.summary && (
-                  <p className="mt-2 text-sm text-gray-700 line-clamp-2">{item.summary}</p>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  <div className="inline-flex items-center px-3 py-1 rounded-full bg-blue-50 text-blue-800 border border-blue-100 text-sm font-semibold">
+                    Overall: {overallScore}
+                  </div>
+                  {matchScore !== '—' && (
+                    <div className="inline-flex items-center px-3 py-1 rounded-full bg-blue-50 text-blue-800 border border-blue-100 text-sm font-semibold">
+                      Match: {matchScore}
+                    </div>
+                  )}
+                </div>
+                {getSummaryText(item.summary) && (
+                  <p className="mt-2 text-sm text-gray-700 line-clamp-2">
+                    {getSummaryText(item.summary)}
+                  </p>
                 )}
               </div>
             )
@@ -153,3 +212,4 @@ const HistoryPage = () => {
 }
 
 export default HistoryPage
+
