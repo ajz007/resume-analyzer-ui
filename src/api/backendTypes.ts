@@ -5,6 +5,7 @@ export interface BackendMeta {
   createdAt?: string
   analysisMode?: 'resume_only' | 'job_match'
   documentId?: string
+  jobDescriptionProvided?: boolean
 }
 
 export interface BackendSummary {
@@ -15,10 +16,14 @@ export interface BackendSummary {
 
 export interface BackendScoreComponent {
   id?: string
+  key?: string
   title?: string
+  label?: string
   score?: number
   weight?: number
   explanation?: string
+  helped?: string[]
+  dragged?: string[]
 }
 
 export interface BackendScoreBreakdown {
@@ -38,9 +43,16 @@ export interface BackendIssue {
   severity?: BackendSeverity
   message?: string
   detail?: string
+  section?: string
+  problem?: string
+  suggestion?: string
+  whyItMatters?: string
+  requiresUserInput?: string[]
+  priority?: number
 }
 
 export interface BackendATS {
+  score?: number
   scoreBreakdown?: BackendScoreBreakdown
   scoreReasoning?: string
   scoreExplanation?: BackendScoreExplanation | string
@@ -58,12 +70,20 @@ export interface BackendBulletRewrite {
   original?: string
   rewrite?: string
   reason?: string
+  before?: string
+  after?: string
+  rationale?: string
+  section?: string
+  claimSupport?: 'supported' | 'placeholder'
+  placeholdersNeeded?: string[]
+  metricsSource?: string
 }
 
 export interface BackendRecommendation {
   id?: string
   title?: string
   summary?: string
+  action?: string
   details?: string
   severity?: BackendSeverity
   category?: string
@@ -72,6 +92,9 @@ export interface BackendRecommendation {
 
 export interface BackendActionPlan {
   steps?: string[]
+  quickWins?: string[]
+  mediumEffort?: string[]
+  deepFixes?: string[]
 }
 
 export interface BackendMissingInformation {

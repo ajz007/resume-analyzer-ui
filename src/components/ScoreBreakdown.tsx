@@ -21,7 +21,10 @@ const ScoreBreakdown = ({ explanation }: ScoreBreakdownProps) => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-semibold">{component.title}</p>
-                <p className="text-xs text-gray-500">Weight: {Math.round(component.weight * 100)}%</p>
+                <p className="text-xs text-gray-500">
+                  Contribution:{' '}
+                  {component.weight <= 1 ? Math.round(component.weight * 100) : Math.round(component.weight)}%
+                </p>
               </div>
               <div className="text-right">
                 <p className="text-xs text-gray-500">Score</p>
@@ -30,7 +33,7 @@ const ScoreBreakdown = ({ explanation }: ScoreBreakdownProps) => {
             </div>
             <p className="text-sm text-gray-700">{component.explanation}</p>
             <div className="text-sm">
-              <p className="text-green-700 font-semibold">Helped</p>
+              <p className="text-green-700 font-semibold">What&apos;s working</p>
               {component.helpedBy.length ? (
                 <ul className="list-disc list-inside text-green-700">
                   {component.helpedBy.map((item, idx) => (
@@ -38,11 +41,11 @@ const ScoreBreakdown = ({ explanation }: ScoreBreakdownProps) => {
                   ))}
                 </ul>
               ) : (
-                <p className="text-green-700">No strong positives flagged.</p>
+                <p className="text-green-700">No notable strengths detected.</p>
               )}
             </div>
             <div className="text-sm">
-              <p className="text-amber-700 font-semibold">Dragged Down</p>
+              <p className="text-amber-700 font-semibold">What to improve next</p>
               {component.draggedBy.length ? (
                 <ul className="list-disc list-inside text-amber-700">
                   {component.draggedBy.map((item, idx) => (
@@ -50,7 +53,7 @@ const ScoreBreakdown = ({ explanation }: ScoreBreakdownProps) => {
                   ))}
                 </ul>
               ) : (
-                <p className="text-amber-700">No major blockers detected.</p>
+                <p className="text-amber-700">No major issues detected.</p>
               )}
             </div>
           </div>

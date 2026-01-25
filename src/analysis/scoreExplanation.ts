@@ -122,13 +122,13 @@ const mapBackendExplanation = (
   return {
     totalScore: payload?.totalScore ?? fallbackTotal,
     components: components.map((component) => ({
-      id: normalizeComponentId(component.id, component.title),
-      title: component.title ?? 'Score component',
+      id: normalizeComponentId(component.id ?? component.key, component.label ?? component.title),
+      title: component.label ?? component.title ?? 'Score component',
       score: component.score ?? 0,
       weight: component.weight ?? 0,
       explanation: component.explanation ?? 'Score provided by the analysis engine.',
-      helpedBy: [],
-      draggedBy: [],
+      helpedBy: component.helped ?? [],
+      draggedBy: component.dragged ?? [],
     })),
   }
 }
@@ -136,7 +136,7 @@ const mapBackendExplanation = (
 export const buildScoreExplanation = (analysis: AnalysisResponse): ScoreExplanation => {
   const backendExplanation = mapBackendExplanation(
     analysis.scoreExplanation,
-    Math.round(analysis.matchScore ?? 0),
+    Math.round(analysis.finalScore ?? analysis.matchScore ?? 0),
   )
   if (backendExplanation) return backendExplanation
 
@@ -188,7 +188,7 @@ export const buildScoreExplanation = (analysis: AnalysisResponse): ScoreExplanat
     },
   ]
 
-  const targetScore = clamp(Math.round(analysis.matchScore ?? 0))
+  const targetScore = clamp(Math.round(analysis.finalScore ?? analysis.matchScore ?? 0))
   const scaled = scaleToMatchScore(components, targetScore)
 
   return {

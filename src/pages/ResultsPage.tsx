@@ -2,6 +2,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import ResultBox from '../components/ResultBox'
 import RecommendationsPanel from '../components/RecommendationsPanel'
 import { useAnalysisStore } from '../store/useAnalysisStore'
+import { fetchAnalysisResult } from '../api/endpoints'
 import { useEffect, useState } from 'react'
 import type { AnalysisResponse } from '../api/types'
 import { ui } from '../app/uiTokens'
@@ -17,6 +18,7 @@ const ResultsPage = () => {
     scoreExplanation: Array.isArray(parsed.scoreExplanation?.components)
       ? parsed.scoreExplanation
       : undefined,
+    finalScore: parsed.finalScore ?? parsed.matchScore ?? 0,
   })
 
   useEffect(() => {
@@ -26,16 +28,29 @@ const ResultsPage = () => {
       return
     }
 
-    try {
-      const stored = localStorage.getItem(`analysis:${analysisId}`)
-      if (stored) {
-        const parsed = JSON.parse(stored) as AnalysisResponse
-        setCachedResult(normalizeCachedResult(parsed))
-      } else {
-        setCachedResult(null)
+    let cancelled = false
+
+    const load = async () => {
+      try {
+        const stored = localStorage.getItem(`analysis:${analysisId}`)
+        if (stored) {
+          const parsed = JSON.parse(stored) as AnalysisResponse
+          setCachedResult(normalizeCachedResult(parsed))
+          return
+        }
+
+        const fetched = await fetchAnalysisResult(analysisId)
+        if (cancelled) return
+        setCachedResult(fetched ? normalizeCachedResult(fetched) : null)
+      } catch {
+        if (!cancelled) setCachedResult(null)
       }
-    } catch {
-      setCachedResult(null)
+    }
+
+    void load()
+
+    return () => {
+      cancelled = true
     }
   }, [analysisId, result, latestId])
 
@@ -47,6 +62,32 @@ const ResultsPage = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className={ui.text.h2}>Resume Analysis Report</h1>
+          <p className="text-sm text-gray-600 mt-1">
+            Jump to:{' '}
+            <a href="#score-breakdown" className="underline text-blue-700">
+              Score Breakdown
+            </a>{' '}
+            ·{' '}
+            <a href="#skill-gaps" className="underline text-blue-700">
+              Skill Gaps
+            </a>{' '}
+            ·{' '}
+            <a href="#ats-checks" className="underline text-blue-700">
+              ATS Checks
+            </a>{' '}
+            ·{' '}
+            <a href="#rewrites" className="underline text-blue-700">
+              Rewrites
+            </a>{' '}
+            ·{' '}
+            <a href="#next-steps" className="underline text-blue-700">
+              Next Steps
+            </a>{' '}
+            ·{' '}
+            <a href="#findings" className="underline text-blue-700">
+              Findings
+            </a>
+          </p>
           {toRender?.createdAt && (
             <p className={ui.text.subtitle}>
               Analyzed at: {new Date(toRender.createdAt).toLocaleString()}
@@ -55,7 +96,7 @@ const ResultsPage = () => {
         </div>
         {toRender && (
           <span className={`${ui.badge.score} bg-blue-100 text-blue-800 border-blue-200`}>
-            Score: {toRender.matchScore}/100
+            Score: {(toRender.finalScore ?? toRender.matchScore)}/100
           </span>
         )}
       </div>
@@ -63,7 +104,9 @@ const ResultsPage = () => {
       {toRender ? (
         <>
           <ResultBox result={toRender} />
-          <RecommendationsPanel recommendations={toRender.recommendations} />
+          <div id="findings">
+            <RecommendationsPanel recommendations={toRender.recommendations} />
+          </div>
         </>
       ) : (
         <div className={`${ui.card.padded} space-y-3`}>
