@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDropzone } from 'react-dropzone'
 import { uploadDocument, getCurrentDocument } from '../api/documents'
@@ -20,6 +20,7 @@ const ResumeForm = () => {
   const allowedMimeTypes = new Set(ALLOWED_RESUME_MIME_TYPES)
   const allowedExtensions = new Set(ALLOWED_RESUME_EXTENSIONS)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [uploadStatus, setUploadStatus] = useState<string | undefined>(undefined)
 
   const {
     jdText,
@@ -96,9 +97,13 @@ const ResumeForm = () => {
 
     setError(undefined)
     setResumeFile(file)
+    setUploadStatus(undefined)
     try {
-      const doc = await uploadDocument(file)
+      const doc = await uploadDocument(file, (statusMessage) => {
+        setUploadStatus(statusMessage)
+      })
       setUploadedDoc(doc)
+      setUploadStatus(undefined)
     } catch (err) {
       const message =
         err instanceof Error
@@ -109,6 +114,7 @@ const ResumeForm = () => {
       setError(message)
       setResumeFile(null)
       setUploadedDoc(undefined)
+      setUploadStatus(undefined)
     }
   }
 
@@ -209,6 +215,7 @@ const ResumeForm = () => {
                     setResumeFile(null)
                     setUploadedDoc(undefined)
                     setError(undefined)
+                    setUploadStatus(undefined)
                     if (fileInputRef.current) fileInputRef.current.value = ''
                   }}
                 >
@@ -226,6 +233,7 @@ const ResumeForm = () => {
         <p className="text-xs text-gray-500 mt-2">
           Max file size: {formatFileLimit(MAX_RESUME_FILE_BYTES)}. PDF/DOC/DOCX only.
         </p>
+        {uploadStatus && <div className="text-sm text-gray-600 mt-2">{uploadStatus}</div>}
       </div>
 
       <div>
