@@ -114,7 +114,7 @@ const normalizeAnalysis = (analysis: AnalysisResponse): AnalysisResponse => ({
   nextSteps: analysis.nextSteps ?? [],
 })
 
-const DEFAULT_POLL_MS = 2000
+const DEFAULT_POLL_MS = 20000
 const MAX_BACKOFF_MS = 15_000
 const HIDDEN_POLL_MS = 8000
 const JITTER_MS = 200
