@@ -12,11 +12,16 @@ import {
   JD_MIN_CHARS,
   MAX_RESUME_FILE_BYTES,
 } from '../app/config'
+import { COPY } from '../constants/uiCopy'
 
 const formatFileSize = (bytes: number) => `${Math.round(bytes / 1024)} KB`
 const formatFileLimit = (bytes: number) => `${Math.round(bytes / (1024 * 1024))}MB`
 
-const ResumeForm = () => {
+type ResumeFormProps = {
+  analysisMode: 'ATS' | 'JOB_MATCH'
+}
+
+const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
   const allowedMimeTypes = new Set(ALLOWED_RESUME_MIME_TYPES)
   const allowedExtensions = new Set(ALLOWED_RESUME_EXTENSIONS)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -26,10 +31,12 @@ const ResumeForm = () => {
     jdText,
     status,
     error,
+    errorDetail,
     lastStatus,
     lastErrorCode,
     setResumeFile,
     setJdText,
+    setAnalysisMode,
     submitAnalysis,
     setError,
     reset,
@@ -64,11 +71,18 @@ const ResumeForm = () => {
 
   const loading = status === 'analyzing'
   const trimmedLength = jdText.trim().length
-  const jdTooShort = trimmedLength < JD_MIN_CHARS
+  const requiresJd = analysisMode === 'JOB_MATCH'
+  const jdTooShort = requiresJd && trimmedLength < JD_MIN_CHARS
   const jdLength = jdText.length
   const shouldRetry =
     lastStatus === 'failed' || lastStatus === 'timed_out' || lastErrorCode === 'retry_required'
-  const analyzeLabel = loading ? 'Analyzing...' : shouldRetry ? 'Retry analysis' : 'Analyze'
+  const baseAnalyzeLabel =
+    analysisMode === 'ATS' ? COPY.form.ats.cta : COPY.form.jobMatch.cta
+  const analyzeLabel = loading
+    ? COPY.form.analyzing.title
+    : shouldRetry
+    ? 'Retry analysis'
+    : baseAnalyzeLabel
 
   const validateAndSetFile = async (file: File | null) => {
     if (!file) {
@@ -155,13 +169,19 @@ const ResumeForm = () => {
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault()
     if (!uploadedDoc) {
-      setError('Please upload a resume.')
+      setError(COPY.form.errors.resumeMissing)
       return
     }
 
-    if (jdTooShort) {
-      setError(`Please paste a longer job description (min ${JD_MIN_CHARS} chars).`)
-      return
+    if (analysisMode === 'JOB_MATCH') {
+      if (!jdText.trim()) {
+        setError(COPY.form.errors.jdMissing)
+        return
+      }
+      if (jdTooShort) {
+        setError(COPY.form.errors.jdTooShort)
+        return
+      }
     }
 
     await submitWithHistory()
@@ -169,10 +189,21 @@ const ResumeForm = () => {
 
   return (
     <form className="bg-white p-4 rounded-lg shadow-md space-y-4" onSubmit={onSubmit}>
+      <div className="space-y-1">
+        <h2 className="text-lg font-semibold text-gray-900">
+          {analysisMode === 'ATS' ? COPY.form.ats.header : COPY.form.jobMatch.header}
+        </h2>
+        <p className="text-sm text-gray-600">
+          {analysisMode === 'ATS' ? COPY.form.ats.description : COPY.form.jobMatch.description}
+        </p>
+      </div>
       <div>
-        <label className="block mb-2 font-semibold" htmlFor="resume">
-          Upload Resume (PDF/DOCX):
+        <label className="block mb-1 font-semibold" htmlFor="resume">
+          {COPY.form.uploadLabel}
         </label>
+        <p className="text-xs text-gray-500 mb-2">
+          {COPY.form.uploadHelper.replace('{maxSize}', formatFileLimit(MAX_RESUME_FILE_BYTES))}
+        </p>
         <div
           {...getRootProps({
             className: `w-full border-2 border-dashed rounded p-4 text-center cursor-pointer ${
@@ -230,38 +261,50 @@ const ResumeForm = () => {
             </p>
           )}
         </div>
-        <p className="text-xs text-gray-500 mt-2">
-          Max file size: {formatFileLimit(MAX_RESUME_FILE_BYTES)}. PDF/DOC/DOCX only.
-        </p>
         {uploadStatus && <div className="text-sm text-gray-600 mt-2">{uploadStatus}</div>}
       </div>
 
-      <div>
-        <label className="block mb-2 font-semibold" htmlFor="jd">
-          Paste Job Description:
-        </label>
-        <textarea
-          id="jd"
-          className="w-full p-2 border rounded"
-          rows={6}
-          value={jdText}
-          onChange={(e) => setJdText(e.target.value)}
-        />
-        <div className="flex items-center justify-between text-sm mt-1">
-          <span className={jdTooShort ? 'text-gray-600' : 'text-green-700'}>
-            {jdLength === 0
-              ? `Minimum ${JD_MIN_CHARS} characters recommended.`
-              : jdTooShort
-              ? `Add ${Math.max(JD_MIN_CHARS - trimmedLength, 0)} more characters.`
-              : 'Looks good.'}
-          </span>
-          <span className={jdTooShort ? 'text-gray-600' : 'text-green-700'}>
-            {jdLength} / {JD_MIN_CHARS} characters
-          </span>
+      {analysisMode === 'JOB_MATCH' ? (
+        <div>
+          <label className="block mb-1 font-semibold" htmlFor="jd">
+            {COPY.form.jobMatch.jdLabel}
+          </label>
+          <p className="text-xs text-gray-500 mb-2">{COPY.form.jobMatch.jdHelper}</p>
+          <textarea
+            id="jd"
+            className="w-full p-2 border rounded"
+            rows={6}
+            value={jdText}
+            onChange={(e) => setJdText(e.target.value)}
+            placeholder={COPY.form.jobMatch.jdPlaceholder}
+          />
+          <div className="flex items-center justify-between text-sm mt-1">
+            <span className={jdTooShort ? 'text-gray-600' : 'text-green-700'}>
+              {jdTooShort
+                ? COPY.form.jobMatch.jdCounterShort.replace(
+                    '{remaining}',
+                    String(Math.max(JD_MIN_CHARS - trimmedLength, 0)),
+                  )
+                : COPY.form.jobMatch.jdCounterOk}
+            </span>
+            <span className={jdTooShort ? 'text-gray-600' : 'text-green-700'}>
+              {jdLength} / {JD_MIN_CHARS} characters
+            </span>
+          </div>
         </div>
-      </div>
+      ) : null}
 
-      {error && <div className="text-red-600 text-sm">{error}</div>}
+      {error && (
+        <div className="text-red-600 text-sm space-y-2">
+          <p>{error}</p>
+          {errorDetail && (
+            <details className="text-xs text-red-700">
+              <summary className="cursor-pointer">{COPY.form.detailsLabel}</summary>
+              <p className="mt-1">{errorDetail}</p>
+            </details>
+          )}
+        </div>
+      )}
       {usage && usage.used >= usage.limit && (
         <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded p-3">
           You&apos;ve reached your analysis limit. Upgrade your plan to continue.{' '}
@@ -297,7 +340,34 @@ const ResumeForm = () => {
         >
           Reset
         </button>
+        <button
+          type="button"
+          onClick={() =>
+            setAnalysisMode(analysisMode === 'ATS' ? 'JOB_MATCH' : 'ATS')
+          }
+          className="text-blue-700 underline text-sm"
+          disabled={loading}
+        >
+          {analysisMode === 'ATS' ? COPY.form.ats.switch : COPY.form.jobMatch.switch}
+        </button>
       </div>
+
+      {loading && (
+        <div className="text-sm text-gray-600 space-y-1">
+          <p className="font-semibold text-gray-900">{COPY.form.analyzing.title}</p>
+          <ul className="list-disc list-inside">
+            {COPY.form.analyzing.steps.common.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+            <li>
+              {analysisMode === 'ATS'
+                ? COPY.form.analyzing.steps.ats
+                : COPY.form.analyzing.steps.jobMatch}
+            </li>
+          </ul>
+          <p className="text-xs text-gray-500">{COPY.form.analyzing.footer}</p>
+        </div>
+      )}
     </form>
   )
 }

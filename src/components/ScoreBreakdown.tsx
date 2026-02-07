@@ -1,4 +1,5 @@
 import type { ScoreExplanation } from '../analysis/scoreExplanation'
+import { COPY } from '../constants/uiCopy'
 
 type ScoreBreakdownProps = {
   explanation: ScoreExplanation
@@ -10,7 +11,7 @@ const ScoreBreakdown = ({ explanation }: ScoreBreakdownProps) => {
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">Score Breakdown</h3>
         <div className="text-right">
-          <p className="text-xs text-gray-500">Final Score</p>
+          <p className="text-xs text-gray-500">{COPY.results.scoreBreakdownLabel}</p>
           <p className="text-2xl font-bold text-blue-700">{explanation.totalScore}/100</p>
         </div>
       </div>

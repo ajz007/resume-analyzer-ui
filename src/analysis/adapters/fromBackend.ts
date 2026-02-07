@@ -41,6 +41,9 @@ const clamp = (value: number, min = 0, max = 100) => Math.min(max, Math.max(min,
 
 const computeFromBreakdown = (explanation?: BackendScoreExplanation | string) => {
   if (!explanation || typeof explanation === 'string') return undefined
+  if (typeof explanation.totalScore === 'number') {
+    return clamp(Math.round(explanation.totalScore))
+  }
   const components = toArray(explanation.components)
   if (!components.length) return undefined
   const totalWeight = components.reduce((sum, component) => sum + (component.weight ?? 0), 0)

@@ -115,28 +115,41 @@ const normalizeComponentId = (id?: string, title?: string): ScoreComponentId => 
 const mapBackendExplanation = (
   payload?: ScoreExplanationPayload,
   fallbackTotal = 0,
+  isAtsMode = false,
 ): ScoreExplanation | null => {
   const components = payload?.components ?? []
-  if (components.length !== 4) return null
+  if (!components.length) return null
+
+  const mappedComponents = components.map((component) => ({
+    id: normalizeComponentId(component.id ?? component.key, component.label ?? component.title),
+    title: component.label ?? component.title ?? 'Score component',
+    score: component.score ?? 0,
+    weight: component.weight ?? 0,
+    explanation: component.explanation ?? 'Score provided by the analysis engine.',
+    helpedBy: component.helped ?? [],
+    draggedBy: component.dragged ?? [],
+  }))
+
+  const filteredComponents = isAtsMode
+    ? mappedComponents.filter(
+        (component) => component.id === 'ats_readability' || component.id === 'resume_structure',
+      )
+    : mappedComponents
+
+  if (!filteredComponents.length) return null
 
   return {
     totalScore: payload?.totalScore ?? fallbackTotal,
-    components: components.map((component) => ({
-      id: normalizeComponentId(component.id ?? component.key, component.label ?? component.title),
-      title: component.label ?? component.title ?? 'Score component',
-      score: component.score ?? 0,
-      weight: component.weight ?? 0,
-      explanation: component.explanation ?? 'Score provided by the analysis engine.',
-      helpedBy: component.helped ?? [],
-      draggedBy: component.dragged ?? [],
-    })),
+    components: filteredComponents,
   }
 }
 
 export const buildScoreExplanation = (analysis: AnalysisResponse): ScoreExplanation => {
+  const isAtsMode = analysis.analysisMode === 'resume_only' || analysis.analysisMode === 'ats'
   const backendExplanation = mapBackendExplanation(
     analysis.scoreExplanation,
     Math.round(analysis.finalScore ?? analysis.matchScore ?? 0),
+    isAtsMode,
   )
   if (backendExplanation) return backendExplanation
 
@@ -146,47 +159,53 @@ export const buildScoreExplanation = (analysis: AnalysisResponse): ScoreExplanat
 
   const ats = buildAtsComponent(readabilityChecks)
   const structure = buildStructureComponent(formattingChecks)
-  const skills = buildSkillComponent(analysis)
-  const experience = buildExperienceComponent(analysis)
-
-  const components: ScoreComponent[] = [
+  let components: ScoreComponent[] = [
     {
       id: 'ats_readability',
       title: 'ATS Readability',
-      weight: 0.25,
+      weight: isAtsMode ? 0.5 : 0.25,
       score: ats.score,
       explanation: 'Measures how easily automated screeners can read your resume.',
       helpedBy: ats.helped,
       draggedBy: ats.dragged,
     },
     {
-      id: 'skill_match',
-      title: 'Skill Match',
-      weight: 0.35,
-      score: skills.score,
-      explanation: 'Compares your listed skills to the job requirements.',
-      helpedBy: skills.helped,
-      draggedBy: skills.dragged,
-    },
-    {
-      id: 'experience_relevance',
-      title: 'Experience Relevance',
-      weight: 0.25,
-      score: experience.score,
-      explanation: 'Looks for clear, measurable impact in your experience.',
-      helpedBy: experience.helped,
-      draggedBy: experience.dragged,
-    },
-    {
       id: 'resume_structure',
       title: 'Resume Structure',
-      weight: 0.15,
+      weight: isAtsMode ? 0.5 : 0.15,
       score: structure.score,
       explanation: 'Checks layout, length, and section clarity.',
       helpedBy: structure.helped,
       draggedBy: structure.dragged,
     },
   ]
+
+  if (!isAtsMode) {
+    const skills = buildSkillComponent(analysis)
+    const experience = buildExperienceComponent(analysis)
+    components = [
+      components[0],
+      {
+        id: 'skill_match',
+        title: 'Skill Match',
+        weight: 0.35,
+        score: skills.score,
+        explanation: 'Compares your listed skills to the job requirements.',
+        helpedBy: skills.helped,
+        draggedBy: skills.dragged,
+      },
+      {
+        id: 'experience_relevance',
+        title: 'Experience Relevance',
+        weight: 0.25,
+        score: experience.score,
+        explanation: 'Looks for clear, measurable impact in your experience.',
+        helpedBy: experience.helped,
+        draggedBy: experience.dragged,
+      },
+      components[1],
+    ]
+  }
 
   const targetScore = clamp(Math.round(analysis.finalScore ?? analysis.matchScore ?? 0))
   const scaled = scaleToMatchScore(components, targetScore)

@@ -2,6 +2,8 @@ import type { ReactNode } from 'react'
 import { useState } from 'react'
 import type { AnalysisResponse } from '../api/types'
 import { buildScoreExplanation } from '../analysis/scoreExplanation'
+import { useAnalysisStore } from '../store/useAnalysisStore'
+import { COPY } from '../constants/uiCopy'
 import ScoreBreakdown from './ScoreBreakdown'
 import SkillGapSection from './SkillGapSection'
 
@@ -154,6 +156,29 @@ const Section = ({
 )
 
 const ResultBox = ({ result }: ResultBoxProps) => {
+  const { analysisMode } = useAnalysisStore()
+  const isAtsMode = analysisMode === 'ATS'
+  const modeLabel = isAtsMode ? COPY.results.ats.label : COPY.results.jobMatch.label
+  const modeExplanation = isAtsMode ? COPY.results.ats.explanation : COPY.results.jobMatch.explanation
+  const maybeAtsScore =
+    typeof (result as { atsScore?: number }).atsScore === 'number'
+      ? (result as { atsScore?: number }).atsScore
+      : typeof (result as { ats?: { score?: number } }).ats?.score === 'number'
+      ? (result as { ats?: { score?: number } }).ats?.score
+      : undefined
+  const displayScore = isAtsMode
+    ? maybeAtsScore ?? result.finalScore ?? result.matchScore
+    : result.matchScore ?? result.finalScore ?? 0
+  const hasAtsDetails =
+    (result.atsChecks?.length ?? 0) > 0 ||
+    (result.issues?.length ?? 0) > 0 ||
+    (result.bulletSuggestions?.length ?? 0) > 0
+  const showAtsEmptyNote = isAtsMode && !hasAtsDetails
+  const showMissingJobNote =
+    !isAtsMode &&
+    result.matchScore === 0 &&
+    (result.missingKeywords?.length ?? 0) === 0 &&
+    (result.matchedKeywords?.length ?? 0) === 0
   const scoreExplanation = buildScoreExplanation(result)
   return (
     <div className="mt-6 space-y-4">
@@ -163,10 +188,15 @@ const ResultBox = ({ result }: ResultBoxProps) => {
           <p className="text-sm text-gray-600">Analysis ID: {result.analysisId}</p>
         </div>
         <div className="text-right">
-          <p className="text-sm text-gray-500">Final Score</p>
-          <p className="text-3xl font-bold text-blue-700">
-            {(result.finalScore ?? result.matchScore)}/100
-          </p>
+          <p className="text-sm text-gray-500">{modeLabel}</p>
+          <p className="text-3xl font-bold text-blue-700">{displayScore}/100</p>
+          <p className="text-xs text-gray-500 mt-1">{modeExplanation}</p>
+          {showAtsEmptyNote ? (
+            <p className="text-xs text-gray-500 mt-1">{COPY.results.ats.emptyNote}</p>
+          ) : null}
+          {showMissingJobNote ? (
+            <p className="text-xs text-gray-500 mt-1">{COPY.results.jobMatch.missingNote}</p>
+          ) : null}
         </div>
       </div>
 
