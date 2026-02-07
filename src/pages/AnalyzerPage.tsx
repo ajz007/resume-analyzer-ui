@@ -59,11 +59,11 @@ const AnalyzerPage = () => {
           <UsageBadge />
         </div>
       </div>
-      {showBackendWarning && (
+      {/* {showBackendWarning && (
         <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded">
           Backend not connected yet. Enable mock mode (VITE_USE_MOCK_API=true) for demo.
         </div>
-      )}
+      )} */}
       <div className={ui.layout.gridMain}>
         <div className="lg:col-span-2 space-y-4">
           <ModeSelector value={analysisMode} onChange={setAnalysisMode} />

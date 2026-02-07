@@ -14,6 +14,7 @@ React + Vite front-end for the Resume Analyzer application.
 ```powershell
 npm ci
 npm run build -- --mode production
+aws s3 sync dist/ s3://ra-prod-ui-us-east-1-ajz007/ --delete
 ```
 
 ### Required production environment variables
