@@ -63,8 +63,15 @@ const buildStructureComponent = (checks: AtsCheck[]) => {
   return { score, helped, dragged }
 }
 
-const buildSkillComponent = (analysis: AnalysisResponse) => {
-  const missing = analysis.missingKeywords ?? []
+type AnalysisWithNormalized = AnalysisResponse & {
+  normalized?: {
+    missingKeywordsFromJD?: string[]
+    bulletSuggestions?: AnalysisResponse['bulletSuggestions']
+  }
+}
+
+const buildSkillComponent = (analysis: AnalysisWithNormalized) => {
+  const missing = analysis.normalized?.missingKeywordsFromJD ?? analysis.missingKeywords ?? []
   const weak = analysis.weakKeywords ?? []
   const score = clamp(100 - missing.length * 10 - weak.length * 5)
   const helped: string[] = []
@@ -81,8 +88,8 @@ const buildSkillComponent = (analysis: AnalysisResponse) => {
   return { score, helped, dragged }
 }
 
-const buildExperienceComponent = (analysis: AnalysisResponse) => {
-  const suggestions = analysis.bulletSuggestions ?? []
+const buildExperienceComponent = (analysis: AnalysisWithNormalized) => {
+  const suggestions = analysis.normalized?.bulletSuggestions ?? analysis.bulletSuggestions ?? []
   const penalty = Math.min(50, suggestions.length * 12)
   const score = clamp(100 - penalty)
   const helped = suggestions.length
@@ -144,8 +151,14 @@ const mapBackendExplanation = (
   }
 }
 
-export const buildScoreExplanation = (analysis: AnalysisResponse): ScoreExplanation => {
-  const isAtsMode = analysis.analysisMode === 'resume_only' || analysis.analysisMode === 'ats'
+export const buildScoreExplanation = (
+  analysis: AnalysisWithNormalized,
+  mode?: 'ATS' | 'JOB_MATCH',
+): ScoreExplanation => {
+  const isAtsMode =
+    mode === 'ATS' ||
+    (mode === undefined &&
+      (analysis.analysisMode === 'resume_only' || analysis.analysisMode === 'ats'))
   const backendExplanation = mapBackendExplanation(
     analysis.scoreExplanation,
     Math.round(analysis.finalScore ?? analysis.matchScore ?? 0),

@@ -1,12 +1,8 @@
-import { describe, expect, it, vi } from 'vitest'
+﻿import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { AnalysisResponse } from '../api/types'
-
-let currentMode: 'ATS' | 'JOB_MATCH' = 'JOB_MATCH'
-
-vi.mock('../store/useAnalysisStore', () => ({
-  useAnalysisStore: () => ({ analysisMode: currentMode }),
-}))
+import { normalizeAnalysisResponse } from '../analysis/normalizeAnalysisResponse'
+import ResultBox from './ResultBox'
 
 const buildResult = (overrides: Partial<AnalysisResponse> = {}): AnalysisResponse => ({
   analysisId: 'analysis-1',
@@ -22,20 +18,18 @@ const buildResult = (overrides: Partial<AnalysisResponse> = {}): AnalysisRespons
   ...overrides,
 })
 
-describe('ResultBox label', () => {
-  it('shows ATS Score when mode is ATS', async () => {
-    currentMode = 'ATS'
-    const { default: ResultBox } = await import('./ResultBox')
-    const html = renderToStaticMarkup(<ResultBox result={buildResult()} />)
+describe('ResultBox wrapper', () => {
+  it('renders ATS report when mode is ATS', () => {
+    const normalized = normalizeAnalysisResponse(buildResult({ matchScore: 0 }))
+    const html = renderToStaticMarkup(<ResultBox result={normalized} mode="ATS" />)
+    expect(html).toContain('ATS Readiness')
     expect(html).toContain('ATS Score')
-    expect(html).toContain('Estimates ATS friendliness')
   })
 
-  it('shows Match Score when mode is JOB_MATCH', async () => {
-    currentMode = 'JOB_MATCH'
-    const { default: ResultBox } = await import('./ResultBox')
-    const html = renderToStaticMarkup(<ResultBox result={buildResult()} />)
-    expect(html).toContain('Match Score')
-    expect(html).toContain('Estimates how well your resume aligns')
+  it('renders Job Match report when mode is JOB_MATCH', () => {
+    const normalized = normalizeAnalysisResponse(buildResult())
+    const html = renderToStaticMarkup(<ResultBox result={normalized} mode="JOB_MATCH" />)
+    expect(html).toContain('Job Match Score')
+    expect(html).toContain('ATS Readiness')
   })
 })
