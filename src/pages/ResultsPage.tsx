@@ -1,9 +1,10 @@
 import { useNavigate, useParams } from 'react-router-dom'
 import AtsReport from '../components/reports/AtsReport'
 import JobMatchReport from '../components/reports/JobMatchReport'
+import ResultsLayout from '../components/results/ResultsLayout'
 import { useAnalysisStore } from '../store/useAnalysisStore'
 import { fetchAnalysisResult } from '../api/endpoints'
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import type { AnalysisResponse } from '../api/types'
 import { ui } from '../app/uiTokens'
 import { normalizeAnalysisResponse } from '../analysis/normalizeAnalysisResponse'
@@ -69,67 +70,82 @@ const ResultsPage = () => {
 
   const modeFromResult = (toRender as { mode?: string } | null)?.mode
   const reportMode = resolveMode(modeFromResult)
+  const summaryPayload =
+    normalized && typeof normalized.summary === 'object' ? (normalized.summary as Record<string, unknown>) : null
+  const hasSummary =
+    !!summaryPayload &&
+    (!!summaryPayload.strengths || !!summaryPayload.weaknesses || !!summaryPayload.overallAssessment)
+  const hasNextSteps =
+    (normalized?.actionPlan?.quickWins?.length ?? 0) > 0 ||
+    (normalized?.actionPlan?.mediumEffort?.length ?? 0) > 0 ||
+    (normalized?.actionPlan?.deepFixes?.length ?? 0) > 0 ||
+    (normalized?.recommendations?.length ?? 0) > 0
+  const hasRewrites = (normalized?.normalized.bulletSuggestions.length ?? 0) > 0
+  const hasFindings = (normalized?.recommendations?.length ?? 0) > 0
+  const hasTopGaps =
+    (normalized?.issues?.length ?? 0) > 0 ||
+    (normalized?.normalized.missingKeywordsFromJD.length ?? 0) >= 5
+  const hasAtsChecks = !!normalized?.issues?.some((issue) => {
+    const token = issue.section.toLowerCase()
+    return (
+      token.includes('ats') ||
+      token.includes('format') ||
+      token.includes('contact') ||
+      token.includes('skills') ||
+      token.includes('tools') ||
+      token.includes('layout')
+    )
+  })
+
+  const renderJumpLinks = (links: { href: string; label: string }[]) => {
+    if (!links.length) return null
+    return (
+      <p className={ui.results.page.headerMeta}>
+        Jump to:{' '}
+        {links.map((link, idx) => (
+          <Fragment key={link.href}>
+            <a href={link.href} className={ui.results.page.jumpLinks}>
+              {link.label}
+            </a>
+            {idx < links.length - 1 ? ' | ' : null}
+          </Fragment>
+        ))}
+      </p>
+    )
+  }
 
   return (
-    <div className="p-6 space-y-6 text-[16px] leading-relaxed">
+    <ResultsLayout>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className={ui.text.h2}>Resume Analysis Report</h1>
-          {reportMode === 'JOB_MATCH' ? (
-            <p className="text-sm text-gray-600 mt-1">
-              Jump to:{' '}
-              <a href="#summary" className="underline text-blue-700">
-                Summary
-              </a>{' '}
-              |{' '}
-              <a href="#fix-first" className="underline text-blue-700">
-                Fix First
-              </a>{' '}
-              |{' '}
-              <a href="#top-gaps" className="underline text-blue-700">
-                Top Gaps
-              </a>{' '}
-              |{' '}
-              <a href="#rewrites" className="underline text-blue-700">
-                Rewrites
-              </a>{' '}
-              |{' '}
-              <a href="#ats" className="underline text-blue-700">
-                ATS Readiness
-              </a>{' '}
-              |{' '}
-              <a href="#findings" className="underline text-blue-700">
-                Detailed Findings
-              </a>
-            </p>
-          ) : (
-            <p className="text-sm text-gray-600 mt-1">
-              Jump to:{' '}
-              <a href="#fix-first" className="underline text-blue-700">
-                Fix First
-              </a>{' '}
-              |{' '}
-              <a href="#ats" className="underline text-blue-700">
-                ATS Checks
-              </a>{' '}
-              |{' '}
-              <a href="#rewrites" className="underline text-blue-700">
-                Rewrites
-              </a>{' '}
-              |{' '}
-              <a href="#findings" className="underline text-blue-700">
-                Detailed Findings
-              </a>
-            </p>
-          )}
+          <h1 className={ui.results.page.headerTitle}>Resume Analysis Report</h1>
+          {reportMode === 'JOB_MATCH'
+            ? renderJumpLinks(
+                [
+                  hasSummary ? { href: '#summary', label: 'Summary' } : null,
+                  hasNextSteps ? { href: '#fix-first', label: 'Fix First' } : null,
+                  hasTopGaps ? { href: '#top-gaps', label: 'Top Gaps' } : null,
+                  hasRewrites ? { href: '#rewrites', label: 'Rewrites' } : null,
+                  hasAtsChecks ? { href: '#ats', label: 'ATS Readiness' } : null,
+                  hasFindings ? { href: '#findings', label: 'Detailed Findings' } : null,
+                ].filter(Boolean) as { href: string; label: string }[],
+              )
+            : renderJumpLinks(
+                [
+                  hasNextSteps ? { href: '#fix-first', label: 'Fix First' } : null,
+                  hasAtsChecks ? { href: '#ats', label: 'ATS Checks' } : null,
+                  hasRewrites ? { href: '#rewrites', label: 'Rewrites' } : null,
+                  hasFindings ? { href: '#findings', label: 'Detailed Findings' } : null,
+                ].filter(Boolean) as { href: string; label: string }[],
+              )}
           {toRender?.createdAt && (
-            <p className={ui.text.subtitle}>
+            <p className={ui.results.page.headerMeta}>
               Analyzed at: {new Date(toRender.createdAt).toLocaleString()}
             </p>
           )}
         </div>
         {normalized && (
-          <span className={`${ui.badge.score} bg-blue-100 text-blue-800 border-blue-200`}>
+          <span className={ui.results.score.pill}>
             {reportMode === 'ATS' ? 'ATS Score' : 'Match Score'}:{' '}
             {reportMode === 'ATS'
               ? normalized.normalized.atsScore ?? normalized.finalScore ?? normalized.matchScore
@@ -161,9 +177,9 @@ const ResultsPage = () => {
       )}
 
       <div className="space-y-3">
-        <div className={ui.text.subtitle}>
+        <div className={ui.results.text.meta}>
           <p className="font-semibold text-gray-700">Next (coming soon)</p>
-          <ul className="list-disc list-inside text-gray-600">
+          <ul className={ui.results.list.bulletsSecondary}>
             <li>Apply fixes directly to your resume</li>
             <li>Track score improvement</li>
             <li>Generate role-specific versions</li>
@@ -175,7 +191,7 @@ const ResultsPage = () => {
               reset()
               navigate('/app/analyzer')
             }}
-            className="bg-gray-800 text-white px-4 py-2 rounded hover:bg-gray-900"
+            className={ui.results.button.primary}
           >
             Start new analysis
           </button>
@@ -196,7 +212,7 @@ const ResultsPage = () => {
           </button>
         </div>
       </div>
-    </div>
+    </ResultsLayout>
   )
 }
 

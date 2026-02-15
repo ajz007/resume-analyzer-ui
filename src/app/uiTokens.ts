@@ -49,6 +49,55 @@ export const ui = {
     usageUnavailable:
       'inline-flex items-center gap-2 px-2 py-1 rounded border text-xs text-gray-600 bg-white whitespace-nowrap leading-none',
   },
+  results: {
+    page: {
+      container: 'p-6 space-y-8 text-[16px] leading-[1.7] text-gray-900',
+      headerTitle: 'text-[28px] font-semibold tracking-tight text-gray-900',
+      headerMeta: 'text-[14px] text-gray-500',
+      jumpLinks: 'text-[14px] text-blue-600 underline underline-offset-2 hover:text-blue-700',
+    },
+    card: {
+      base: 'bg-white border border-gray-200 rounded-lg p-5',
+      emphasis: 'bg-slate-50 border border-slate-200 rounded-lg p-5',
+      muted: 'bg-gray-50 border border-gray-200 rounded-lg p-5',
+    },
+    section: {
+      title: 'text-[20px] font-semibold text-gray-900',
+      subtitle: 'text-[15px] text-gray-700',
+      helper: 'text-[14px] text-gray-500',
+    },
+    text: {
+      body: 'text-[16px] text-gray-900',
+      secondary: 'text-[15px] text-gray-700',
+      meta: 'text-[14px] text-gray-500',
+      label: 'text-[13px] font-medium text-gray-600',
+    },
+    link: 'text-blue-600 underline underline-offset-2 hover:text-blue-700',
+    button: {
+      primary:
+        'inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-white font-medium hover:bg-blue-700',
+      ghost:
+        'inline-flex items-center justify-center rounded-md px-3 py-2 text-blue-600 hover:bg-blue-50 font-medium',
+    },
+    score: {
+      primary: 'text-4xl font-semibold text-blue-600',
+      secondary: 'text-[15px] text-gray-700',
+      pill:
+        'text-[14px] font-medium px-3 py-1 rounded-full border bg-blue-50 text-blue-700 border-blue-200',
+    },
+    chip: {
+      base: 'text-[13px] font-medium px-2 py-1 rounded-full border',
+      critical: 'bg-rose-50 text-rose-700 border-rose-200',
+      warning: 'bg-amber-50 text-amber-800 border-amber-200',
+      ok: 'bg-green-50 text-green-700 border-green-200',
+      info: 'bg-gray-50 text-gray-700 border-gray-200',
+    },
+    list: {
+      bullets: 'list-disc list-inside space-y-1 text-[16px] text-gray-900 leading-relaxed',
+      bulletsSecondary:
+        'list-disc list-inside space-y-1 text-[15px] text-gray-700 leading-relaxed',
+    },
+  },
 }
 
 export type UITokens = typeof ui

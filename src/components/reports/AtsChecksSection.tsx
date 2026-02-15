@@ -1,5 +1,9 @@
 ﻿import { useState } from 'react'
 import type { NormalizedAnalysis } from '../../analysis/normalizeAnalysisResponse'
+import { ui } from '../../app/uiTokens'
+import { ReportCard } from '../results/ReportCard'
+import { SectionHeader } from '../results/SectionHeader'
+import { SeverityChip } from '../results/SeverityChip'
 
 type AtsChecksSectionProps = {
   result: NormalizedAnalysis
@@ -21,10 +25,10 @@ const AtsChecksSection = ({
     return 'PASS'
   }
 
-  const mapBadgeClasses = (label: string) => {
-    if (label === 'FAIL') return 'bg-rose-50 text-rose-700 border-rose-200'
-    if (label === 'WARNING') return 'bg-amber-50 text-amber-700 border-amber-200'
-    return 'bg-green-50 text-green-700 border-green-200'
+  const mapBadgeTone = (label: string) => {
+    if (label === 'FAIL') return 'critical'
+    if (label === 'WARNING') return 'warning'
+    return 'ok'
   }
 
   const issues = result.issues ?? []
@@ -40,62 +44,50 @@ const AtsChecksSection = ({
     )
   })
 
-  const rows = atsIssues.length
-    ? atsIssues
-    : [
-        {
-          section: 'ATS Parsing',
-          problem: 'No ATS blockers detected. Your resume should parse correctly.',
-          whyItMatters: '',
-          severity: 'low',
-        },
-      ]
+  if (!atsIssues.length) return null
+  const rows = atsIssues
 
   return (
-    <div className="bg-white rounded border p-4 space-y-2" id="ats">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold">{title}</h3>
-          <p className="text-sm text-gray-600">Review ATS checks and formatting risks.</p>
+    <ReportCard>
+      <div className="space-y-2" id="ats">
+        <div className="flex items-center justify-between">
+          <SectionHeader
+            title={title}
+            subtitle="Formatting and structure issues that can affect parsing or recruiter scanning."
+          />
+          <button
+            type="button"
+            onClick={() => setShowAtsChecks((value) => !value)}
+            className={ui.results.link}
+            aria-expanded={showAtsChecks}
+            aria-controls="ats-checks-panel"
+          >
+            {showAtsChecks ? 'Hide details' : 'View details'}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowAtsChecks((value) => !value)}
-          className="text-sm text-blue-700 underline"
-          aria-expanded={showAtsChecks}
-          aria-controls="ats-checks-panel"
-        >
-          {showAtsChecks ? 'Hide ATS checks' : 'Show ATS checks'}
-        </button>
+        {showAtsChecks && (
+          <div id="ats-checks-panel">
+            <ul className="space-y-2 mt-3">
+              {rows.map((issue, idx) => {
+                const label = mapSeverityLabel(issue.severity)
+                return (
+                  <li key={`${issue.section}-${idx}`} className={ui.results.card.muted}>
+                    <div className="flex justify-between items-center gap-2">
+                      <span className={ui.results.text.body}>{issue.section}</span>
+                      <SeverityChip label={label} tone={mapBadgeTone(label)} />
+                    </div>
+                    <p className={ui.results.text.secondary}>{issue.problem}</p>
+                    {issue.whyItMatters && (
+                      <p className={ui.results.text.meta}>Why this matters: {issue.whyItMatters}</p>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        )}
       </div>
-      {showAtsChecks && (
-        <div id="ats-checks-panel">
-          <ul className="space-y-2 mt-3">
-            {rows.map((issue, idx) => {
-              const label = mapSeverityLabel(issue.severity)
-              return (
-                <li key={`${issue.section}-${idx}`} className="border rounded p-2">
-                  <div className="flex justify-between items-center gap-2">
-                    <span className="font-semibold">{issue.section}</span>
-                    <span
-                      className={`text-xs uppercase px-2 py-1 rounded-full border ${mapBadgeClasses(
-                        label,
-                      )}`}
-                    >
-                      {label}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-700">{issue.problem}</p>
-                  {issue.whyItMatters && (
-                    <p className="text-xs text-gray-600 mt-1">Why this matters: {issue.whyItMatters}</p>
-                  )}
-                </li>
-              )
-            })}
-          </ul>
-        </div>
-      )}
-    </div>
+    </ReportCard>
   )
 }
 

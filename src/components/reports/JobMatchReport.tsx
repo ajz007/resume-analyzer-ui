@@ -1,10 +1,14 @@
 ﻿import { useMemo, useState } from 'react'
 import type { NormalizedAnalysis } from '../../analysis/normalizeAnalysisResponse'
+import { ui } from '../../app/uiTokens'
 import RecommendationsPanel from '../RecommendationsPanel'
 import AtsChecksSection from './AtsChecksSection'
 import BulletSuggestions from './BulletSuggestions'
 import NextStepsPanel from './NextStepsPanel'
 import { COPY } from '../../constants/uiCopy'
+import { ReportCard } from '../results/ReportCard'
+import { SectionHeader } from '../results/SectionHeader'
+import { SeverityChip } from '../results/SeverityChip'
 
 export type Props = { result: NormalizedAnalysis }
 
@@ -25,46 +29,58 @@ const Section = ({
   subtitle?: string
   id?: string
 }) => (
-  <div className="bg-white rounded border p-4 space-y-2" id={id}>
-    <div className="space-y-1">
-      <h3 className="text-lg font-semibold">{title}</h3>
-      {subtitle && <p className="text-sm text-gray-600">{subtitle}</p>}
+  <ReportCard>
+    <div className="space-y-2" id={id}>
+      <SectionHeader title={title} subtitle={subtitle} />
+      {children}
     </div>
-    {children}
-  </div>
+  </ReportCard>
 )
 
-const renderSummaryItems = (items?: string[] | string) => {
+const renderSummaryItems = (items?: string[] | string, maxItems = 3) => {
   if (!items) return null
   if (Array.isArray(items)) {
     if (!items.length) return null
     return (
-      <ul className="list-disc list-inside text-sm text-gray-700">
-        {items.map((item, idx) => (
+      <ul className={ui.results.list.bulletsSecondary}>
+        {items.slice(0, maxItems).map((item, idx) => (
           <li key={`summary-${idx}`}>{item}</li>
         ))}
       </ul>
     )
   }
-  return <p className="text-sm text-gray-700">{items}</p>
+  return <p className={ui.results.text.secondary}>{items}</p>
 }
 
 const severityLabel = (severity: string) => {
   const token = severity.toLowerCase()
-  if (token === 'critical') return 'CRITICAL'
-  if (token === 'high') return 'HIGH'
-  if (token === 'medium') return 'MEDIUM'
-  return 'LOW'
+  if (token === 'high' || token === 'critical') return 'CRITICAL'
+  if (token === 'medium') return 'WARNING'
+  return 'INFO'
 }
 
-const severityClasses = (label: string) => {
-  if (label === 'CRITICAL' || label === 'HIGH') return 'bg-rose-50 text-rose-700 border-rose-200'
-  if (label === 'MEDIUM') return 'bg-amber-50 text-amber-700 border-amber-200'
-  return 'bg-green-50 text-green-700 border-green-200'
+const severityTone = (label: string) => {
+  if (label === 'CRITICAL') return 'critical'
+  if (label === 'WARNING') return 'warning'
+  return 'info'
+}
+
+const matchSubtitle = (score: number) => {
+  if (score < 50) return "You're not aligned yet — but the gaps are clear and fixable."
+  if (score < 75)
+    return "You're partially aligned. Addressing a few gaps can improve shortlist chances."
+  return "You're strongly aligned for this role."
+}
+
+const atsStatusShort = (score: number) => {
+  if (score >= 75) return 'ATS-safe'
+  if (score >= 60) return 'Minor issues'
+  return 'Needs attention'
 }
 
 const JobMatchReport = ({ result }: Props) => {
   const [showFindings, setShowFindings] = useState(false)
+  const [expandedIssues, setExpandedIssues] = useState<Set<string>>(() => new Set())
   const matchScore = result.matchScore ?? 0
   const atsScore = result.normalized.atsScore ?? result.finalScore ?? 0
 
@@ -78,136 +94,196 @@ const JobMatchReport = ({ result }: Props) => {
 
   const prioritizedIssues = useMemo(() => {
     const items = result.issues ?? []
-    return [...items].sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0)).slice(0, 5)
+    return [...items].sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0)).slice(0, 3)
   }, [result.issues])
 
   const showKeywordSection = result.normalized.missingKeywordsFromJD.length >= 5
+  const hasTopGaps = prioritizedIssues.length > 0 || showKeywordSection
+  const hasRewrites = result.normalized.bulletSuggestions.length > 0
+  const hasNextSteps =
+    (result.actionPlan?.quickWins?.length ?? 0) > 0 ||
+    (result.actionPlan?.mediumEffort?.length ?? 0) > 0 ||
+    (result.actionPlan?.deepFixes?.length ?? 0) > 0 ||
+    (result.recommendations?.length ?? 0) > 0
+  const hasFindings = (result.recommendations?.length ?? 0) > 0
+
+  const toggleIssue = (key: string) => {
+    setExpandedIssues((current) => {
+      const next = new Set(current)
+      if (next.has(key)) {
+        next.delete(key)
+      } else {
+        next.add(key)
+      }
+      return next
+    })
+  }
 
   return (
     <div className="mt-6 space-y-4">
-      <div className="bg-white rounded border p-4 space-y-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold">Job Match Score</h2>
-            <p className="text-sm text-gray-600">Primary match against the job description.</p>
+      <ReportCard variant="emphasis">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className={ui.results.section.title}>Job Match Score</h2>
+              <p className={ui.results.text.secondary}>{matchSubtitle(matchScore)}</p>
+            </div>
+            <div className="text-right">
+              <p className={ui.results.text.meta}>{COPY.results.jobMatch.label}</p>
+              <p className={ui.results.score.primary}>{matchScore}/100</p>
+            </div>
           </div>
-          <div className="text-right">
-            <p className="text-sm text-gray-500">{COPY.results.jobMatch.label}</p>
-            <p className="text-3xl font-bold text-blue-700">{matchScore}/100</p>
-          </div>
+          <p className={ui.results.text.meta}>
+            ATS Readiness: {atsScore}/100 &middot; {atsStatusShort(atsScore)}
+          </p>
         </div>
-        <p className="text-sm text-gray-700">
-          ATS Readiness: <span className="font-semibold">{atsScore}/100</span>
-        </p>
-      </div>
+      </ReportCard>
 
       {summary ? (
-        <Section title="Summary" id="summary">
+        <Section title="Summary for This Role" id="summary">
           <div className="grid gap-3 md:grid-cols-3">
-            <div>
-              <p className="text-sm font-semibold text-gray-900">Strengths</p>
-              {renderSummaryItems(summary.strengths) ?? (
-                <p className="text-sm text-gray-600">No strengths provided.</p>
-              )}
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-900">Weaknesses</p>
-              {renderSummaryItems(summary.weaknesses) ?? (
-                <p className="text-sm text-gray-600">No weaknesses provided.</p>
-              )}
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-900">Overall Assessment</p>
-              {summary.overallAssessment ? (
-                <p className="text-sm text-gray-700">{summary.overallAssessment}</p>
-              ) : (
-                <p className="text-sm text-gray-600">No assessment provided.</p>
-              )}
-            </div>
+            {renderSummaryItems(summary.strengths) ? (
+              <div>
+                <p className={ui.results.text.label}>Strengths</p>
+                {renderSummaryItems(summary.strengths)}
+              </div>
+            ) : null}
+            {renderSummaryItems(summary.weaknesses) ? (
+              <div>
+                <p className={ui.results.text.label}>Gaps</p>
+                {renderSummaryItems(summary.weaknesses)}
+              </div>
+            ) : null}
+            {summary.overallAssessment ? (
+              <div>
+                <p className={ui.results.text.label}>Overall Assessment</p>
+                <p className={ui.results.text.secondary}>{summary.overallAssessment}</p>
+              </div>
+            ) : null}
           </div>
         </Section>
       ) : null}
 
-      <Section title="What to Fix First" id="fix-first" subtitle="High-impact updates you can finish quickly.">
-        <NextStepsPanel actionPlan={result.actionPlan} recommendations={result.recommendations} />
-      </Section>
+      {hasNextSteps ? (
+        <Section title="What to Fix First" id="fix-first" subtitle="High-impact updates you can finish quickly.">
+          <NextStepsPanel actionPlan={result.actionPlan} recommendations={result.recommendations} />
+        </Section>
+      ) : null}
 
-      <Section title="Top Gaps" id="top-gaps" subtitle="Highest-impact issues to address for this role.">
-        {prioritizedIssues.length ? (
-          <ul className="space-y-3">
-            {prioritizedIssues.map((issue, idx) => {
-              const label = severityLabel(issue.severity ?? 'low')
-              const badge = severityClasses(label)
-              const fixEffort = (issue as { fixEffort?: string }).fixEffort
-              return (
-                <li key={`${issue.section}-${idx}`} className="border rounded p-3 space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-semibold">{issue.section}</span>
-                    <span className={`text-xs uppercase px-2 py-1 rounded-full border ${badge}`}>
-                      {label}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-700">{issue.problem}</p>
-                  {issue.suggestion ? (
-                    <p className="text-sm text-gray-700">Fix: {issue.suggestion}</p>
-                  ) : null}
-                  {fixEffort ? (
-                    <p className="text-xs text-gray-600">Effort: {fixEffort}</p>
-                  ) : null}
-                </li>
-              )
-            })}
-          </ul>
-        ) : (
-          <p className="text-sm text-gray-600">No high-priority gaps detected.</p>
-        )}
+      {hasTopGaps ? (
+        <Section
+          title="Top Gaps for This Role"
+          id="top-gaps"
+          subtitle="Highest-impact issues affecting your match score."
+        >
+          {prioritizedIssues.length ? (
+            <ul className="space-y-2">
+              {prioritizedIssues.map((issue, idx) => {
+                const label = severityLabel(issue.severity ?? 'low')
+                const fixEffort = (issue as { fixEffort?: string }).fixEffort
+                const key = `${issue.section}-${idx}`
+                const isExpanded = expandedIssues.has(key)
+                return (
+                  <li key={key} className={ui.results.card.muted}>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={ui.results.text.body}>{issue.section}</span>
+                      <SeverityChip label={label} tone={severityTone(label)} />
+                    </div>
+                    {fixEffort ? (
+                      <p className={ui.results.text.meta}>Fix effort: {fixEffort}</p>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => toggleIssue(key)}
+                      className={ui.results.link}
+                    >
+                      {isExpanded ? 'Hide details' : 'View details'}
+                    </button>
+                    {isExpanded ? (
+                      <div className="space-y-2">
+                        <div>
+                          <p className={ui.results.text.label}>Why this matters</p>
+                          <p className={ui.results.text.secondary}>
+                            {issue.whyItMatters ?? issue.problem}
+                          </p>
+                        </div>
+                        {issue.suggestion ? (
+                          <div>
+                            <p className={ui.results.text.label}>Suggested fix</p>
+                            <p className={ui.results.text.secondary}>{issue.suggestion}</p>
+                          </div>
+                        ) : null}
+                        {issue.requiresUserInput?.length ? (
+                          <div>
+                            <p className={ui.results.text.label}>Requires your input</p>
+                            <ul className={ui.results.list.bulletsSecondary}>
+                              {issue.requiresUserInput.slice(0, 3).map((item, itemIdx) => (
+                                <li key={`${key}-input-${itemIdx}`}>{item}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </li>
+                )
+              })}
+            </ul>
+          ) : null}
 
-        {showKeywordSection ? (
-          <div className="mt-4">
-            <p className="text-sm font-semibold text-gray-900">Missing keywords to add</p>
-            <div className="flex flex-wrap gap-2 mt-2">
-              {result.normalized.missingKeywordsFromJD.slice(0, 12).map((keyword) => (
-                <span
-                  key={`missing-${keyword}`}
-                  className="px-2 py-1 text-xs rounded-full border bg-white text-gray-800"
-                >
-                  {keyword}
-                </span>
-              ))}
+          {showKeywordSection ? (
+            <div className="mt-3">
+              <p className={ui.results.text.label}>Missing keywords to add</p>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {result.normalized.missingKeywordsFromJD.slice(0, 12).map((keyword) => (
+                  <span
+                    key={`missing-${keyword}`}
+                    className={`${ui.results.chip.base} ${ui.results.chip.info}`}
+                  >
+                    {keyword}
+                  </span>
+                ))}
+              </div>
             </div>
-          </div>
-        ) : null}
-      </Section>
+          ) : null}
+        </Section>
+      ) : null}
 
-      <Section
-        title="Resume Rewrites (Ready-to-Use)"
-        id="rewrites"
-        subtitle="Concrete, copy-paste-ready rewrites for specific resume lines to improve clarity, impact, and relevance."
-      >
-        <BulletSuggestions suggestions={result.normalized.bulletSuggestions} />
-      </Section>
+      {hasRewrites ? (
+        <Section
+          title="Resume Rewrites (Copy-Paste Ready)"
+          id="rewrites"
+          subtitle="Use these directly. Replace placeholders before applying."
+        >
+          <BulletSuggestions suggestions={result.normalized.bulletSuggestions} />
+        </Section>
+      ) : null}
 
       <AtsChecksSection result={result} defaultExpanded={false} title="ATS Readiness" />
 
-      <div id="findings" className="bg-white rounded border p-4 space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold">Detailed Findings & Recommendations</h2>
-          <button
-            type="button"
-            onClick={() => setShowFindings((value) => !value)}
-            className="text-sm text-blue-700 underline"
-            aria-expanded={showFindings}
-            aria-controls="findings-panel"
-          >
-            {showFindings ? 'Hide findings' : 'Show findings'}
-          </button>
-        </div>
-        {showFindings && (
-          <div id="findings-panel">
-            <RecommendationsPanel recommendations={result.recommendations} />
+      {hasFindings ? (
+        <ReportCard>
+          <div id="findings" className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className={ui.results.section.title}>Detailed Findings & Recommendations</h2>
+              <button
+                type="button"
+                onClick={() => setShowFindings((value) => !value)}
+                className={ui.results.link}
+                aria-expanded={showFindings}
+                aria-controls="findings-panel"
+              >
+                {showFindings ? 'Hide details' : 'View details'}
+              </button>
+            </div>
+            {showFindings && (
+              <div id="findings-panel">
+                <RecommendationsPanel recommendations={result.recommendations} showHeader={false} />
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </ReportCard>
+      ) : null}
     </div>
   )
 }
