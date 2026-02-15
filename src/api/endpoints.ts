@@ -136,6 +136,21 @@ const adjustForHidden = (baseMs: number) => {
   return baseMs
 }
 
+export const withResultAnalysisId = (
+  statusBody: AnalyzeStatusResponse,
+  analysisId?: string,
+): BackendAnalysisResult | undefined => {
+  if (statusBody.status !== 'completed' || !statusBody.result) return undefined
+  return {
+    ...statusBody.result,
+    // GET /analyses/:id may only return the id at top-level in guest mode.
+    meta: {
+      ...statusBody.result.meta,
+      analysisId: statusBody.result.meta?.analysisId ?? statusBody.id ?? analysisId,
+    },
+  }
+}
+
 const pollAnalysisResult = async (
   analysisId: string,
   initialPollAfterMs?: number,
@@ -156,8 +171,9 @@ const pollAnalysisResult = async (
         { suppressToastOnStatus: [429] },
       )
 
-      if (statusBody.status === 'completed' && statusBody.result) {
-        const adapted = fromBackendResult(statusBody.result)
+      const resultWithId = withResultAnalysisId(statusBody, analysisId)
+      if (resultWithId) {
+        const adapted = fromBackendResult(resultWithId)
         return normalizeAnalysis(adapted)
       }
 
@@ -323,8 +339,9 @@ export async function fetchAnalysisResult(analysisId: string): Promise<AnalysisR
   const statusBody = await apiRequest<AnalyzeStatusResponse>(`/analyses/${analysisId}`, {
     method: 'GET',
   })
-  if (statusBody.status === 'completed' && statusBody.result) {
-    const adapted = fromBackendResult(statusBody.result)
+  const resultWithId = withResultAnalysisId(statusBody, analysisId)
+  if (resultWithId) {
+    const adapted = fromBackendResult(resultWithId)
     return normalizeAnalysis(adapted)
   }
   return null
