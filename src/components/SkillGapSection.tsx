@@ -1,4 +1,5 @@
 import type { AnalysisResponse } from '../api/types'
+import type { NormalizedAnalysis } from '../analysis/normalizeAnalysisResponse'
 import { useState } from 'react'
 import {
   examplePhrasing,
@@ -8,16 +9,14 @@ import {
 } from '../analysis/skillGap'
 
 type SkillGapSectionProps = {
-  result: AnalysisResponse
+  result: AnalysisResponse | NormalizedAnalysis
 }
 
 const SkillGapSection = ({ result }: SkillGapSectionProps) => {
-  const mode = result.analysisMode ?? 'job_match'
-  if (mode !== 'job_match') return null
-
+  const normalized = (result as NormalizedAnalysis).normalized
   const buckets = result.missingKeywordBuckets
-  const missingKeywords = buckets?.fromJobDescription ?? []
-  const industryKeywords = buckets?.industryCommon ?? []
+  const missingKeywords =
+    normalized?.missingKeywordsFromJD ?? buckets?.fromJobDescription ?? []
   const issues = result.issues ?? []
   const recommendations = result.recommendations ?? []
   const prioritized = rankKeywords(missingKeywords, issues, recommendations)
@@ -113,29 +112,27 @@ const SkillGapSection = ({ result }: SkillGapSectionProps) => {
           )}
         </div>
 
-        <details className="border rounded p-3 space-y-2">
-          <summary className="text-sm font-semibold text-gray-900 cursor-pointer">
-            Nice-to-Have Keywords (Common in Similar Roles)
-          </summary>
-          <p className="text-xs text-gray-600 mt-1">
-            Not required by the job description. Add only if they reflect your real experience.
-          </p>
-          {industryKeywords.length ? (
-            <ul className="space-y-2 mt-2">
-              {industryKeywords.map((keyword) => (
-                <li key={`suggested-${keyword}`} className="text-sm text-gray-700">
-                  <span className="font-semibold text-amber-800">{keyword}</span>
-                  <span className="text-xs text-gray-600"> — Common in similar roles; add only if true.</span>
-                </li>
-              ))}
+        <div className="border rounded p-3 space-y-3">
+          <div>
+            <p className="text-sm font-semibold text-gray-900">If you address 5-7 of these</p>
+            <ul className="list-disc list-inside text-sm text-gray-700 mt-2">
+              <li>Estimated Job Match gain: +15-20</li>
+              <li>Higher recruiter shortlisting odds</li>
             </ul>
-          ) : (
-            <p className="text-sm text-gray-600 mt-2">No industry suggestions yet.</p>
-          )}
-        </details>
+          </div>
+          <div className="text-sm">
+            <p className="font-semibold text-gray-900">Common keyword bundles for this role</p>
+            <ul className="list-disc list-inside text-gray-700 mt-2">
+              <li>CRM &amp; Sales Stack: Salesforce, HubSpot, ZoomInfo</li>
+              <li>Deal Lifecycle: Prospecting, negotiation, closing, pipeline</li>
+              <li>Stakeholders: C-level, enterprise clients</li>
+            </ul>
+          </div>
+        </div>
       </div>
     </div>
   )
 }
 
 export default SkillGapSection
+

@@ -98,7 +98,7 @@ const AppShell = () => {
       <div className="min-h-screen flex flex-col bg-gray-100">
         <header className={ui.nav.header}>
           <div className={`${ui.layout.container} py-3 flex items-center justify-between`}>
-            <span className="text-lg font-bold text-gray-900">Resume Analyzer</span>
+            <span className="text-lg font-bold text-gray-900">Rethink Resume</span>
             <div className="flex items-center gap-4 text-sm">
               <nav className="flex items-center gap-4">
                 <NavLink to="/app/analyzer" className={navLinkClass}>

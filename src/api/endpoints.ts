@@ -82,12 +82,17 @@ const mockAnalysis: AnalysisResponse = {
   nextSteps: ['Add Kubernetes exposure', 'Tighten resume to 2 pages', 'Highlight TypeScript projects'],
 }
 
-const analyzeMock = async (documentId: string, jobDescription: string): Promise<AnalysisResponse> => {
+const analyzeMock = async (
+  documentId: string,
+  jobDescription: string,
+  mode: 'ATS' | 'JOB_MATCH',
+): Promise<AnalysisResponse> => {
   const dynamicMock: AnalysisResponse = {
     ...mockAnalysis,
     analysisId: `mock-${Date.now()}`,
     summary: `${mockAnalysis.summary} Document: ${documentId}. JD length: ${jobDescription.length} chars.`,
     createdAt: new Date().toISOString(),
+    analysisMode: mode === 'ATS' ? 'ats' : 'job_match',
   }
 
   return new Promise((resolve) => setTimeout(() => resolve(dynamicMock), 500))
@@ -189,10 +194,11 @@ const pollAnalysisResult = async (
 export async function analyzeDocument(
   documentId: string,
   jobDescription: string,
+  mode: 'ATS' | 'JOB_MATCH',
   options: { retry?: boolean } = {},
 ): Promise<AnalysisResponse> {
   if (env.useMockApi) {
-    return analyzeMock(documentId, jobDescription)
+    return analyzeMock(documentId, jobDescription, mode)
   }
 
   const startResponse = await apiRequest<AnalyzeStartResponse>(`/documents/${documentId}/analyze`, {
@@ -201,7 +207,7 @@ export async function analyzeDocument(
       'Content-Type': 'application/json',
       ...(options.retry ? { 'X-Retry-Analysis': 'true' } : {}),
     },
-    body: JSON.stringify({ jobDescription }),
+    body: JSON.stringify({ mode, jobDescription: jobDescription ?? '' }),
   })
 
   return pollAnalysisResult(startResponse.analysisId, startResponse.pollAfterMs)
