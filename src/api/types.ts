@@ -95,3 +95,18 @@ export interface UsageResponse {
   used: number
   resetsAt: string
 }
+
+export interface ShareLinkResponse {
+  shareUrl: string
+  token: string
+  shareId: string
+}
+
+export interface SharedAnalysisResponse {
+  id: string
+  mode?: string
+  status: string
+  startedAt?: string
+  completedAt?: string
+  result: AnalysisResponse | null
+}

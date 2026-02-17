@@ -3,17 +3,25 @@ import AtsReport from '../components/reports/AtsReport'
 import JobMatchReport from '../components/reports/JobMatchReport'
 import ResultsLayout from '../components/results/ResultsLayout'
 import { useAnalysisStore } from '../store/useAnalysisStore'
-import { fetchAnalysisResult } from '../api/endpoints'
+import { createAnalysisShare, fetchAnalysisResult } from '../api/endpoints'
 import { Fragment, useEffect, useState } from 'react'
 import type { AnalysisResponse } from '../api/types'
 import { ui } from '../app/uiTokens'
 import { normalizeAnalysisResponse } from '../analysis/normalizeAnalysisResponse'
+import ShareModal from '../components/ShareModal'
+import { useToastStore } from '../store/useToastStore'
 
 const ResultsPage = () => {
   const { analysisId } = useParams<{ analysisId: string }>()
   const navigate = useNavigate()
   const { result, analysisId: latestId, reset, resetJdOnly, analysisMode } = useAnalysisStore()
+  const showToast = useToastStore((state) => state.showToast)
   const [cachedResult, setCachedResult] = useState<AnalysisResponse | null>(null)
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false)
+  const [isCreatingShare, setIsCreatingShare] = useState(false)
+  const [isCopyingLink, setIsCopyingLink] = useState(false)
+  const [shareUrl, setShareUrl] = useState('')
+  const [shareError, setShareError] = useState<string | undefined>(undefined)
 
   const normalizeCachedResult = (parsed: AnalysisResponse): AnalysisResponse => ({
     ...parsed,
@@ -114,9 +122,74 @@ const ResultsPage = () => {
     )
   }
 
+  const copyToClipboard = async (value: string) => {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value)
+      return
+    }
+
+    const textarea = document.createElement('textarea')
+    textarea.value = value
+    textarea.setAttribute('readonly', '')
+    textarea.style.position = 'absolute'
+    textarea.style.left = '-9999px'
+    document.body.appendChild(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textarea)
+  }
+
+  const handleShare = async () => {
+    if (!analysisId) return
+    setIsCreatingShare(true)
+    setShareError(undefined)
+    try {
+      const response = await createAnalysisShare(analysisId)
+      setShareUrl(response.shareUrl)
+      setIsShareModalOpen(true)
+    } catch (err) {
+      const message =
+        typeof (err as { message?: string })?.message === 'string'
+          ? (err as { message: string }).message
+          : 'Could not create a share link. Please try again.'
+      setShareError(message)
+      showToast({
+        type: 'error',
+        title: 'Share failed',
+        message,
+      })
+    } finally {
+      setIsCreatingShare(false)
+    }
+  }
+
+  const handleCopyShareLink = async () => {
+    if (!shareUrl) return
+    setIsCopyingLink(true)
+    setShareError(undefined)
+    try {
+      await copyToClipboard(shareUrl)
+      showToast({
+        type: 'success',
+        title: 'Link copied',
+        message: 'Share link copied to clipboard.',
+      })
+    } catch {
+      const message = 'Could not copy the link. Please copy it manually.'
+      setShareError(message)
+      showToast({
+        type: 'error',
+        title: 'Copy failed',
+        message,
+      })
+    } finally {
+      setIsCopyingLink(false)
+    }
+  }
+
   return (
     <ResultsLayout>
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className={ui.results.page.headerTitle}>Resume Analysis Report</h1>
           {reportMode === 'JOB_MATCH'
@@ -144,15 +217,30 @@ const ResultsPage = () => {
             </p>
           )}
         </div>
-        {normalized && (
-          <span className={ui.results.score.pill}>
-            {reportMode === 'ATS' ? 'ATS Score' : 'Match Score'}:{' '}
-            {reportMode === 'ATS'
-              ? normalized.normalized.atsScore ?? normalized.finalScore ?? normalized.matchScore
-              : normalized.matchScore ?? normalized.finalScore}
-            /100
-          </span>
-        )}
+        <div className="flex flex-col items-end gap-2">
+          {normalized ? (
+            <span className={ui.results.score.pill}>
+              {reportMode === 'ATS' ? 'ATS Score' : 'Match Score'}:{' '}
+              {reportMode === 'ATS'
+                ? normalized.normalized.atsScore ?? normalized.finalScore ?? normalized.matchScore
+                : normalized.matchScore ?? normalized.finalScore}
+              /100
+            </span>
+          ) : null}
+          {analysisId ? (
+            <button
+              type="button"
+              onClick={handleShare}
+              disabled={isCreatingShare}
+              className={ui.button.secondary}
+            >
+              {isCreatingShare ? 'Creating link...' : 'Share'}
+            </button>
+          ) : null}
+          {shareError && !isShareModalOpen ? (
+            <p className="max-w-60 text-right text-sm text-red-700">{shareError}</p>
+          ) : null}
+        </div>
       </div>
 
       {normalized ? (
@@ -212,6 +300,15 @@ const ResultsPage = () => {
           </button>
         </div>
       </div>
+
+      <ShareModal
+        open={isShareModalOpen}
+        shareUrl={shareUrl}
+        isCopying={isCopyingLink}
+        errorMessage={shareError}
+        onCopy={handleCopyShareLink}
+        onClose={() => setIsShareModalOpen(false)}
+      />
     </ResultsLayout>
   )
 }
