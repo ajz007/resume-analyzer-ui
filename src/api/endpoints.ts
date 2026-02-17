@@ -1,6 +1,6 @@
 import { env } from '../app/env'
 import { apiRequest } from './client'
-import type { AnalysisResponse, UsageResponse } from './types'
+import type { AnalysisResponse, ShareLinkResponse, SharedAnalysisResponse, UsageResponse } from './types'
 import type { BackendAnalysisResult } from './backendTypes'
 import type { UploadedDoc } from './documents'
 import { fromBackendResult } from '../analysis/adapters/fromBackend'
@@ -15,6 +15,14 @@ type AnalyzeStatusResponse = {
 }
 type ClaimGuestResponse = { migratedCount?: number }
 type ListParams = { limit?: number; offset?: number }
+type SharedAnalysisApiResponse = {
+  id: string
+  mode?: string
+  status: string
+  startedAt?: string
+  completedAt?: string
+  result?: BackendAnalysisResult
+}
 type AnalysisListItem = Pick<AnalysisResponse, 'analysisId' | 'createdAt' | 'matchScore'> & {
   status?: string
   summary?: string
@@ -118,6 +126,50 @@ const normalizeAnalysis = (analysis: AnalysisResponse): AnalysisResponse => ({
   bulletSuggestions: analysis.bulletSuggestions ?? [],
   nextSteps: analysis.nextSteps ?? [],
 })
+
+const resolveSharedAnalysisMode = (mode?: string): 'resume_only' | 'job_match' => {
+  const token = (mode ?? '').toLowerCase()
+  if (token === 'ats' || token === 'resume_only' || token === 'resume-only') {
+    return 'resume_only'
+  }
+  return 'job_match'
+}
+
+const normalizeSharedAnalysis = (payload: SharedAnalysisApiResponse): SharedAnalysisResponse => {
+  if (!payload.result) {
+    return {
+      id: payload.id,
+      mode: payload.mode,
+      status: payload.status,
+      startedAt: payload.startedAt,
+      completedAt: payload.completedAt,
+      result: null,
+    }
+  }
+
+  const resultWithMeta: BackendAnalysisResult = {
+    ...payload.result,
+    meta: {
+      ...payload.result.meta,
+      analysisId: payload.result.meta?.analysisId ?? payload.id,
+      createdAt:
+        payload.result.meta?.createdAt ??
+        payload.completedAt ??
+        payload.startedAt ??
+        new Date().toISOString(),
+      analysisMode: payload.result.meta?.analysisMode ?? resolveSharedAnalysisMode(payload.mode),
+    },
+  }
+
+  return {
+    id: payload.id,
+    mode: payload.mode,
+    status: payload.status,
+    startedAt: payload.startedAt,
+    completedAt: payload.completedAt,
+    result: normalizeAnalysis(fromBackendResult(resultWithMeta)),
+  }
+}
 
 const DEFAULT_POLL_MS = 20000
 const MAX_BACKOFF_MS = 15_000
@@ -345,6 +397,45 @@ export async function fetchAnalysisResult(analysisId: string): Promise<AnalysisR
     return normalizeAnalysis(adapted)
   }
   return null
+}
+
+export async function createAnalysisShare(analysisId: string): Promise<ShareLinkResponse> {
+  if (env.useMockApi) {
+    const token = `mock-share-${analysisId}`
+    return {
+      shareUrl: `${window.location.origin}/app/share/${token}`,
+      token,
+      shareId: `mock-share-id-${analysisId}`,
+    }
+  }
+
+  return apiRequest<ShareLinkResponse>(`/analyses/${analysisId}/shares`, {
+    method: 'POST',
+  })
+}
+
+export async function fetchSharedAnalysis(token: string): Promise<SharedAnalysisResponse> {
+  if (env.useMockApi) {
+    return {
+      id: `mock-share-${token}`,
+      mode: 'job_match',
+      status: 'completed',
+      startedAt: new Date(Date.now() - 15_000).toISOString(),
+      completedAt: new Date().toISOString(),
+      result: {
+        ...mockAnalysis,
+        analysisId: `mock-share-${token}`,
+        createdAt: new Date().toISOString(),
+      },
+    }
+  }
+
+  const payload = await apiRequest<SharedAnalysisApiResponse>(
+    `/shares/${token}`,
+    { method: 'GET' },
+    { suppressToastOnStatus: [404] },
+  )
+  return normalizeSharedAnalysis(payload)
 }
 
 export async function claimGuestAnalyses(): Promise<ClaimGuestResponse> {

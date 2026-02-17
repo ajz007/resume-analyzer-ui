@@ -5,10 +5,16 @@ import ResultsPage from '../pages/ResultsPage'
 import PricingPage from '../pages/PricingPage'
 import PrivacyPage from '../pages/PrivacyPage'
 import TermsPage from '../pages/TermsPage'
+import SharedReportPage from '../pages/SharedReportPage'
 import AppShell from '../components/layout/AppShell'
 import RouteError from '../components/RouteError'
 
 export const router = createBrowserRouter([
+  {
+    path: '/app/share/:token',
+    element: <SharedReportPage />,
+    errorElement: <RouteError />,
+  },
   {
     path: '/',
     element: <AppShell />,
