@@ -63,7 +63,7 @@ export const normalizeAnalysisResponse = (result: AnalysisResponse): NormalizedA
       ? ats.score
       : typeof (result as { atsScore?: number }).atsScore === 'number'
       ? (result as { atsScore?: number }).atsScore
-      : result.finalScore
+      : undefined
 
   return {
     ...result,

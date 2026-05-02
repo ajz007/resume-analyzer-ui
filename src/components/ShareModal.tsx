@@ -27,8 +27,10 @@ const ShareModal = ({ open, shareUrl, isCopying, errorMessage, onClose, onCopy }
       <div className="w-full max-w-xl rounded-xl border border-gray-200 bg-white p-5 shadow-xl" role="dialog" aria-modal="true" aria-label="Share report link">
         <div className="space-y-4">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Share report</h2>
-            <p className={ui.results.text.meta}>Anyone with this link can view this report.</p>
+            <h2 className="text-lg font-semibold text-gray-900">Share report preview</h2>
+            <p className={ui.results.text.meta}>
+              Anyone with this link can view the ATS Readiness and Job Match report.
+            </p>
           </div>
 
           <div className="space-y-2">

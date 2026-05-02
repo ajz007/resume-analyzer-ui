@@ -7,6 +7,7 @@ import { claimGuestAnalyses, fetchAnalyses } from '../../api/endpoints'
 import { useToastStore } from '../../store/useToastStore'
 import { getAuthToken, isLoggedIn } from '../../auth/identity'
 import { useHistoryStore } from '../../store/useHistoryStore'
+import rethinkResumeLogo from '../../assets/brand/rethink-resume-logo.svg'
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `${ui.nav.linkBase} ${isActive ? ui.nav.linkActive : ui.nav.linkInactive}`
@@ -98,7 +99,15 @@ const AppShell = () => {
       <div className="min-h-screen flex flex-col bg-gray-100">
         <header className={ui.nav.header}>
           <div className={`${ui.layout.container} py-3 flex items-center justify-between`}>
-            <span className="text-lg font-bold text-gray-900">Rethink Resume</span>
+            <NavLink to="/app/analyzer" className="inline-flex items-center">
+              <img
+                src={rethinkResumeLogo}
+                alt="Rethink Resume"
+                className="h-8 w-auto"
+                loading="eager"
+                decoding="async"
+              />
+            </NavLink>
             <div className="flex items-center gap-4 text-sm">
               <nav className="flex items-center gap-4">
                 <NavLink to="/app/analyzer" className={navLinkClass}>

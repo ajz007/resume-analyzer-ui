@@ -58,15 +58,101 @@ export interface IssueItem {
   problem: string
   suggestion: string
   whyItMatters?: string
+  evidence?: string
   requiresUserInput: string[]
   severity: string
-  priority: number
+  priority?: number
 }
 
 export interface ActionPlan {
   quickWins: string[]
   mediumEffort: string[]
   deepFixes: string[]
+}
+
+export interface JobPriority {
+  id: string
+  priority: string
+  importance: string
+  weight: number
+  evidenceExpected: string
+  resumeMatchStatus: string
+  whyItMatters: string
+}
+
+export interface JobRequirementProfile {
+  isApplicable: boolean
+  primaryRole?: string
+  seniority?: string
+  roleType?: string
+  recruiterIntentSummary?: string
+  topPriorities?: JobPriority[]
+  hiddenExpectations?: unknown[]
+  niceToHaveSignals?: unknown[]
+}
+
+export interface RequirementScore {
+  requirementId: string
+  requirement: string
+  weight: number
+  score: number
+  weightedContribution?: number
+  matchStatus: string
+  evidence?: string
+  gap?: string
+}
+
+export interface JobMatchScoring {
+  score: number
+  scoringStrategy?: string
+  requirementScores?: RequirementScore[]
+  explanation?: string
+}
+
+export interface AIScreeningBreakdownItem {
+  id: string
+  label: string
+  score: number
+  weight: number
+  status: string
+  explanation?: string
+  improvementFocus?: string
+}
+
+export interface AIScreeningVerdict {
+  tier: string
+  title?: string
+  summary?: string
+  screeningRisk?: string
+}
+
+export interface AIRecruiterVerdict {
+  oneLineVerdict?: string
+  mainConcern?: string
+  strongestSignal?: string
+  weakestSignal?: string
+}
+
+export interface AIScreening {
+  score: number
+  verdict?: AIScreeningVerdict
+  scoreBreakdown?: AIScreeningBreakdownItem[]
+  aiRecruiterVerdict?: AIRecruiterVerdict
+}
+
+export interface ATSScore {
+  score?: number
+}
+
+export interface FixThisFirstItem {
+  priority: number
+  title: string
+  why: string
+  linkedRequirementId?: string
+  expectedImpact: string
+  effort: string
+  action: string
+  requiresUserInput?: boolean
 }
 
 export interface AnalysisResponse {
@@ -85,6 +171,11 @@ export interface AnalysisResponse {
   recommendations?: RecommendationItem[]
   issues?: IssueItem[]
   actionPlan?: ActionPlan
+  jobRequirementProfile?: JobRequirementProfile
+  jobMatchScoring?: JobMatchScoring
+  aiScreening?: AIScreening
+  ats?: ATSScore
+  fixThisFirst?: FixThisFirstItem[]
   summary: string
   nextSteps: string[]
 }

@@ -2,6 +2,7 @@
 import { ui } from '../app/uiTokens'
 import RecommendationsPanel from './RecommendationsPanel'
 import { AtsResultBox, JobMatchResultBox } from './ResultBox'
+import { getATSScore, getJobMatchScore } from '../analysis/reportScores'
 
 type JobMatchReportProps = {
   result: NormalizedAnalysis
@@ -24,28 +25,30 @@ export const JobMatchResultsReport = ({
   showFindings,
   onToggleFindings,
 }: JobMatchReportProps) => {
-  const matchScore = result.matchScore ?? result.finalScore ?? 0
-  const atsScore = result.normalized.atsScore ?? result.finalScore ?? result.matchScore ?? 0
+  const matchScore = getJobMatchScore(result) ?? 0
+  const atsScore = getATSScore(result)
 
   return (
     <>
       <div className={`${ui.card.padded} space-y-3`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-3xl font-bold text-gray-900">Job Match Score: {matchScore}/100</p>
+            <p className="text-3xl font-bold text-gray-900">Job Match: {matchScore}/100</p>
           </div>
-          <div className="text-sm text-gray-600">
-            ATS Readiness:{' '}
-            <span className="font-semibold text-gray-900">{atsScore}/100</span> |{' '}
-            {atsScore >= 65 ? 'ATS-safe, no blocking issues' : 'ATS needs attention'}
-          </div>
+          {typeof atsScore === 'number' ? (
+            <div className="text-sm text-gray-600">
+              ATS Readiness:{' '}
+              <span className="font-semibold text-gray-900">{atsScore}/100</span> |{' '}
+              {atsScore >= 65 ? 'strong readiness signals' : 'needs attention'}
+            </div>
+          ) : null}
         </div>
         <p className="text-sm text-gray-700">
           {matchScore < 50
-            ? 'Your resume does not strongly match this job yet. The gaps are fixable in ~30-60 minutes.'
+            ? 'Your resume does not clearly show fit for this job yet. Start with the top gaps.'
             : matchScore < 75
-            ? "You're moderately aligned. Fixing the top gaps can significantly improve shortlist chances."
-            : "You're strongly aligned. Polish and apply confidently."}
+            ? 'Your resume shows partial fit. Fixing the top gaps can make the evidence clearer.'
+            : 'Your resume clearly maps to many of this role\'s requirements.'}
         </p>
         <a href="#fix-first" className={ui.button.primary}>
           Improve My Match
@@ -55,7 +58,7 @@ export const JobMatchResultsReport = ({
       <div id="fix-first" className={`${ui.card.padded} space-y-3`}>
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold">What to Fix First</h2>
+            <h2 className="text-lg font-semibold">Top Gaps to Improve Match</h2>
             <p className="text-sm text-gray-600">High-impact updates you can finish quickly.</p>
           </div>
           <button
@@ -85,7 +88,7 @@ export const JobMatchResultsReport = ({
 
       <div id="findings" className={`${ui.card.padded} space-y-3`}>
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold">Detailed Findings & Recommendations</h2>
+          <h2 className="text-lg font-semibold">Detailed findings and recommendations</h2>
           <button
             type="button"
             onClick={onToggleFindings}
@@ -107,18 +110,22 @@ export const JobMatchResultsReport = ({
 }
 
 export const AtsResultsReport = ({ result, showFindings, onToggleFindings }: AtsReportProps) => {
-  const atsScore = result.normalized.atsScore ?? result.finalScore ?? result.matchScore ?? 0
+  const atsScore = getATSScore(result)
 
   return (
     <>
       <div className={`${ui.card.padded} space-y-3`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-3xl font-bold text-gray-900">ATS Score: {atsScore}/100</p>
+            <p className="text-3xl font-bold text-gray-900">
+              ATS Readiness{typeof atsScore === 'number' ? `: ${atsScore}/100` : ''}
+            </p>
           </div>
-          <div className="text-sm text-gray-600">
-            {atsScore >= 65 ? 'ATS-safe, no blocking issues' : 'ATS needs attention'}
-          </div>
+          {typeof atsScore === 'number' ? (
+            <div className="text-sm text-gray-600">
+              {atsScore >= 65 ? 'Strong readiness signals' : 'ATS Readiness needs attention'}
+            </div>
+          ) : null}
         </div>
         <p className="text-sm text-gray-700">
           Focus on formatting, keyword hygiene, and clear structure to improve ATS readability.
@@ -132,7 +139,7 @@ export const AtsResultsReport = ({ result, showFindings, onToggleFindings }: Ats
 
       <div id="findings" className={`${ui.card.padded} space-y-3`}>
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold">Detailed Findings & Recommendations</h2>
+          <h2 className="text-lg font-semibold">Detailed findings and recommendations</h2>
           <button
             type="button"
             onClick={onToggleFindings}

@@ -47,6 +47,7 @@ export interface BackendIssue {
   problem?: string
   suggestion?: string
   whyItMatters?: string
+  evidence?: string
   requiresUserInput?: string[]
   priority?: number
 }
@@ -97,6 +98,83 @@ export interface BackendActionPlan {
   deepFixes?: string[]
 }
 
+export interface BackendJobPriority {
+  id?: string
+  priority?: string
+  importance?: string
+  weight?: number
+  evidenceExpected?: string
+  resumeMatchStatus?: string
+  whyItMatters?: string
+}
+
+export interface BackendJobRequirementProfile {
+  isApplicable?: boolean
+  primaryRole?: string
+  seniority?: string
+  roleType?: string
+  recruiterIntentSummary?: string
+  topPriorities?: BackendJobPriority[]
+  hiddenExpectations?: unknown[]
+  niceToHaveSignals?: unknown[]
+}
+
+export interface BackendRequirementScore {
+  requirementId?: string
+  requirement?: string
+  weight?: number
+  score?: number
+  weightedContribution?: number
+  matchStatus?: string
+  evidence?: string
+  gap?: string
+}
+
+export interface BackendJobMatchScoring {
+  score?: number
+  scoringStrategy?: string
+  requirementScores?: BackendRequirementScore[]
+  explanation?: string
+}
+
+export interface BackendAIScreeningBreakdownItem {
+  id?: string
+  label?: string
+  score?: number
+  weight?: number
+  status?: string
+  explanation?: string
+  improvementFocus?: string
+}
+
+export interface BackendAIScreening {
+  score?: number
+  verdict?: {
+    tier?: string
+    title?: string
+    summary?: string
+    screeningRisk?: string
+  }
+  scoreBreakdown?: BackendAIScreeningBreakdownItem[]
+  aiRecruiterVerdict?: {
+    oneLineVerdict?: string
+    mainConcern?: string
+    strongestSignal?: string
+    weakestSignal?: string
+  }
+}
+
+export interface BackendFixThisFirstItem {
+  priority?: number
+  title?: string
+  why?: string
+  linkedRequirementId?: string
+  expectedImpact?: string
+  effort?: string
+  action?: string
+  requiresUserInput?: boolean
+}
+
 export interface BackendMissingInformation {
   skills?: string[]
   keywords?: string[]
@@ -107,6 +185,12 @@ export interface BackendAnalysisResult {
   meta?: BackendMeta
   summary?: BackendSummary
   ats?: BackendATS
+  finalScore?: number
+  matchScore?: number
+  jobRequirementProfile?: BackendJobRequirementProfile
+  jobMatchScoring?: BackendJobMatchScoring
+  aiScreening?: BackendAIScreening
+  fixThisFirst?: BackendFixThisFirstItem[]
   issues?: BackendIssue[]
   bulletRewrites?: BackendBulletRewrite[]
   recommendations?: BackendRecommendation[]

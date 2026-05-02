@@ -8,6 +8,7 @@ import type { AnalysisResponse, SharedAnalysisResponse } from '../api/types'
 import type { ApiError } from '../api/client'
 import { ui } from '../app/uiTokens'
 import { normalizeAnalysisResponse } from '../analysis/normalizeAnalysisResponse'
+import { getATSScore, getJobMatchScore } from '../analysis/reportScores'
 
 type SharedPageState = 'loading' | 'ready' | 'invalid' | 'error'
 
@@ -58,6 +59,11 @@ const SharedReportPage = () => {
 
   const modeFromResult = (toRender as { mode?: string } | null)?.mode
   const reportMode = resolveMode(modeFromResult ?? sharedAnalysis?.mode)
+  const headerScore = normalized
+    ? reportMode === 'ATS'
+      ? getATSScore(normalized)
+      : getJobMatchScore(normalized)
+    : undefined
 
   if (state === 'loading') {
     return (
@@ -65,7 +71,7 @@ const SharedReportPage = () => {
         <main className={`${ui.layout.container} py-10`}>
           <div className={`${ui.card.paddedLg} max-w-3xl mx-auto`}>
             <h1 className={ui.results.page.headerTitle}>Loading shared report...</h1>
-            <p className={ui.results.text.meta}>Please wait while we fetch this report.</p>
+            <p className={ui.results.text.meta}>Please wait while we fetch this report preview.</p>
           </div>
         </main>
       </div>
@@ -117,21 +123,18 @@ const SharedReportPage = () => {
         <ResultsLayout>
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h1 className={ui.results.page.headerTitle}>Resume Analysis Report</h1>
+              <h1 className={ui.results.page.headerTitle}>Resume readiness report</h1>
               {toRender?.createdAt && (
                 <p className={ui.results.page.headerMeta}>
                   Analyzed at: {new Date(toRender.createdAt).toLocaleString()}
                 </p>
               )}
-              <p className={ui.results.page.headerMeta}>Shared report view</p>
+              <p className={ui.results.page.headerMeta}>Shared report preview</p>
             </div>
-            {normalized ? (
+            {typeof headerScore === 'number' ? (
               <span className={ui.results.score.pill}>
-                {reportMode === 'ATS' ? 'ATS Score' : 'Match Score'}:{' '}
-                {reportMode === 'ATS'
-                  ? normalized.normalized.atsScore ?? normalized.finalScore ?? normalized.matchScore
-                  : normalized.matchScore ?? normalized.finalScore}
-                /100
+                {reportMode === 'ATS' ? 'ATS Readiness' : 'Job Match'}:{' '}
+                {headerScore}/100
               </span>
             ) : null}
           </div>

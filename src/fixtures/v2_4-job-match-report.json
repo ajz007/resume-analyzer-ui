@@ -1,0 +1,204 @@
+{
+  "analysisId": "fixture-v2-4-job-match",
+  "mode": "JOB_MATCH",
+  "createdAt": "2026-05-03T00:00:00.000Z",
+  "finalScore": 62,
+  "matchScore": 62,
+  "missingKeywords": [],
+  "weakKeywords": [],
+  "atsChecks": [],
+  "bulletSuggestions": [],
+  "summary": "",
+  "nextSteps": [],
+  "ats": {
+    "score": 72
+  },
+  "aiScreening": {
+    "score": 67,
+    "verdict": {
+      "tier": "BORDERLINE"
+    },
+    "scoreBreakdown": [
+      {
+        "id": "evidence_strength",
+        "label": "Evidence Strength",
+        "score": 58,
+        "weight": 25,
+        "status": "WEAK",
+        "improvementFocus": "Add concrete outcomes and proof for the highest-weight role requirements."
+      },
+      {
+        "id": "role_relevance",
+        "label": "Role Relevance",
+        "score": 66,
+        "weight": 25,
+        "status": "PARTIAL",
+        "improvementFocus": "Connect recent experience more directly to new business and lead generation."
+      },
+      {
+        "id": "impact_clarity",
+        "label": "Impact Clarity",
+        "score": 70,
+        "weight": 20,
+        "status": "PARTIAL",
+        "improvementFocus": "Use measurable impact where the resume can support it."
+      }
+    ],
+    "aiRecruiterVerdict": {
+      "oneLineVerdict": "The resume shows relevant sales leadership, but the strongest requirements need clearer proof.",
+      "mainConcern": "Lead generation and measurable growth evidence are not specific enough.",
+      "strongestSignal": "Recent account ownership and sales management experience.",
+      "weakestSignal": "Limited quantified pipeline and conversion outcomes."
+    }
+  },
+  "jobRequirementProfile": {
+    "isApplicable": true,
+    "recruiterIntentSummary": "The role is looking for a front-line sales leader who can create pipeline, convert prospects, and show measurable revenue impact.",
+    "topPriorities": [
+      {
+        "id": "req_new_business",
+        "priority": "New business and lead generation",
+        "importance": "CRITICAL",
+        "weight": 35,
+        "evidenceExpected": "Specific pipeline creation, prospecting volume, or conversion outcomes.",
+        "resumeMatchStatus": "PARTIAL",
+        "whyItMatters": "The job description emphasizes creating new opportunities rather than only managing existing accounts."
+      },
+      {
+        "id": "req_sales_results",
+        "priority": "Measurable revenue impact",
+        "importance": "CRITICAL",
+        "weight": 30,
+        "evidenceExpected": "Revenue, quota attainment, margin, or growth metrics.",
+        "resumeMatchStatus": "WEAK",
+        "whyItMatters": "Screeners need evidence that sales activity translated into business outcomes."
+      },
+      {
+        "id": "req_account_management",
+        "priority": "Strategic account management",
+        "importance": "HIGH",
+        "weight": 20,
+        "evidenceExpected": "Named account scope, customer segment, renewal, expansion, or stakeholder examples.",
+        "resumeMatchStatus": "STRONG",
+        "whyItMatters": "The role requires maintaining buyer confidence while expanding opportunities."
+      },
+      {
+        "id": "req_crm_hygiene",
+        "priority": "CRM discipline",
+        "importance": "MEDIUM",
+        "weight": 15,
+        "evidenceExpected": "Salesforce, pipeline hygiene, forecast accuracy, or reporting examples.",
+        "resumeMatchStatus": "PARTIAL",
+        "whyItMatters": "Clean pipeline management helps recruiters trust the candidate can operate in a structured sales process."
+      }
+    ]
+  },
+  "jobMatchScoring": {
+    "score": 62,
+    "requirementScores": [
+      {
+        "requirementId": "req_new_business",
+        "requirement": "New business and lead generation",
+        "weight": 35,
+        "score": 55,
+        "matchStatus": "PARTIAL",
+        "evidence": "Managed key accounts and developed customer relationships.",
+        "gap": "The resume does not clearly quantify prospecting volume or new qualified opportunities."
+      },
+      {
+        "requirementId": "req_sales_results",
+        "requirement": "Measurable revenue impact",
+        "weight": 30,
+        "score": 48,
+        "matchStatus": "WEAK",
+        "evidence": "Sales manager responsibilities are listed.",
+        "gap": "Revenue, quota, margin, or growth outcomes are not visible."
+      },
+      {
+        "requirementId": "req_account_management",
+        "requirement": "Strategic account management",
+        "weight": 20,
+        "score": 78,
+        "matchStatus": "STRONG",
+        "evidence": "Managed key accounts and supported customer relationships.",
+        "gap": ""
+      },
+      {
+        "requirementId": "req_crm_hygiene",
+        "requirement": "CRM discipline",
+        "weight": 15,
+        "score": 60,
+        "matchStatus": "PARTIAL",
+        "evidence": "Sales reporting is implied but not specific.",
+        "gap": "CRM tools and forecast process are not named."
+      }
+    ]
+  },
+  "fixThisFirst": [
+    {
+      "priority": 1,
+      "title": "Add proof for new business creation",
+      "why": "New pipeline creation is the highest-weight gap for this role.",
+      "expectedImpact": "HIGH",
+      "effort": "MEDIUM",
+      "action": "Add accurate prospecting, pipeline, or conversion evidence from recent sales work."
+    },
+    {
+      "priority": 2,
+      "title": "Quantify sales outcomes",
+      "why": "Metrics help recruiters distinguish responsibility from performance.",
+      "expectedImpact": "HIGH",
+      "effort": "LOW",
+      "action": "Add supported revenue, quota, margin, retention, or growth metrics."
+    }
+  ],
+  "issues": [
+    {
+      "section": "Impact / Metrics",
+      "problem": "Recent sales bullets describe responsibilities but do not show measurable outcomes.",
+      "suggestion": "Add supported revenue, quota, pipeline, or conversion metrics to the most relevant bullets.",
+      "whyItMatters": "Metrics help recruiters and automated screening workflows understand the scale and impact of your work.",
+      "evidence": "notFound",
+      "requiresUserInput": ["Revenue, quota, or pipeline metrics from recent sales roles"],
+      "severity": "high",
+      "priority": 1
+    },
+    {
+      "section": "Formatting",
+      "problem": "Some role headings may be harder to scan quickly.",
+      "suggestion": "Use standard section labels and keep employer, title, and dates visually consistent.",
+      "whyItMatters": "Consistent formatting helps recruiters and ATS parsing workflows locate experience details.",
+      "evidence": "Sales Manager heading lacks date consistency.",
+      "requiresUserInput": [],
+      "severity": "medium",
+      "priority": 2
+    }
+  ],
+  "bulletRewrites": [
+    {
+      "section": "Honeywell - Sales Manager",
+      "before": "Managed key accounts and developed customer relationships.",
+      "after": "Managed strategic customer relationships across key accounts, improving account coverage and strengthening renewal opportunities.",
+      "rationale": "Keeps the claim supported while making account ownership and business value clearer.",
+      "claimSupport": "supported",
+      "metricsSource": "resume"
+    },
+    {
+      "section": "Honeywell - Sales Manager",
+      "before": "Generated new leads for sales team.",
+      "after": "Generated {{new_qualified_prospects_per_quarter}} qualified prospects per quarter and converted {{conversion_rate}} into active opportunities.",
+      "rationale": "This would directly address the new-business requirement, but the numbers must be accurate.",
+      "claimSupport": "placeholder",
+      "metricsSource": "placeholder",
+      "placeholdersNeeded": [
+        "new_qualified_prospects_per_quarter",
+        "conversion_rate"
+      ]
+    }
+  ],
+  "actionPlan": {
+    "quickWins": ["Add supported sales metrics to the most relevant role."],
+    "mediumEffort": ["Rewrite top bullets around pipeline creation and revenue impact."],
+    "deepFixes": ["Reframe the experience section around job-critical sales outcomes."]
+  }
+}

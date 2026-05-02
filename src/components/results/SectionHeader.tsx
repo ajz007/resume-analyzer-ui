@@ -12,7 +12,7 @@ export function SectionHeader({
 }) {
   return (
     <div className="flex items-start justify-between gap-4">
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         <h2 className={ui.results.section.title}>{title}</h2>
         {subtitle ? <p className={ui.results.section.subtitle}>{subtitle}</p> : null}
       </div>

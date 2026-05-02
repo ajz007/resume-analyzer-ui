@@ -4,6 +4,7 @@ import { ui } from '../../app/uiTokens'
 import { ReportCard } from '../results/ReportCard'
 import { SectionHeader } from '../results/SectionHeader'
 import { SeverityChip } from '../results/SeverityChip'
+import { getATSScore } from '../../analysis/reportScores'
 
 type AtsChecksSectionProps = {
   result: NormalizedAnalysis
@@ -44,27 +45,36 @@ const AtsChecksSection = ({
     )
   })
 
-  if (!atsIssues.length) return null
   const rows = atsIssues
+  const atsScore = getATSScore(result)
+  if (!atsIssues.length && typeof atsScore !== 'number') return null
 
   return (
     <ReportCard>
-      <div className="space-y-2" id="ats">
+      <div className="space-y-3" id="ats">
         <div className="flex items-center justify-between">
           <SectionHeader
             title={title}
             subtitle="Formatting and structure issues that can affect parsing or recruiter scanning."
           />
-          <button
-            type="button"
-            onClick={() => setShowAtsChecks((value) => !value)}
-            className={ui.results.link}
-            aria-expanded={showAtsChecks}
-            aria-controls="ats-checks-panel"
-          >
-            {showAtsChecks ? 'Hide details' : 'View details'}
-          </button>
+          {rows.length ? (
+            <button
+              type="button"
+              onClick={() => setShowAtsChecks((value) => !value)}
+              className={ui.results.link}
+              aria-expanded={showAtsChecks}
+              aria-controls="ats-checks-panel"
+            >
+              {showAtsChecks ? 'Hide ATS details' : 'View ATS details'}
+            </button>
+          ) : null}
         </div>
+        {typeof atsScore === 'number' ? (
+          <p className={ui.results.text.secondary}>ATS Readiness: {atsScore}/100</p>
+        ) : null}
+        {!rows.length ? (
+          <p className={ui.results.text.secondary}>No ATS-specific issues were flagged.</p>
+        ) : null}
         {showAtsChecks && (
           <div id="ats-checks-panel">
             <ul className="space-y-2 mt-3">
