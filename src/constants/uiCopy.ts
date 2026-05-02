@@ -1,39 +1,41 @@
 export const COPY = {
   analyzer: {
     title: 'AI Resume Analyzer',
-    subtitle: 'Choose a goal to get the right score and recommendations.',
+    subtitle:
+      'See how your resume performs against ATS checks, job requirements, and AI-assisted screening.',
     helper:
-      'ATS Check scores resume readability for ATS systems. Job Match scores alignment to a specific job description.',
+      'Rethink Resume identifies what the role is really asking for, where your resume is weak, and what to fix first.',
   },
   modeSelector: {
     ats: {
-      title: 'ATS Check',
-      description: 'Check ATS readability, structure, and formatting.',
-      outcome: "You’ll get: ATS Score + top fixes.",
-      action: 'Use ATS Check',
+      title: 'ATS Readiness',
+      description: 'Check readability, structure, formatting, and parsing risk.',
+      outcome: "You'll get: ATS Readiness + fix priorities.",
+      action: 'Use ATS Readiness',
     },
     jobMatch: {
       title: 'Job Match',
-      description: 'Compare your resume to a specific job description.',
-      outcome: "You’ll get: Match Score + gaps to fix.",
+      description: 'Compare your resume to a specific job description and AI-assisted screening signals.',
+      outcome: "You'll get: Job Match + proof gaps.",
       action: 'Use Job Match',
     },
-    tip: 'Tip: You can run both. The scores measure different things.',
+    tip: 'Tip: ATS Readiness and Job Match measure different parts of the screening process.',
   },
   form: {
     uploadLabel: 'Upload your resume',
     uploadHelper: 'PDF or DOCX. Max {maxSize}.',
     ats: {
-      header: 'Run an ATS Check',
-      description: 'We’ll check structure, formatting, and common ATS parsing issues.',
-      cta: 'Run ATS Check',
+      header: 'Check ATS Readiness',
+      description: "We'll check structure, formatting, and common parsing issues.",
+      cta: 'Check ATS Readiness',
       switch: 'Switch to Job Match',
     },
     jobMatch: {
       header: 'Analyze Job Match',
-      description: 'Paste the job description to get an accurate match score and gap analysis.',
+      description:
+        'Paste the job description to see requirement-by-requirement match, proof gaps, and what to fix first.',
       cta: 'Analyze Job Match',
-      switch: 'Switch to ATS Check',
+      switch: 'Switch to ATS Readiness',
       jdLabel: 'Job description',
       jdPlaceholder: 'Paste the full job post here (responsibilities + requirements).',
       jdHelper: 'Minimum 300 characters for reliable scoring.',
@@ -41,11 +43,11 @@ export const COPY = {
       jdCounterOk: 'Looks good.',
     },
     analyzing: {
-      title: 'Analyzing…',
+      title: 'Analyzing...',
       steps: {
         common: ['Reading your resume', 'Extracting skills and experience'],
-        ats: 'Checking ATS structure and parsing',
-        jobMatch: 'Comparing to job requirements',
+        ats: 'Checking ATS readiness signals',
+        jobMatch: 'Comparing role requirements and proof gaps',
       },
       footer: 'This usually takes under a minute.',
     },
@@ -58,22 +60,22 @@ export const COPY = {
   },
   results: {
     ats: {
-      label: 'ATS Score',
+      label: 'ATS Readiness',
       explanation:
-        'Estimates ATS friendliness based on structure, formatting, and keyword hygiene.',
+        'Estimates ATS readiness based on structure, formatting, and keyword clarity.',
       emptyNote:
-        'No major ATS issues detected. Consider running Job Match for a specific role.',
+        'No major ATS readiness issues detected. Consider running Job Match for a specific role.',
     },
     jobMatch: {
-      label: 'Match Score',
+      label: 'Job Match',
       explanation: 'Estimates how well your resume aligns with this job description.',
       missingNote:
-        'Job description missing — switch to ATS Check or paste a job description and re-run.',
+        'Job description missing. Switch to ATS Readiness or paste a job description and re-run.',
     },
     scoreBreakdownLabel: 'Score',
   },
   errors: {
-    retrying: 'We’re getting a lot of traffic. Retrying automatically…',
+    retrying: "We're getting a lot of traffic. Retrying automatically...",
     noResume: 'No resume found for this session. Upload a resume to begin.',
     generic: 'Something went wrong while analyzing. Please try again.',
   },

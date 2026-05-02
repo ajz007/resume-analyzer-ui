@@ -56,8 +56,8 @@ const RecommendationsPanel = ({ recommendations, showHeader = true }: Recommenda
         {showHeader ? (
           <>
             <SectionHeader
-              title="Detailed Findings & Recommendations"
-              subtitle="Underlying issues detected in your resume, ordered by impact, that inform the Next Steps above."
+              title="Detailed findings and recommendations"
+              subtitle="Underlying issues detected in your resume, ordered by impact, that inform what to fix first."
             />
             <p className={ui.results.text.meta}>
               You don’t need to fix everything at once. Start with Critical items, then address Warnings
@@ -97,8 +97,8 @@ const RecommendationsPanel = ({ recommendations, showHeader = true }: Recommenda
 
         {ordered.length ? (
           <p className={ui.results.text.meta}>
-            Once you&apos;ve addressed the critical and top warning items above, your resume should be
-            ATS-safe for this role.
+            Once you&apos;ve addressed the critical and top warning items above, rerun the analysis to
+            check ATS Readiness and Job Match again.
           </p>
         ) : null}
       </div>

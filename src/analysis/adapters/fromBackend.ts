@@ -9,8 +9,12 @@ import type {
 import type {
   AnalysisResponse,
   ActionPlan,
+  AIScreening,
   AtsCheck,
+  FixThisFirstItem,
   IssueItem,
+  JobMatchScoring,
+  JobRequirementProfile,
   MissingKeywordBuckets,
   RecommendationItem,
   ScoreExplanationPayload,
@@ -68,6 +72,12 @@ const getFinalScore = (result: BackendAnalysisResult) => {
 }
 
 const getMatchScore = (result: BackendAnalysisResult) => {
+  if (typeof result.jobMatchScoring?.score === 'number') {
+    return clamp(Math.round(result.jobMatchScoring.score))
+  }
+  if (typeof result.matchScore === 'number') {
+    return clamp(Math.round(result.matchScore))
+  }
   const summary = result.summary as
     | {
         matchScore?: number
@@ -164,10 +174,93 @@ const mapIssueToUi = (issue: BackendIssue): IssueItem => ({
   problem: issue.problem ?? issue.message ?? 'Issue noted.',
   suggestion: issue.suggestion ?? issue.detail ?? 'Consider addressing this issue.',
   whyItMatters: issue.whyItMatters,
+  evidence: issue.evidence,
   requiresUserInput: Array.isArray(issue.requiresUserInput) ? issue.requiresUserInput : [],
   severity: typeof issue.severity === 'string' ? issue.severity : 'info',
-  priority: typeof issue.priority === 'number' ? issue.priority : 0,
+  priority: typeof issue.priority === 'number' ? issue.priority : undefined,
 })
+
+const mapJobRequirementProfile = (
+  profile?: BackendAnalysisResult['jobRequirementProfile'],
+): JobRequirementProfile | undefined => {
+  if (!profile) return undefined
+  return {
+    isApplicable: profile.isApplicable === true,
+    primaryRole: profile.primaryRole,
+    seniority: profile.seniority,
+    roleType: profile.roleType,
+    recruiterIntentSummary: profile.recruiterIntentSummary,
+    topPriorities: toArray(profile.topPriorities).map((item, index) => ({
+      id: item.id ?? `priority-${index + 1}`,
+      priority: item.priority ?? 'Requirement',
+      importance: item.importance ?? 'MEDIUM',
+      weight: typeof item.weight === 'number' ? item.weight : 0,
+      evidenceExpected: item.evidenceExpected ?? '',
+      resumeMatchStatus: item.resumeMatchStatus ?? 'UNKNOWN',
+      whyItMatters: item.whyItMatters ?? '',
+    })),
+    hiddenExpectations: toArray(profile.hiddenExpectations),
+    niceToHaveSignals: toArray(profile.niceToHaveSignals),
+  }
+}
+
+const mapJobMatchScoring = (
+  scoring?: BackendAnalysisResult['jobMatchScoring'],
+): JobMatchScoring | undefined => {
+  if (!scoring) return undefined
+  return {
+    score: typeof scoring.score === 'number' ? clamp(Math.round(scoring.score)) : 0,
+    scoringStrategy: scoring.scoringStrategy,
+    explanation: scoring.explanation,
+    requirementScores: toArray(scoring.requirementScores).map((item, index) => ({
+      requirementId: item.requirementId ?? `requirement-${index + 1}`,
+      requirement: item.requirement ?? 'Requirement',
+      weight: typeof item.weight === 'number' ? item.weight : 0,
+      score: typeof item.score === 'number' ? clamp(Math.round(item.score)) : 0,
+      weightedContribution: item.weightedContribution,
+      matchStatus: item.matchStatus ?? 'UNKNOWN',
+      evidence: item.evidence,
+      gap: item.gap,
+    })),
+  }
+}
+
+const mapAIScreening = (screening?: BackendAnalysisResult['aiScreening']): AIScreening | undefined => {
+  if (!screening) return undefined
+  return {
+    score: typeof screening.score === 'number' ? clamp(Math.round(screening.score)) : 0,
+    verdict: screening.verdict
+      ? {
+          tier: screening.verdict.tier ?? '',
+          title: screening.verdict.title,
+          summary: screening.verdict.summary,
+          screeningRisk: screening.verdict.screeningRisk,
+        }
+      : undefined,
+    scoreBreakdown: toArray(screening.scoreBreakdown).map((item, index) => ({
+      id: item.id ?? `screening-${index + 1}`,
+      label: item.label ?? item.id ?? 'Screening signal',
+      score: typeof item.score === 'number' ? clamp(Math.round(item.score)) : 0,
+      weight: typeof item.weight === 'number' ? item.weight : 0,
+      status: item.status ?? 'OK',
+      explanation: item.explanation,
+      improvementFocus: item.improvementFocus,
+    })),
+    aiRecruiterVerdict: screening.aiRecruiterVerdict,
+  }
+}
+
+const mapFixThisFirst = (items?: BackendAnalysisResult['fixThisFirst']): FixThisFirstItem[] =>
+  toArray(items).map((item, index) => ({
+    priority: typeof item.priority === 'number' ? item.priority : index + 1,
+    title: item.title ?? 'Fix this first',
+    why: item.why ?? '',
+    linkedRequirementId: item.linkedRequirementId,
+    expectedImpact: item.expectedImpact ?? 'MEDIUM',
+    effort: item.effort ?? 'MEDIUM',
+    action: item.action ?? '',
+    requiresUserInput: item.requiresUserInput,
+  }))
 
 export const fromBackendResult = (result: BackendAnalysisResult): AnalysisResponse => {
   const analysisId = result.meta?.analysisId ?? 'analysis-unknown'
@@ -215,7 +308,7 @@ export const fromBackendResult = (result: BackendAnalysisResult): AnalysisRespon
   return {
     analysisId,
     createdAt,
-    finalScore,
+    finalScore: typeof result.finalScore === 'number' ? clamp(Math.round(result.finalScore)) : finalScore,
     matchScore: getMatchScore(result),
     analysisMode: result.meta?.analysisMode ?? 'job_match',
     scoreExplanation: mapScoreExplanation(result.ats?.scoreExplanation),
@@ -228,6 +321,11 @@ export const fromBackendResult = (result: BackendAnalysisResult): AnalysisRespon
     recommendations,
     issues,
     actionPlan,
+    jobRequirementProfile: mapJobRequirementProfile(result.jobRequirementProfile),
+    jobMatchScoring: mapJobMatchScoring(result.jobMatchScoring),
+    aiScreening: mapAIScreening(result.aiScreening),
+    ats: typeof result.ats?.score === 'number' ? { score: clamp(Math.round(result.ats.score)) } : undefined,
+    fixThisFirst: mapFixThisFirst(result.fixThisFirst),
     summary: pickSummaryText(result.summary),
     nextSteps: getActionPlanSteps(result.actionPlan),
   }

@@ -10,6 +10,7 @@ import { ui } from '../app/uiTokens'
 import { normalizeAnalysisResponse } from '../analysis/normalizeAnalysisResponse'
 import ShareModal from '../components/ShareModal'
 import { useToastStore } from '../store/useToastStore'
+import { getATSScore, getJobMatchScore } from '../analysis/reportScores'
 
 const ResultsPage = () => {
   const { analysisId } = useParams<{ analysisId: string }>()
@@ -78,32 +79,30 @@ const ResultsPage = () => {
 
   const modeFromResult = (toRender as { mode?: string } | null)?.mode
   const reportMode = resolveMode(modeFromResult)
-  const summaryPayload =
-    normalized && typeof normalized.summary === 'object' ? (normalized.summary as Record<string, unknown>) : null
-  const hasSummary =
-    !!summaryPayload &&
-    (!!summaryPayload.strengths || !!summaryPayload.weaknesses || !!summaryPayload.overallAssessment)
-  const hasNextSteps =
-    (normalized?.actionPlan?.quickWins?.length ?? 0) > 0 ||
-    (normalized?.actionPlan?.mediumEffort?.length ?? 0) > 0 ||
-    (normalized?.actionPlan?.deepFixes?.length ?? 0) > 0 ||
-    (normalized?.recommendations?.length ?? 0) > 0
+  const headerScore = normalized
+    ? reportMode === 'ATS'
+      ? getATSScore(normalized)
+      : getJobMatchScore(normalized)
+    : undefined
+  const hasJobPriorities = normalized?.jobRequirementProfile?.isApplicable === true
+  const hasTopGapActions = (normalized?.fixThisFirst?.length ?? 0) > 0
   const hasRewrites = (normalized?.normalized.bulletSuggestions.length ?? 0) > 0
-  const hasFindings = (normalized?.recommendations?.length ?? 0) > 0
-  const hasTopGaps =
-    (normalized?.issues?.length ?? 0) > 0 ||
-    (normalized?.normalized.missingKeywordsFromJD.length ?? 0) >= 5
-  const hasAtsChecks = !!normalized?.issues?.some((issue) => {
-    const token = issue.section.toLowerCase()
-    return (
-      token.includes('ats') ||
-      token.includes('format') ||
-      token.includes('contact') ||
-      token.includes('skills') ||
-      token.includes('tools') ||
-      token.includes('layout')
-    )
-  })
+  const hasKeyRisks = (normalized?.issues?.length ?? 0) > 0
+  const hasAiShortlist = !!normalized?.aiScreening
+  const hasRequirements = (normalized?.jobMatchScoring?.requirementScores?.length ?? 0) > 0
+  const hasAtsSection =
+    typeof (normalized ? getATSScore(normalized) : undefined) === 'number' ||
+    !!normalized?.issues?.some((issue) => {
+      const token = issue.section.toLowerCase()
+      return (
+        token.includes('ats') ||
+        token.includes('format') ||
+        token.includes('contact') ||
+        token.includes('skills') ||
+        token.includes('tools') ||
+        token.includes('layout')
+      )
+    })
 
   const renderJumpLinks = (links: { href: string; label: string }[]) => {
     if (!links.length) return null
@@ -191,24 +190,24 @@ const ResultsPage = () => {
     <ResultsLayout>
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className={ui.results.page.headerTitle}>Resume Analysis Report</h1>
+          <h1 className={ui.results.page.headerTitle}>Resume readiness report</h1>
           {reportMode === 'JOB_MATCH'
             ? renderJumpLinks(
                 [
-                  hasSummary ? { href: '#summary', label: 'Summary' } : null,
-                  hasNextSteps ? { href: '#fix-first', label: 'Fix First' } : null,
-                  hasTopGaps ? { href: '#top-gaps', label: 'Top Gaps' } : null,
-                  hasRewrites ? { href: '#rewrites', label: 'Rewrites' } : null,
-                  hasAtsChecks ? { href: '#ats', label: 'ATS Readiness' } : null,
-                  hasFindings ? { href: '#findings', label: 'Detailed Findings' } : null,
+                  hasJobPriorities ? { href: '#job-intent', label: 'Job Priorities' } : null,
+                  hasTopGapActions ? { href: '#fix-first', label: 'Top Gaps' } : null,
+                  hasRewrites ? { href: '#rewrites', label: 'Resume Updates' } : null,
+                  hasKeyRisks ? { href: '#key-risks', label: 'Key Risks' } : null,
+                  hasAtsSection ? { href: '#ats', label: 'ATS' } : null,
+                  hasAiShortlist ? { href: '#ai-shortlist', label: 'AI Shortlist' } : null,
+                  hasRequirements ? { href: '#requirements', label: 'Requirements' } : null,
                 ].filter(Boolean) as { href: string; label: string }[],
               )
             : renderJumpLinks(
                 [
-                  hasNextSteps ? { href: '#fix-first', label: 'Fix First' } : null,
-                  hasAtsChecks ? { href: '#ats', label: 'ATS Checks' } : null,
-                  hasRewrites ? { href: '#rewrites', label: 'Rewrites' } : null,
-                  hasFindings ? { href: '#findings', label: 'Detailed Findings' } : null,
+                  hasTopGapActions ? { href: '#fix-first', label: 'Top Gaps' } : null,
+                  hasRewrites ? { href: '#rewrites', label: 'Resume Updates' } : null,
+                  hasAtsSection ? { href: '#ats', label: 'ATS' } : null,
                 ].filter(Boolean) as { href: string; label: string }[],
               )}
           {toRender?.createdAt && (
@@ -218,13 +217,10 @@ const ResultsPage = () => {
           )}
         </div>
         <div className="flex flex-col items-end gap-2">
-          {normalized ? (
+          {typeof headerScore === 'number' ? (
             <span className={ui.results.score.pill}>
-              {reportMode === 'ATS' ? 'ATS Score' : 'Match Score'}:{' '}
-              {reportMode === 'ATS'
-                ? normalized.normalized.atsScore ?? normalized.finalScore ?? normalized.matchScore
-                : normalized.matchScore ?? normalized.finalScore}
-              /100
+              {reportMode === 'ATS' ? 'ATS Readiness' : 'Job Match'}:{' '}
+              {headerScore}/100
             </span>
           ) : null}
           {analysisId ? (
@@ -268,7 +264,7 @@ const ResultsPage = () => {
         <div className={ui.results.text.meta}>
           <p className="font-semibold text-gray-700">Next (coming soon)</p>
           <ul className={ui.results.list.bulletsSecondary}>
-            <li>Apply fixes directly to your resume</li>
+            <li>Apply recommended updates to your resume</li>
             <li>Track score improvement</li>
             <li>Generate role-specific versions</li>
           </ul>

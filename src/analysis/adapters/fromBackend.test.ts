@@ -15,6 +15,7 @@ describe('fromBackendResult', () => {
 
     expect(result.finalScore).toBe(74)
     expect(result.matchScore).toBe(80)
+    expect(result.ats?.score).toBe(74)
   })
 
   it('prefers ats.score even when scoreExplanation exists and computes JD match score', () => {
@@ -39,6 +40,7 @@ describe('fromBackendResult', () => {
 
     expect(result.finalScore).toBe(74)
     expect(result.matchScore).toBe(60)
+    expect(result.ats?.score).toBe(74)
   })
 
   it('falls back to scoreExplanation when ats.score is missing', () => {
@@ -59,5 +61,6 @@ describe('fromBackendResult', () => {
 
     expect(result.finalScore).toBe(88)
     expect(result.matchScore).toBe(0)
+    expect(result.ats?.score).toBeUndefined()
   })
 })

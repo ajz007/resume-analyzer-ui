@@ -27,8 +27,8 @@ const SkillGapSection = ({ result }: SkillGapSectionProps) => {
   return (
     <div className="bg-white rounded border p-4 space-y-4">
       <div>
-        <h3 className="text-lg font-semibold">Skill Gap Analysis</h3>
-        <p className="text-sm text-gray-600">Compared to the job description.</p>
+        <h3 className="text-lg font-semibold">Proof gaps</h3>
+        <p className="text-sm text-gray-600">Compared to what this job is really asking for.</p>
       </div>
       <p className="text-sm text-gray-600">
         Only add keywords you can honestly support. Best practice: add in Skills/Tools and support
@@ -43,8 +43,8 @@ const SkillGapSection = ({ result }: SkillGapSectionProps) => {
       )}
 
       <div className="space-y-1">
-        <p className="text-sm font-semibold text-gray-900">Top keywords to fix first</p>
-        <p className="text-xs text-gray-600">Highest impact on ATS and recruiter screening.</p>
+        <p className="text-sm font-semibold text-gray-900">Top gaps to improve match</p>
+        <p className="text-xs text-gray-600">Highest impact on ATS and AI-assisted screening readiness.</p>
         {topKeywords.length ? (
           <div className="flex flex-wrap gap-2">
             {topKeywords.map((keyword) => (
@@ -68,10 +68,10 @@ const SkillGapSection = ({ result }: SkillGapSectionProps) => {
       <div className="grid gap-3 md:grid-cols-2">
         <div className="border rounded p-3 space-y-3">
           <div className="text-sm font-semibold text-gray-900">
-            Missing from Your Resume (Required by Job Description)
+            Missing from your resume
           </div>
           <p className="text-xs text-gray-600">
-            These keywords appear in the job description and affect ATS and recruiter scanning.
+            These requirements appear in the job description and may affect ATS and screening review.
           </p>
           {keywordRecommendation?.action && (
             <p className="text-xs text-gray-600">{keywordRecommendation.action}</p>
@@ -116,8 +116,8 @@ const SkillGapSection = ({ result }: SkillGapSectionProps) => {
           <div>
             <p className="text-sm font-semibold text-gray-900">If you address 5-7 of these</p>
             <ul className="list-disc list-inside text-sm text-gray-700 mt-2">
-              <li>Estimated Job Match gain: +15-20</li>
-              <li>Higher recruiter shortlisting odds</li>
+              <li>Potential Job Match improvement: +15-20</li>
+              <li>Clearer evidence for screening review</li>
             </ul>
           </div>
           <div className="text-sm">
