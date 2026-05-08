@@ -38,6 +38,7 @@ describe('BulletSuggestions', () => {
     expect(html).toContain('Section: Honeywell - SALES MANAGER')
     expect(html).toContain('Suggested update')
     expect(html).toContain('Current')
+    expect(html).toContain('border-l-2 border-slate-300 bg-slate-50 pl-3 py-2')
     expect(html).toContain('Suggested')
     expect(html).toContain('Why this helps')
     expect(html).not.toContain('From:')
