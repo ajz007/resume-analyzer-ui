@@ -66,7 +66,9 @@ const BulletSuggestions = ({ suggestions }: BulletSuggestionsProps) => {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-1">
                     <p className={ui.results.text.label}>Current</p>
-                    <p className={ui.results.text.secondary}>{suggestion.original}</p>
+                    <p className={`${ui.results.text.secondary} border-l-2 border-slate-300 bg-slate-50 pl-3 py-2`}>
+                      {suggestion.original}
+                    </p>
                   </div>
                   <div className="space-y-1">
                     <p className={ui.results.text.label}>Suggested</p>
