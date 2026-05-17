@@ -13,7 +13,7 @@ React + Vite front-end for the Resume Analyzer application.
 
 ```powershell
 npm ci
-npm run build -- --mode production
+npm run build:prod
 aws s3 sync dist/ s3://ra-prod-ui-us-east-1-ajz007/ --delete
 ```
 
@@ -39,7 +39,7 @@ PowerShell:
 $env:VITE_API_BASE_URL="<API_BASE_URL>"
 $env:VITE_UPLOAD_MODE="s3"
 $env:VITE_USE_MOCK_API="false"
-npm run build -- --mode production
+npm run build:prod
 ```
 
 Bash:
@@ -48,7 +48,7 @@ Bash:
 VITE_API_BASE_URL="<API_BASE_URL>" \
 VITE_UPLOAD_MODE="s3" \
 VITE_USE_MOCK_API="false" \
-npm run build -- --mode production
+npm run build:prod
 ```
 
 ### Upload build artifacts to S3

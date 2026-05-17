@@ -6,6 +6,8 @@ import PricingPage from '../pages/PricingPage'
 import PrivacyPage from '../pages/PrivacyPage'
 import TermsPage from '../pages/TermsPage'
 import SharedReportPage from '../pages/SharedReportPage'
+import AtsResumeCheckerPage from '../pages/AtsResumeCheckerPage'
+import AiResumeBuilderPage from '../pages/AiResumeBuilderPage'
 import AppShell from '../components/layout/AppShell'
 import RouteError from '../components/RouteError'
 
@@ -48,6 +50,14 @@ export const router = createBrowserRouter([
       {
         path: 'pricing',
         element: <PricingPage />,
+      },
+      {
+        path: 'ats-resume-checker',
+        element: <AtsResumeCheckerPage />,
+      },
+      {
+        path: 'ai-resume-builder',
+        element: <AiResumeBuilderPage />,
       },
       {
         path: 'privacy',
