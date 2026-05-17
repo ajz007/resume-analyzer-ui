@@ -3,6 +3,10 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "reactSnap": {
+    "source": "dist",
+    "inlineCss": true
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -15,6 +19,7 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-dropzone": "^14.2.3",
+    "react-helmet-async": "^3.0.0",
     "react-router-dom": "^7.1.1",
     "zustand": "^4.5.5"
   },
@@ -30,9 +35,10 @@
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^16.0.0",
     "postcss": "^8.5.6",
+    "react-snap": "^1.23.0",
     "tailwindcss": "^4.1.18",
     "typescript": "^5.7.3",
-    "vitest": "^2.1.5",
-    "vite": "^6.3.5"
+    "vite": "^6.3.5",
+    "vitest": "^2.1.5"
   }
 }
