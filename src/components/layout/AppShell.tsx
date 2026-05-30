@@ -153,7 +153,7 @@ const AppShell = () => {
       <div className="min-h-screen flex flex-col bg-gray-100">
         <header className={ui.nav.header}>
           <div className={`${ui.layout.container} flex items-center justify-between gap-4 py-3`}>
-            <NavLink to="/app/analyzer" className="inline-flex items-center">
+            <NavLink to="/" className="inline-flex items-center">
               <img
                 src={rethinkResumeLogo}
                 alt="Rethink Resume"

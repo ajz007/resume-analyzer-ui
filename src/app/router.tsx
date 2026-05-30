@@ -1,4 +1,5 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
+import HomePage from '../pages/marketing/HomePage'
 import AnalyzerPage from '../pages/AnalyzerPage'
 import HistoryPage from '../pages/HistoryPage'
 import ResultsPage from '../pages/ResultsPage'
@@ -24,7 +25,7 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Navigate to="/app/analyzer" replace />,
+        element: <HomePage />,
       },
       {
         path: 'app',

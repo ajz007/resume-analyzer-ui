@@ -1,5 +1,10 @@
 import { create } from 'zustand'
-import { analyzeDocument } from '../api/endpoints'
+import {
+  ResumeParseError,
+  analyzeDocument,
+  getResumeParseFailure,
+  type ResumeParseFailure,
+} from '../api/endpoints'
 import type { ApiError } from '../api/client'
 import type { AnalysisResponse } from '../api/types'
 import type { UploadedDoc } from '../api/documents'
@@ -23,6 +28,7 @@ type AnalysisState = {
   result?: AnalysisResponse
   error?: string
   errorDetail?: string
+  parseFailure?: ResumeParseFailure
   uploadedDoc?: UploadedDoc
   setResumeFile: (file: File | null) => void
   setJdText: (text: string) => void
@@ -47,23 +53,24 @@ const initialState = {
   result: undefined,
   error: undefined,
   errorDetail: undefined,
+  parseFailure: undefined,
   uploadedDoc: undefined,
 }
 
 export const useAnalysisStore = create<AnalysisState>((set, get) => ({
   ...initialState,
 
-  setResumeFile: (file) => set({ resumeFile: file, error: undefined }),
+  setResumeFile: (file) => set({ resumeFile: file, error: undefined, parseFailure: undefined }),
 
   setJdText: (text) => set({ jdText: text }),
 
   setAnalysisMode: (mode) => set({ analysisMode: mode }),
 
-  setError: (message) => set({ error: message, errorDetail: undefined }),
+  setError: (message) => set({ error: message, errorDetail: undefined, parseFailure: undefined }),
 
   setUploadedDoc: (doc) => set({ uploadedDoc: doc }),
 
-  resetJdOnly: () => set({ jdText: '', status: 'idle', error: undefined }),
+  resetJdOnly: () => set({ jdText: '', status: 'idle', error: undefined, parseFailure: undefined }),
 
   reset: () => set({ ...initialState }),
 
@@ -110,6 +117,9 @@ export const useAnalysisStore = create<AnalysisState>((set, get) => ({
       lastErrorCode: undefined,
       lastSubmitAt: now,
       error: undefined,
+      parseFailure: undefined,
+      result: undefined,
+      analysisId: undefined,
     })
 
     try {
@@ -138,6 +148,22 @@ export const useAnalysisStore = create<AnalysisState>((set, get) => ({
       }
     } catch (err) {
       const apiErr = err as ApiError
+      const parseFailure =
+        err instanceof ResumeParseError
+          ? err.parseFailure
+          : getResumeParseFailure(apiErr?.details) ?? getResumeParseFailure(apiErr)
+      if (parseFailure) {
+        set({
+          status: 'error',
+          error: undefined,
+          errorDetail: undefined,
+          parseFailure,
+          lastErrorCode: parseFailure.code,
+          lastStatus: 'failed',
+        })
+        return
+      }
+
       const errorCode = typeof apiErr?.code === 'string' ? apiErr.code : undefined
       const isLimitReached =
         (typeof apiErr?.code === 'string' && apiErr.code === 'limit_reached') || apiErr?.status === 429
