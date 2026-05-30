@@ -8,6 +8,7 @@ export type SeoMetadataProps = {
   canonicalUrl: string
   imageUrl?: string
   siteName?: string
+  twitterCard?: 'summary' | 'summary_large_image'
   structuredData?: SeoStructuredData | SeoStructuredData[]
 }
 
@@ -17,6 +18,7 @@ const SeoMetadata = ({
   canonicalUrl,
   imageUrl,
   siteName = 'Rethink Resume',
+  twitterCard = 'summary_large_image',
   structuredData,
 }: SeoMetadataProps) => (
   <Helmet>
@@ -29,6 +31,10 @@ const SeoMetadata = ({
     <meta property="og:url" content={canonicalUrl} />
     <meta property="og:site_name" content={siteName} />
     {imageUrl ? <meta property="og:image" content={imageUrl} /> : null}
+    <meta name="twitter:card" content={twitterCard} />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    {imageUrl ? <meta name="twitter:image" content={imageUrl} /> : null}
     {structuredData ? (
       <script type="application/ld+json">{JSON.stringify(structuredData)}</script>
     ) : null}
