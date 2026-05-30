@@ -5,14 +5,52 @@ import type { BackendAnalysisResult } from './backendTypes'
 import type { UploadedDoc } from './documents'
 import { fromBackendResult } from '../analysis/adapters/fromBackend'
 
-type AnalyzeStartResponse = { analysisId: string; status: string; pollAfterMs?: number }
+export type ParseResultStatus = 'PARSE_SUCCESS' | 'PARSE_LOW_CONFIDENCE' | 'PARSE_FAILED'
+
+export type ResumeParseFailure = {
+  status: Exclude<ParseResultStatus, 'PARSE_SUCCESS'>
+  code?: string
+  title: string
+  message: string
+  recommendations: string[]
+  fileType?: string
+  parserUsed?: string
+  extractedCharacterCount?: number
+}
+
+type ParseFailurePayload = {
+  status?: string
+  code?: string
+  title?: string
+  message?: string
+  recommendations?: unknown
+  fileType?: string
+  file_type?: string
+  parserUsed?: string
+  parser_used?: string
+  extractedCharacterCount?: number
+  extracted_character_count?: number
+  extractedCharCount?: number
+}
+
+export class ResumeParseError extends Error {
+  parseFailure: ResumeParseFailure
+
+  constructor(parseFailure: ResumeParseFailure) {
+    super(parseFailure.message)
+    this.name = 'ResumeParseError'
+    this.parseFailure = parseFailure
+  }
+}
+
+type AnalyzeStartResponse = { analysisId?: string; status: string; pollAfterMs?: number } & ParseFailurePayload
 type AnalyzeStatusResponse = {
   id: string
   status: string
   pollAfterMs?: number
   retryAfterMs?: number
   result?: BackendAnalysisResult
-}
+} & ParseFailurePayload
 type ClaimGuestResponse = { migratedCount?: number }
 type ListParams = { limit?: number; offset?: number }
 type SharedAnalysisApiResponse = {
@@ -178,6 +216,76 @@ const DEFAULT_POLL_MS = 20000
 const MAX_BACKOFF_MS = 15_000
 const HIDDEN_POLL_MS = 8000
 const JITTER_MS = 200
+const parseProblemStatuses = new Set(['PARSE_FAILED', 'PARSE_LOW_CONFIDENCE'])
+
+const normalizeStatusToken = (status: unknown) => String(status ?? '').trim().toUpperCase()
+
+const fallbackParseFailure = {
+  title: 'Unable to reliably read your resume',
+  message: 'We could not extract enough text from your resume to perform a reliable analysis.',
+  recommendations: [
+    'Upload a DOCX version',
+    'Upload a text-based PDF',
+    'Use a simpler ATS-friendly layout',
+  ],
+}
+
+const asRecord = (value: unknown): Record<string, unknown> | undefined =>
+  value && typeof value === 'object' ? (value as Record<string, unknown>) : undefined
+
+const normalizeParseFailure = (payload: unknown): ResumeParseFailure | undefined => {
+  const record = asRecord(payload)
+  if (!record) return undefined
+
+  const nestedError = asRecord(record.error)
+  const details = asRecord(record.details)
+  const source =
+    parseProblemStatuses.has(normalizeStatusToken(record.status))
+      ? record
+      : nestedError && parseProblemStatuses.has(normalizeStatusToken(nestedError.status))
+      ? nestedError
+      : details && parseProblemStatuses.has(normalizeStatusToken(details.status))
+      ? details
+      : undefined
+
+  if (!source) return undefined
+
+  const recommendations = Array.isArray(source.recommendations)
+    ? source.recommendations.filter((item): item is string => typeof item === 'string')
+    : fallbackParseFailure.recommendations
+  const extractedCharacterCount =
+    typeof source.extractedCharacterCount === 'number'
+      ? source.extractedCharacterCount
+      : typeof source.extracted_character_count === 'number'
+      ? source.extracted_character_count
+      : typeof source.extractedCharCount === 'number'
+      ? source.extractedCharCount
+      : undefined
+
+  return {
+    status: normalizeStatusToken(source.status) as ResumeParseFailure['status'],
+    code: typeof source.code === 'string' ? source.code : undefined,
+    title: typeof source.title === 'string' ? source.title : fallbackParseFailure.title,
+    message: typeof source.message === 'string' ? source.message : fallbackParseFailure.message,
+    recommendations,
+    fileType:
+      typeof source.fileType === 'string'
+        ? source.fileType
+        : typeof source.file_type === 'string'
+        ? source.file_type
+        : undefined,
+    parserUsed:
+      typeof source.parserUsed === 'string'
+        ? source.parserUsed
+        : typeof source.parser_used === 'string'
+        ? source.parser_used
+        : undefined,
+    extractedCharacterCount,
+  }
+}
+
+export const getResumeParseFailure = (payload: unknown): ResumeParseFailure | undefined =>
+  normalizeParseFailure(payload)
 
 const getJitteredDelay = (baseMs: number) => {
   const jitter = Math.round((Math.random() * 2 - 1) * JITTER_MS)
@@ -223,13 +331,18 @@ const pollAnalysisResult = async (
       const statusBody = await apiRequest<AnalyzeStatusResponse>(
         `/analyses/${analysisId}`,
         { method: 'GET' },
-        { suppressToastOnStatus: [429] },
+        { suppressToastOnStatus: [400, 409, 422, 429] },
       )
 
       const resultWithId = withResultAnalysisId(statusBody, analysisId)
       if (resultWithId) {
         const adapted = fromBackendResult(resultWithId)
         return normalizeAnalysis(adapted)
+      }
+
+      const parseFailure = normalizeParseFailure(statusBody)
+      if (parseFailure) {
+        throw new ResumeParseError(parseFailure)
       }
 
       if (statusBody.status === 'failed') {
@@ -272,14 +385,27 @@ export async function analyzeDocument(
     return analyzeMock(documentId, jobDescription, mode)
   }
 
-  const startResponse = await apiRequest<AnalyzeStartResponse>(`/documents/${documentId}/analyze`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.retry ? { 'X-Retry-Analysis': 'true' } : {}),
+  const startResponse = await apiRequest<AnalyzeStartResponse>(
+    `/documents/${documentId}/analyze`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options.retry ? { 'X-Retry-Analysis': 'true' } : {}),
+      },
+      body: JSON.stringify({ mode, jobDescription: jobDescription ?? '' }),
     },
-    body: JSON.stringify({ mode, jobDescription: jobDescription ?? '' }),
-  })
+    { suppressToastOnStatus: [400, 409, 422] },
+  )
+
+  const parseFailure = normalizeParseFailure(startResponse)
+  if (parseFailure) {
+    throw new ResumeParseError(parseFailure)
+  }
+
+  if (!startResponse.analysisId) {
+    throw new Error('Analysis failed')
+  }
 
   return pollAnalysisResult(startResponse.analysisId, startResponse.pollAfterMs)
 }

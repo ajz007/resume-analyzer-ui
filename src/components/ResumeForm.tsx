@@ -6,6 +6,7 @@ import { uploadDocument, getCurrentDocument } from '../api/documents'
 import { useAnalysisStore } from '../store/useAnalysisStore'
 import { useHistoryStore } from '../store/useHistoryStore'
 import { useUsageStore } from '../store/useUsageStore'
+import { ui } from '../app/uiTokens'
 import {
   ALLOWED_RESUME_EXTENSIONS,
   ALLOWED_RESUME_MIME_TYPES,
@@ -13,6 +14,7 @@ import {
   MAX_RESUME_FILE_BYTES,
 } from '../app/config'
 import { COPY } from '../constants/uiCopy'
+import AlertCard from './AlertCard'
 
 const formatFileSize = (bytes: number) => `${Math.round(bytes / 1024)} KB`
 const formatFileLimit = (bytes: number) => `${Math.round(bytes / (1024 * 1024))}MB`
@@ -32,6 +34,7 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
     status,
     error,
     errorDetail,
+    parseFailure,
     lastStatus,
     lastErrorCode,
     setResumeFile,
@@ -83,6 +86,15 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
     : shouldRetry
     ? 'Retry analysis'
     : baseAnalyzeLabel
+
+  const handleUploadAnotherResume = () => {
+    setResumeFile(null)
+    setUploadedDoc(undefined)
+    setError(undefined)
+    setUploadStatus(undefined)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+    fileInputRef.current?.click()
+  }
 
   const validateAndSetFile = async (file: File | null) => {
     if (!file) {
@@ -227,7 +239,7 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
           {uploadedDoc ? (
             <div className="text-left space-y-2">
               <div className="flex items-center gap-2 text-sm text-gray-800">
-                <span aria-hidden>✅</span>
+                <span aria-hidden>Uploaded:</span>
                 <span className="font-semibold truncate">{uploadedDoc.fileName}</span>
               </div>
               <p className="text-xs text-gray-600">Size: {formatFileSize(uploadedDoc.sizeBytes)}</p>
@@ -304,6 +316,68 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
             </details>
           )}
         </div>
+      )}
+      {parseFailure && (
+        <AlertCard
+          severity="warning"
+          title="Resume format may not be ATS-friendly"
+          description={
+            <div className="space-y-3">
+              <p>
+                We couldn&apos;t reliably extract enough text to analyze your resume.
+              </p>
+              <div>
+                <p>This commonly happens with:</p>
+                <ul className="mt-1 list-disc pl-5 space-y-1">
+                  <li>Canva-generated resumes</li>
+                  <li>Image-based PDFs</li>
+                  <li>Multi-column layouts</li>
+                  <li>Graphic-heavy designs</li>
+                </ul>
+              </div>
+              <p>
+                Many Applicant Tracking Systems (ATS) may experience similar difficulties
+                processing these formats.
+              </p>
+            </div>
+          }
+        >
+
+          <div className="border-t border-amber-200 pt-3 space-y-1">
+            <p className="font-semibold text-amber-950">ATS Compatibility Warning</p>
+            <p>
+              If our parser cannot reliably extract text from your resume, some ATS platforms may
+              also struggle to process it.
+            </p>
+          </div>
+
+            <div className="space-y-2 pb-2">
+            <p className="font-semibold text-amber-950">Try one of these options:</p>
+            <ul className="space-y-1">
+              {[
+                'Upload a DOCX version',
+                'Upload a text-based PDF',
+                'Use a simpler ATS-friendly layout',
+              ].map((item) => (
+                <li className="flex gap-2" key={item}>
+                  <span aria-hidden className="font-semibold text-green-700">
+                    +
+                  </span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <button
+            type="button"
+            className={ui.button.primary}
+            onClick={handleUploadAnotherResume}
+            disabled={loading}
+          >
+            Upload another resume
+          </button>
+        </AlertCard>
       )}
       {usage && usage.used >= usage.limit && (
         <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded p-3">
