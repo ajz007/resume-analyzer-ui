@@ -7,6 +7,7 @@ import { ui } from '../app/uiTokens'
 import { isLoggedIn } from '../auth/identity'
 import { env } from '../app/env'
 import { getMatchScore, getOverallScore } from './historyScore'
+import AppPageMetadata from '../components/seo/AppPageMetadata'
 
 const HistoryPage = () => {
   const navigate = useNavigate()
@@ -111,6 +112,7 @@ const HistoryPage = () => {
 
   return (
     <div className="p-6">
+      <AppPageMetadata title="History | Rethink Resume" description="Review saved resume analyses." />
       <div className={`${ui.layout.header} mb-4`}>
         <div className="space-y-1">
           <h1 className={ui.text.h2}>History</h1>

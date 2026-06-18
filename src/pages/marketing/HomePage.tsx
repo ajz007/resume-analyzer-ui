@@ -48,10 +48,10 @@ const featureCards = [
 ]
 
 const futureLinks = [
-  { label: 'Java Developer Resume Guide', to: '/java-developer-resume-guide' },
-  { label: 'Backend Engineer Resume Template', to: '/backend-engineer-resume-template' },
-  { label: 'Resume Keyword Scanner', to: '/resume-keyword-scanner' },
-  { label: 'AI LinkedIn Summary Generator', to: '/ai-linkedin-summary-generator' },
+  { label: 'AI Resume Builder', to: '/ai-resume-builder' },
+  { label: 'ATS Resume Checker', to: '/ats-resume-checker' },
+  { label: 'Early Access', to: '/pricing' },
+  { label: 'Privacy', to: '/privacy' },
 ]
 
 const HomePage = () => (
@@ -78,6 +78,9 @@ const HomePage = () => (
             Rethink Resume helps technical professionals improve resumes before applying. Analyze
             ATS readiness, compare your resume with job descriptions, find missing skills, and use
             AI guidance to make your experience clearer, stronger, and easier to evaluate.
+          </p>
+          <p className="max-w-3xl text-sm font-medium text-blue-800">
+            Try 3 analyses as a guest, or sign in for 15 free analyses/month.
           </p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row">
@@ -127,15 +130,15 @@ const HomePage = () => (
         <div>
           <h2 className="text-2xl font-bold text-gray-950">Resume app</h2>
           <p className="mt-2 text-base leading-7 text-gray-700">
-            Use `/app/analyzer` for upload, job matching, analysis history, and future authenticated
-            workflows.
+            Use the app to upload a resume, run ATS and job-match analysis, review saved history,
+            and manage structured resume drafts.
           </p>
         </div>
         <div>
           <h2 className="text-2xl font-bold text-gray-950">Early access</h2>
           <p className="mt-2 text-base leading-7 text-gray-700">
-            Start with up to 10 analyses per month while the platform is actively improving. No
-            credit card required during early access.
+            Try 3 analyses as a guest, or sign in for 15 free analyses/month. No credit card
+            required during early access.
           </p>
         </div>
       </div>
@@ -171,8 +174,8 @@ const HomePage = () => (
           <Link className="text-blue-700 underline underline-offset-2" to="/ai-resume-builder">
             AI Resume Builder
           </Link>{' '}
-          explain how the workflow works. The application under `/app/*` is where users upload a
-          resume, paste a job description, and generate the analysis report.
+          explain how the workflow works. The application is where users upload a resume, paste a
+          job description, and generate an analysis report or structured resume draft.
         </p>
       </SeoTextBlock>
     </SeoSection>
@@ -239,7 +242,7 @@ const HomePage = () => (
           >
             <h3 className="text-lg font-semibold text-gray-950">{link.label}</h3>
             <p className="mt-2 text-sm leading-6 text-gray-700">
-              Future guide placeholder for expanded resume education and SEO content.
+              Explore the current public product pages and support policies.
             </p>
           </Link>
         ))}

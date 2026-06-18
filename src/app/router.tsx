@@ -9,8 +9,13 @@ import TermsPage from '../pages/TermsPage'
 import SharedReportPage from '../pages/SharedReportPage'
 import AtsResumeCheckerPage from '../pages/AtsResumeCheckerPage'
 import AiResumeBuilderPage from '../pages/AiResumeBuilderPage'
+import ResumeListPage from '../pages/resumes/ResumeListPage'
+import NewResumePage from '../pages/resumes/NewResumePage'
+import ResumeWorkspacePage from '../pages/resumes/ResumeWorkspacePage'
+import TailorResumePage from '../pages/resumes/TailorResumePage'
 import AppShell from '../components/layout/AppShell'
 import RouteError from '../components/RouteError'
+import RequireLogin from '../components/auth/RequireLogin'
 
 export const router = createBrowserRouter([
   {
@@ -45,6 +50,27 @@ export const router = createBrowserRouter([
           {
             path: 'history',
             element: <HistoryPage />,
+          },
+          {
+            element: <RequireLogin />,
+            children: [
+              {
+                path: 'resumes',
+                element: <ResumeListPage />,
+              },
+              {
+                path: 'resumes/new',
+                element: <NewResumePage />,
+              },
+              {
+                path: 'resumes/:id',
+                element: <ResumeWorkspacePage />,
+              },
+              {
+                path: 'resumes/:id/tailor',
+                element: <TailorResumePage />,
+              },
+            ],
           },
         ],
       },

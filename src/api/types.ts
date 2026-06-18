@@ -184,6 +184,8 @@ export interface UsageResponse {
   plan: string
   limit: number
   used: number
+  remaining?: number
+  authenticated?: boolean
   resetsAt: string
 }
 

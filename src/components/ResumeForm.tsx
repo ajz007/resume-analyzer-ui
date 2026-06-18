@@ -1,5 +1,5 @@
 import type { FormEvent, Ref } from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDropzone } from 'react-dropzone'
 import { uploadDocument, getCurrentDocument } from '../api/documents'
@@ -7,6 +7,7 @@ import { useAnalysisStore } from '../store/useAnalysisStore'
 import { useHistoryStore } from '../store/useHistoryStore'
 import { useUsageStore } from '../store/useUsageStore'
 import { ui } from '../app/uiTokens'
+import { env } from '../app/env'
 import {
   ALLOWED_RESUME_EXTENSIONS,
   ALLOWED_RESUME_MIME_TYPES,
@@ -14,6 +15,8 @@ import {
   MAX_RESUME_FILE_BYTES,
 } from '../app/config'
 import { COPY } from '../constants/uiCopy'
+import { isLoggedIn } from '../auth/identity'
+import { getAnalyzerQuotaMessage, getLimitReachedCopy, resolveUsage } from '../usage/quota'
 import AlertCard from './AlertCard'
 
 const formatFileSize = (bytes: number) => `${Math.round(bytes / 1024)} KB`
@@ -21,6 +24,48 @@ const formatFileLimit = (bytes: number) => `${Math.round(bytes / (1024 * 1024))}
 
 type ResumeFormProps = {
   analysisMode: 'ATS' | 'JOB_MATCH'
+}
+
+export const ResumeQuotaNotice = ({
+  usage,
+  loggedIn,
+  onSignIn,
+}: {
+  usage: ReturnType<typeof useUsageStore.getState>['usage']
+  loggedIn: boolean
+  onSignIn: () => void
+}) => {
+  const resolvedUsage = resolveUsage(usage, loggedIn)
+  const limitReached =
+    typeof resolvedUsage.used === 'number' && resolvedUsage.used >= resolvedUsage.limit
+  const quotaMessage = getAnalyzerQuotaMessage(usage, loggedIn)
+  const limitReachedCopy = getLimitReachedCopy(usage, loggedIn)
+
+  return (
+    <div
+      className={`rounded-lg border px-3 py-3 text-sm ${
+        limitReached
+          ? 'border-red-200 bg-red-50 text-red-900'
+          : 'border-blue-100 bg-blue-50/60 text-gray-700'
+      }`}
+    >
+      {limitReached ? (
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <p className="font-semibold">{limitReachedCopy.title}</p>
+            <p>{limitReachedCopy.description}</p>
+          </div>
+          {limitReachedCopy.showSignIn ? (
+            <button type="button" onClick={onSignIn} className={ui.button.primary}>
+              Sign in with Google
+            </button>
+          ) : null}
+        </div>
+      ) : (
+        <p>{quotaMessage}</p>
+      )}
+    </div>
+  )
 }
 
 const jobMatchProgressSteps = [
@@ -198,6 +243,11 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
   const { addItem } = useHistoryStore()
   const { usage } = useUsageStore()
   const navigate = useNavigate()
+  const loggedIn = isLoggedIn()
+  const authStartUrl = useMemo(() => {
+    const base = (env.apiBaseUrl || '').replace(/\/$/, '')
+    return base ? `${base}/auth/google/start` : '/auth/google/start'
+  }, [])
 
   useEffect(() => {
     const loadCurrent = async () => {
@@ -241,6 +291,8 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
     analysisActive && lastSubmitAt
       ? Math.max(elapsedSeconds, Math.floor((Date.now() - lastSubmitAt) / 1000))
       : elapsedSeconds
+  const resolvedUsage = resolveUsage(usage, loggedIn)
+  const limitReached = typeof resolvedUsage.used === 'number' && resolvedUsage.used >= resolvedUsage.limit
 
   useEffect(() => {
     if (!analysisActive) {
@@ -562,18 +614,11 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
           </button>
         </AlertCard>
       )}
-      {usage && usage.used >= usage.limit && (
-        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded p-3">
-          You&apos;ve reached your analysis limit. Upgrade your plan to continue.{' '}
-          <button
-            type="button"
-            onClick={() => navigate('/pricing')}
-            className="text-red-800 underline"
-          >
-            View pricing
-          </button>
-        </div>
-      )}
+      <ResumeQuotaNotice
+        usage={usage}
+        loggedIn={loggedIn}
+        onSignIn={() => window.open(authStartUrl, '_self')}
+      />
 
       <div className="flex gap-3">
         <button
@@ -584,7 +629,7 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
             lastStatus === 'processing' ||
             !uploadedDoc ||
             jdTooShort ||
-            (usage ? usage.used >= usage.limit : false)
+            limitReached
           }
         >
           {analyzeLabel}

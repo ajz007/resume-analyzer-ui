@@ -78,7 +78,7 @@ const AtsResumeCheckerPage = () => (
       eyebrowTone: 'emerald',
       title: 'Free ATS Resume Checker for engineers and serious job seekers',
       description:
-        'Upload your resume and compare it against a real job description before you apply. Rethink Resume helps you find missing keywords, weak bullets, formatting risks, and job-match gaps that can keep a qualified candidate from getting a closer look.',
+        'Upload your resume and compare it against a real job description before you apply. Rethink Resume helps you find missing keywords, weak bullets, formatting risks, and job-match gaps that can keep a qualified candidate from getting a closer look. Try 3 analyses as a guest, or sign in for 15 free analyses/month.',
       actions: [
         { label: 'Upload resume for analysis', to: '/app/analyzer' },
         { label: 'See how ATS analysis works', href: '#how-it-works', variant: 'secondary' },
@@ -110,19 +110,19 @@ const AtsResumeCheckerPage = () => (
     cta={{
       title: 'Run a free ATS resume check before your next application',
       description:
-        'Paste the job description, upload your resume, and get a focused report you can act on before submitting. Use it when tailoring a resume for a competitive role, switching domains, or checking whether your engineering impact is visible enough.',
+        'Paste the job description, upload your resume, and get a focused report you can act on before submitting. Use it when tailoring a resume for a competitive role, switching domains, or checking whether your engineering impact is visible enough. Try 3 analyses as a guest, or sign in for 15 free analyses/month.',
       actions: [{ label: 'Upload resume', to: '/app/analyzer' }],
     }}
     relatedLinks={[
       {
         title: 'AI Resume Builder',
         to: '/ai-resume-builder',
-        body: 'Future page placeholder for building structured, role-specific resumes with AI guidance.',
+        body: 'Create a structured resume draft before you run ATS or job-match analysis.',
       },
       {
-        title: 'Resume Score Checker',
-        to: '/resume-score-checker',
-        body: 'Future page placeholder for checking resume strength, clarity, and match quality.',
+        title: 'Early Access',
+        to: '/pricing',
+        body: 'Review the current analysis and resume workspace access details.',
       },
     ]}
     faq={{
