@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
-import ResumeForm, { AnalysisProgressCard } from './ResumeForm'
+import ResumeForm, { AnalysisProgressCard, ResumeQuotaNotice } from './ResumeForm'
 import { useAnalysisStore } from '../store/useAnalysisStore'
+import { useUsageStore } from '../store/useUsageStore'
 
 vi.mock('react-dropzone', () => ({
   useDropzone: () => ({
@@ -16,7 +17,22 @@ vi.mock('react-router-dom', () => ({
 }))
 
 describe('ResumeForm rendering', () => {
+  const resetStorage = () => {
+    const storage = {
+      getItem: vi.fn(() => null),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+      clear: vi.fn(),
+      key: vi.fn(),
+      length: 0,
+    } as unknown as Storage
+    globalThis.localStorage = storage
+    return storage
+  }
+
   it('hides JD textarea in ATS mode', () => {
+    resetStorage()
+    useUsageStore.setState({ usage: null, loading: false, error: undefined, errorStatus: undefined })
     useAnalysisStore.setState({
       jdText: '',
       status: 'idle',
@@ -33,6 +49,8 @@ describe('ResumeForm rendering', () => {
   })
 
   it('shows JD textarea in JOB_MATCH mode', () => {
+    resetStorage()
+    useUsageStore.setState({ usage: null, loading: false, error: undefined, errorStatus: undefined })
     useAnalysisStore.setState({
       jdText: '',
       status: 'idle',
@@ -46,6 +64,84 @@ describe('ResumeForm rendering', () => {
 
     expect(html).toContain('Job description')
     expect(html).toContain('id="jd"')
+  })
+
+  it('shows guest quota messaging with remaining analyses', () => {
+    const html = renderToStaticMarkup(
+      <ResumeQuotaNotice
+        usage={{
+          plan: 'Guest',
+          used: 1,
+          limit: 3,
+          remaining: 2,
+          authenticated: false,
+          resetsAt: new Date().toISOString(),
+        }}
+        loggedIn={false}
+        onSignIn={vi.fn()}
+      />,
+    )
+
+    expect(html).toContain('2 of 3 guest analyses remaining. Sign in for 15/month.')
+  })
+
+  it('shows logged-in quota messaging with remaining analyses', () => {
+    const html = renderToStaticMarkup(
+      <ResumeQuotaNotice
+        usage={{
+          plan: 'Free account',
+          used: 3,
+          limit: 15,
+          remaining: 12,
+          authenticated: true,
+          resetsAt: new Date().toISOString(),
+        }}
+        loggedIn
+        onSignIn={vi.fn()}
+      />,
+    )
+
+    expect(html).toContain('12 of 15 analyses remaining this month.')
+  })
+
+  it('shows guest limit reached conversion state', () => {
+    const html = renderToStaticMarkup(
+      <ResumeQuotaNotice
+        usage={{
+          plan: 'Guest',
+          used: 3,
+          limit: 3,
+          remaining: 0,
+          authenticated: false,
+          resetsAt: new Date().toISOString(),
+        }}
+        loggedIn={false}
+        onSignIn={vi.fn()}
+      />,
+    )
+
+    expect(html).toContain('used your 3 free guest analyses this month.')
+    expect(html).toContain('Sign in with Google')
+  })
+
+  it('shows logged-in limit reached state without sign-in upsell', () => {
+    const html = renderToStaticMarkup(
+      <ResumeQuotaNotice
+        usage={{
+          plan: 'Free account',
+          used: 15,
+          limit: 15,
+          remaining: 0,
+          authenticated: true,
+          resetsAt: new Date().toISOString(),
+        }}
+        loggedIn
+        onSignIn={vi.fn()}
+      />,
+    )
+
+    expect(html).toContain('used your 15 free analyses this month.')
+    expect(html).not.toContain('Sign in with Google')
   })
 
   it('shows JOB_MATCH analysis progress steps while running', () => {

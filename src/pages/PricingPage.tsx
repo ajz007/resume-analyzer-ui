@@ -1,11 +1,11 @@
 import { useNavigate } from 'react-router-dom'
 
 const includedFeatures = [
-  'ATS analysis',
-  'Job description matching',
-  'Resume suggestions',
-  'Skill gap analysis',
-  'Resume history',
+  '15 resume analyses/month',
+  'Saved analysis history',
+  'Resume Workspace',
+  'Tailored resumes',
+  'DOCX downloads',
 ]
 
 const faqs = [
@@ -27,7 +27,7 @@ const faqs = [
   {
     question: 'Will pricing change later?',
     answer:
-      'The product may introduce paid plans later as more features launch. For now, early access users can use up to 10 analyses per month while we continue improving the platform.',
+      'The product may introduce paid plans later as more features launch. For now, free accounts include 15 analyses per month, and guests can try 3 analyses per month while we continue improving the platform.',
   },
 ]
 
@@ -53,9 +53,10 @@ const PricingPage = () => {
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
           <div className="space-y-4">
             <div>
-              <h2 className="text-2xl font-bold text-gray-950">Free during early access</h2>
+              <h2 className="text-2xl font-bold text-gray-950">Free account - 15 analyses/month</h2>
               <p className="mt-2 text-base leading-7 text-gray-700">
-                Get up to 10 resume analyses per month while the platform is actively improving.
+                Sign in to get 15 free analyses/month plus saved history, Resume Workspace access,
+                tailored resumes, and downloads where available.
               </p>
             </div>
 
@@ -63,8 +64,11 @@ const PricingPage = () => {
               <div className="text-sm font-semibold uppercase tracking-wide text-blue-800">
                 Included usage
               </div>
-              <div className="mt-2 text-4xl font-bold text-gray-950">10 analyses</div>
+              <div className="mt-2 text-4xl font-bold text-gray-950">15 analyses</div>
               <div className="mt-1 text-base text-gray-700">per month</div>
+              <div className="mt-3 text-sm text-gray-700">
+                Guests can try 3 analyses/month without signing in.
+              </div>
             </div>
 
             <div className="grid gap-2 text-sm font-medium text-gray-700 sm:grid-cols-2 lg:grid-cols-1">
@@ -90,10 +94,30 @@ const PricingPage = () => {
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
           <h2 className="text-2xl font-bold text-gray-950">What&apos;s included</h2>
           <p className="mt-3 text-base leading-7 text-gray-700">
-            The current early-access plan focuses on the core workflow: upload your resume, paste a
-            job description, and get a clear report that helps you decide what to improve before
-            applying.
+            Guests can try the analyzer without signing in. A free account expands the quota and
+            unlocks saved workflow features across devices.
           </p>
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            <section className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <h3 className="text-lg font-semibold text-gray-950">Guest</h3>
+              <ul className="mt-3 space-y-2 text-sm text-gray-700">
+                <li>3 resume analyses/month</li>
+                <li>ATS score</li>
+                <li>Job match score</li>
+                <li>Basic suggestions</li>
+              </ul>
+            </section>
+            <section className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+              <h3 className="text-lg font-semibold text-gray-950">Free account</h3>
+              <ul className="mt-3 space-y-2 text-sm text-gray-700">
+                <li>15 resume analyses/month</li>
+                <li>Saved analysis history</li>
+                <li>Resume Workspace</li>
+                <li>Tailored resumes</li>
+                <li>DOCX downloads, if available</li>
+              </ul>
+            </section>
+          </div>
           <ul className="mt-6 grid gap-3 sm:grid-cols-2">
             {includedFeatures.map((feature) => (
               <li
@@ -117,10 +141,10 @@ const PricingPage = () => {
         <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
           <div>
             <h2 className="text-3xl font-bold">Try resume analysis before your next application</h2>
-            <p className="mt-3 max-w-3xl text-base leading-8 text-gray-200">
-              We&apos;re actively improving Rethink Resume around the workflows job seekers actually
-              use: ATS checks, job matching, skill gaps, and practical suggestions.
-            </p>
+          <p className="mt-3 max-w-3xl text-base leading-8 text-gray-200">
+            Guests can try 3 analyses/month without signing in. Free accounts get 15 analyses/month
+            plus saved history and resume workspace access.
+          </p>
           </div>
           <button
             type="button"

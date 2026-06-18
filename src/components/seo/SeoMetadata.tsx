@@ -10,6 +10,7 @@ export type SeoMetadataProps = {
   siteName?: string
   twitterCard?: 'summary' | 'summary_large_image'
   structuredData?: SeoStructuredData | SeoStructuredData[]
+  robots?: string
 }
 
 const SeoMetadata = ({
@@ -20,10 +21,12 @@ const SeoMetadata = ({
   siteName = 'Rethink Resume',
   twitterCard = 'summary_large_image',
   structuredData,
+  robots,
 }: SeoMetadataProps) => (
   <Helmet>
     <title>{title}</title>
     <meta name="description" content={description} />
+    {robots ? <meta name="robots" content={robots} /> : null}
     <link rel="canonical" href={canonicalUrl} />
     <meta property="og:type" content="website" />
     <meta property="og:title" content={title} />

@@ -10,11 +10,24 @@ import { useAnalysisStore } from '../store/useAnalysisStore'
 import { useUsageStore } from '../store/useUsageStore'
 import { useEffect } from 'react'
 import { COPY } from '../constants/uiCopy'
+import { useSearchParams } from 'react-router-dom'
+import AppPageMetadata from '../components/seo/AppPageMetadata'
 
 const AnalyzerPage = () => {
+  const [searchParams] = useSearchParams()
   const { error: analysisError, analysisMode, setAnalysisMode } = useAnalysisStore()
   const { error: usageError, fetch: fetchUsage, reset: resetUsage } = useUsageStore()
   const showBackendWarning = !env.useMockApi && (!!analysisError || !!usageError)
+
+  useEffect(() => {
+    const mode = searchParams.get('mode')
+    if (mode === 'ats') {
+      setAnalysisMode('ATS')
+    }
+    if (mode === 'job-match') {
+      setAnalysisMode('JOB_MATCH')
+    }
+  }, [searchParams, setAnalysisMode])
 
   useEffect(() => {
     let cancelled = false
@@ -50,6 +63,10 @@ const AnalyzerPage = () => {
 
   return (
     <div className={ui.layout.stack}>
+      <AppPageMetadata
+        title="Resume Analysis | Rethink Resume"
+        description="Analyze resume ATS readiness and job match quality."
+      />
       <div className={ui.layout.header}>
         <div className="space-y-1">
           <h1 className={ui.text.h1}>{COPY.analyzer.title}</h1>

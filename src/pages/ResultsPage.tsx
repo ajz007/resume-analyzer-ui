@@ -4,13 +4,34 @@ import JobMatchReport from '../components/reports/JobMatchReport'
 import ResultsLayout from '../components/results/ResultsLayout'
 import { useAnalysisStore } from '../store/useAnalysisStore'
 import { createAnalysisShare, fetchAnalysisResult } from '../api/endpoints'
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import type { AnalysisResponse } from '../api/types'
 import { ui } from '../app/uiTokens'
 import { normalizeAnalysisResponse } from '../analysis/normalizeAnalysisResponse'
 import ShareModal from '../components/ShareModal'
 import { useToastStore } from '../store/useToastStore'
 import { getATSScore, getJobMatchScore } from '../analysis/reportScores'
+import AppPageMetadata from '../components/seo/AppPageMetadata'
+import { env } from '../app/env'
+import { isLoggedIn } from '../auth/identity'
+
+export const GuestResultsCta = ({ onSignIn }: { onSignIn: () => void }) => (
+  <div className="rounded-lg border border-blue-200 bg-blue-50 p-5">
+    <div className="space-y-2">
+      <h2 className="text-lg font-semibold text-gray-950">
+        Save this analysis and get 15 free analyses/month by signing in.
+      </h2>
+      <p className="text-sm text-gray-700">
+        Your history, resume workspace, and tailored resumes stay available across devices.
+      </p>
+    </div>
+    <div className="mt-4">
+      <button type="button" onClick={onSignIn} className={ui.button.primary}>
+        Sign in with Google
+      </button>
+    </div>
+  </div>
+)
 
 const ResultsPage = () => {
   const { analysisId } = useParams<{ analysisId: string }>()
@@ -23,6 +44,11 @@ const ResultsPage = () => {
   const [isCopyingLink, setIsCopyingLink] = useState(false)
   const [shareUrl, setShareUrl] = useState('')
   const [shareError, setShareError] = useState<string | undefined>(undefined)
+  const loggedIn = isLoggedIn()
+  const authStartUrl = useMemo(() => {
+    const base = (env.apiBaseUrl || '').replace(/\/$/, '')
+    return base ? `${base}/auth/google/start` : '/auth/google/start'
+  }, [])
 
   const normalizeCachedResult = (parsed: AnalysisResponse): AnalysisResponse => ({
     ...parsed,
@@ -188,6 +214,10 @@ const ResultsPage = () => {
 
   return (
     <ResultsLayout>
+      <AppPageMetadata
+        title="Analysis Results | Rethink Resume"
+        description="Review ATS and job match analysis results."
+      />
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className={ui.results.page.headerTitle}>Resume readiness report</h1>
@@ -246,6 +276,7 @@ const ResultsPage = () => {
           ) : (
             <AtsReport result={normalized} />
           )}
+          {!loggedIn ? <GuestResultsCta onSignIn={() => window.open(authStartUrl, '_self')} /> : null}
         </>
       ) : (
         <div className={`${ui.card.padded} space-y-3`}>

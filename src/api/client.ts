@@ -11,18 +11,38 @@ export type ApiError = {
 }
 
 const baseUrl = (env.apiBaseUrl || '').replace(/\/$/, '')
+const apiVersionPrefix = '/api/v1'
 
-const buildUrl = (path: string) => {
+export const joinUrl = (base: string, path: string) => {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  if (base.endsWith(apiVersionPrefix) && normalizedPath.startsWith(apiVersionPrefix)) {
+    return `${base}${normalizedPath.slice(apiVersionPrefix.length)}`
+  }
+  return `${base}${normalizedPath}`
+}
+
+export const buildUrl = (path: string) => {
   if (path.startsWith('http://') || path.startsWith('https://')) return path
   if (!baseUrl) {
     throw new Error('API base URL is not configured. Set VITE_API_BASE_URL or enable mock mode.')
   }
-  return `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`
+  return joinUrl(baseUrl, path)
 }
 
 type ApiRequestOptions = {
   suppressToast?: boolean
   suppressToastOnStatus?: number[]
+}
+
+const buildAuthHeaders = (initHeaders?: HeadersInit) => {
+  const headers = new Headers(initHeaders ?? {})
+  const token = getAuthToken()
+  const guestId = getOrCreateGuestId()
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`)
+  }
+  headers.set('X-Guest-Id', guestId)
+  return headers
 }
 
 export async function apiRequest<T>(
@@ -33,13 +53,7 @@ export async function apiRequest<T>(
   const url = buildUrl(path)
   let response: Response
 
-  const headers = new Headers(init.headers ?? {})
-  const token = getAuthToken()
-  const guestId = getOrCreateGuestId()
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`)
-  }
-  headers.set('X-Guest-Id', guestId)
+  const headers = buildAuthHeaders(init.headers)
 
   try {
     response = await fetch(url, { ...init, headers })
@@ -114,4 +128,53 @@ export async function apiRequest<T>(
   }
 
   return parsed as T
+}
+
+export async function apiDownload(path: string, init: RequestInit = {}): Promise<Response> {
+  const url = buildUrl(path)
+  let response: Response
+
+  try {
+    response = await fetch(url, { ...init, headers: buildAuthHeaders(init.headers) })
+  } catch (err) {
+    useToastStore
+      .getState()
+      .showToast({
+        type: 'error',
+        title: 'Network error',
+        message: 'Please check your connection and try again.',
+      })
+    throw err
+  }
+
+  if (!response.ok) {
+    let message = `HTTP ${response.status}`
+    try {
+      const parsed = await response.clone().json()
+      const record = parsed as Record<string, unknown>
+      const nested = record.error as Record<string, unknown> | undefined
+      message =
+        (nested?.message as string | undefined) ??
+        (record.message as string | undefined) ??
+        message
+    } catch {
+      // keep fallback message
+    }
+
+    useToastStore
+      .getState()
+      .showToast({
+        type: 'error',
+        title: 'Request failed',
+        message,
+      })
+
+    throw {
+      code: 'download_failed',
+      message,
+      status: response.status,
+    } satisfies ApiError
+  }
+
+  return response
 }

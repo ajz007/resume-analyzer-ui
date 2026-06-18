@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
 import { ui } from '../../app/uiTokens'
 import { env } from '../../app/env'
@@ -15,12 +15,22 @@ type NavItem = {
   featured?: boolean
 }
 
-const primaryNavItems: NavItem[] = [
+export const primaryNavItems: NavItem[] = [
+  { label: 'Build Resume', to: '/app/resumes/new', featured: true },
+  { label: 'My Resumes', to: '/app/resumes' },
+  { label: 'ATS Checker', to: '/app/analyzer?mode=ats' },
+  { label: 'Job Match', to: '/app/analyzer?mode=job-match' },
+  { label: 'History', to: '/app/history' },
+]
+
+export const guestNavItems: NavItem[] = [
   { label: 'AI Resume Builder', to: '/ai-resume-builder', featured: true },
   { label: 'ATS Checker', to: '/ats-resume-checker' },
   { label: 'Resume Analysis', to: '/app/analyzer' },
   { label: 'Early Access', to: '/pricing' },
 ]
+
+export const getPrimaryNavItems = (loggedIn: boolean) => (loggedIn ? primaryNavItems : guestNavItems)
 
 const navLinkClass = ({ isActive, featured }: { isActive: boolean; featured?: boolean }) => {
   const base =
@@ -41,6 +51,7 @@ const authButtonClass =
   'inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-800 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2'
 
 const AppShell = () => {
+  const location = useLocation()
   const authStartUrl = useMemo(() => {
     const base = (env.apiBaseUrl || '').replace(/\/$/, '')
     return base ? `${base}/auth/google/start` : '/auth/google/start'
@@ -49,6 +60,15 @@ const AppShell = () => {
   const setHistoryItems = useHistoryStore((state) => state.setItems)
   const [loggedIn, setLoggedIn] = useState(isLoggedIn())
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const navItems = getPrimaryNavItems(loggedIn)
+
+  const isNavItemActive = (item: NavItem) => {
+    const current = `${location.pathname}${location.search}`
+    if (item.to.includes('?')) {
+      return current === item.to
+    }
+    return location.pathname === item.to || location.pathname.startsWith(`${item.to}/`)
+  }
 
   useEffect(() => {
     const url = new URL(window.location.href)
@@ -165,13 +185,11 @@ const AppShell = () => {
 
             <div className="hidden items-center gap-4 md:flex">
               <nav aria-label="Primary navigation" className="flex items-center gap-1">
-                {primaryNavItems.map((item) => (
+                {navItems.map((item) => (
                   <NavLink
                     key={item.to}
                     to={item.to}
-                    className={({ isActive }) =>
-                      navLinkClass({ isActive, featured: item.featured })
-                    }
+                    className={() => navLinkClass({ isActive: isNavItemActive(item), featured: item.featured })}
                   >
                     {item.label}
                   </NavLink>
@@ -217,13 +235,13 @@ const AppShell = () => {
           >
             <div className={`${ui.layout.container} space-y-3 py-3`}>
               <nav aria-label="Primary navigation" className="grid gap-1">
-                {primaryNavItems.map((item) => (
+                {navItems.map((item) => (
                   <NavLink
                     key={item.to}
                     to={item.to}
                     onClick={() => setMobileMenuOpen(false)}
-                    className={({ isActive }) =>
-                      `${navLinkClass({ isActive, featured: item.featured })} w-full justify-start`
+                    className={() =>
+                      `${navLinkClass({ isActive: isNavItemActive(item), featured: item.featured })} w-full justify-start`
                     }
                   >
                     {item.label}

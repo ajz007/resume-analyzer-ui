@@ -87,10 +87,10 @@ const AiResumeBuilderPage = () => (
       eyebrow: 'AI Resume Builder',
       title: 'Build a tailored, ATS-safe resume with AI',
       description:
-        'Rethink Resume helps software engineers and technical job seekers create clearer, stronger resumes by using AI to organize experience, align language with job descriptions, and improve the evidence behind each bullet. The goal is not a generic template. The goal is a structured resume that shows the right skills for the right role.',
+        'Rethink Resume helps software engineers and technical job seekers create clearer, stronger resumes by using AI to organize experience, align language with job descriptions, and improve the evidence behind each bullet. The goal is not a generic template. The goal is a structured resume that shows the right skills for the right role. Try 3 analyses as a guest, or sign in for 15 free analyses/month.',
       actions: [
         { label: 'Upload Resume', to: '/app/analyzer' },
-        { label: 'Generate Resume', to: '/app/analyzer', variant: 'secondary' },
+        { label: 'Build Resume', to: '/app/resumes/new', variant: 'secondary' },
       ],
       aside: (
         <aside className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
@@ -112,10 +112,10 @@ const AiResumeBuilderPage = () => (
     cta={{
       title: 'Create a stronger resume draft before you apply',
       description:
-        'Use AI to organize your experience, tailor your language to the job description, and prepare a resume that is easier for ATS tools and hiring teams to read.',
+        'Use AI to organize your experience, tailor your language to the job description, and prepare a resume that is easier for ATS tools and hiring teams to read. Try 3 analyses as a guest, or sign in for 15 free analyses/month.',
       actions: [
         { label: 'Upload Resume', to: '/app/analyzer' },
-        { label: 'Generate Resume', to: '/app/analyzer', variant: 'outlineDark' },
+        { label: 'Build Resume', to: '/app/resumes/new', variant: 'outlineDark' },
       ],
     }}
     relatedLinks={[
@@ -125,9 +125,9 @@ const AiResumeBuilderPage = () => (
         body: 'Check keyword gaps, formatting risks, and job match quality before submitting an application.',
       },
       {
-        title: 'Resume Score Checker',
-        to: '/resume-score-checker',
-        body: 'Future page placeholder for scoring resume clarity, relevance, structure, and impact.',
+        title: 'Early Access',
+        to: '/pricing',
+        body: 'See what is available now across the resume workspace and analysis workflows.',
       },
     ]}
     faq={{

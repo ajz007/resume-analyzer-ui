@@ -4,6 +4,7 @@ import type { AnalysisResponse, ShareLinkResponse, SharedAnalysisResponse, Usage
 import type { BackendAnalysisResult } from './backendTypes'
 import type { UploadedDoc } from './documents'
 import { fromBackendResult } from '../analysis/adapters/fromBackend'
+import { isLoggedIn } from '../auth/identity'
 
 export type ParseResultStatus = 'PARSE_SUCCESS' | 'PARSE_LOW_CONFIDENCE' | 'PARSE_FAILED'
 
@@ -410,11 +411,19 @@ export async function analyzeDocument(
   return pollAnalysisResult(startResponse.analysisId, startResponse.pollAfterMs)
 }
 
-const mockUsage: UsageResponse = {
-  plan: 'Starter',
-  limit: 10,
-  used: 3,
-  resetsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+const buildMockUsage = (): UsageResponse => {
+  const authenticated = isLoggedIn()
+  const limit = authenticated ? 15 : 3
+  const used = authenticated ? 3 : 1
+
+  return {
+    plan: authenticated ? 'Free account' : 'Guest',
+    limit,
+    used,
+    remaining: Math.max(limit - used, 0),
+    authenticated,
+    resetsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+  }
 }
 
 const mockDocuments: UploadedDoc[] = Array.from({ length: 3 }).map((_, idx) => ({
@@ -471,7 +480,7 @@ const normalizeAnalysisListItem = (item: AnalysisListItem, idx: number): Analysi
 
 export async function fetchUsage(options: { silent?: boolean } = {}): Promise<UsageResponse> {
   if (env.useMockApi) {
-    return new Promise((resolve) => setTimeout(() => resolve(mockUsage), 300))
+    return new Promise((resolve) => setTimeout(() => resolve(buildMockUsage()), 300))
   }
   return apiRequest<UsageResponse>(
     '/usage',
