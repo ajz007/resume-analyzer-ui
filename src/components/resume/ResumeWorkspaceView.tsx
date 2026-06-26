@@ -81,6 +81,20 @@ const emptyAchievement = (): ResumeAchievement => ({
   text: '',
 })
 
+const getLinkValue = (resume: ResumeModel, label: string) =>
+  resume.basics.links.find((item) => item.label === label)?.url ?? ''
+
+const replaceLinkValue = (resume: ResumeModel, label: string, url: string): ResumeModel => ({
+  ...resume,
+  basics: {
+    ...resume.basics,
+    links: [
+      ...resume.basics.links.filter((item) => item.label !== label && item.url.trim().length > 0),
+      ...(url.trim().length > 0 ? [{ label, url }] : []),
+    ],
+  },
+})
+
 export const replaceSkill = (resume: ResumeModel, index: number, value: string): ResumeModel => ({
   ...resume,
   skills: resume.skills.map((skill, idx) => (idx === index ? value : skill)),
@@ -240,20 +254,77 @@ const ResumeWorkspaceView = ({
       <TextAreaField
         id="resume-summary"
         label="Professional summary"
-        value={model.summary}
-        onChange={(summary) => patchResume({ summary })}
+        value={model.summary.text}
+        onChange={(text) => patchResume({ summary: { text } })}
         placeholder="2-4 lines focused on role, strengths, and evidence."
       />
       <div className="grid gap-3 md:grid-cols-2">
-        {(['name', 'email', 'phone', 'location', 'linkedin', 'website'] as const).map((field) => (
-          <Field
-            key={field}
-            id={`contact-${field}`}
-            label={field[0].toUpperCase() + field.slice(1)}
-            value={model.contact[field] ?? ''}
-            onChange={(value) => patchResume({ contact: { ...model.contact, [field]: value } })}
-          />
-        ))}
+        <Field
+          id="basics-full-name"
+          label="Full name"
+          value={model.basics.fullName}
+          onChange={(fullName) => patchResume({ basics: { ...model.basics, fullName } })}
+        />
+        <Field
+          id="basics-headline"
+          label="Headline"
+          value={model.basics.headline}
+          onChange={(headline) => patchResume({ basics: { ...model.basics, headline } })}
+        />
+        <Field
+          id="basics-email"
+          label="Email"
+          value={model.basics.email}
+          onChange={(email) => patchResume({ basics: { ...model.basics, email } })}
+        />
+        <Field
+          id="basics-phone"
+          label="Phone"
+          value={model.basics.phone}
+          onChange={(phone) => patchResume({ basics: { ...model.basics, phone } })}
+        />
+        <Field
+          id="basics-city"
+          label="City"
+          value={model.basics.location.city}
+          onChange={(city) =>
+            patchResume({
+              basics: { ...model.basics, location: { ...model.basics.location, city } },
+            })
+          }
+        />
+        <Field
+          id="basics-state"
+          label="State"
+          value={model.basics.location.state}
+          onChange={(state) =>
+            patchResume({
+              basics: { ...model.basics, location: { ...model.basics.location, state } },
+            })
+          }
+        />
+        <Field
+          id="basics-country"
+          label="Country"
+          value={model.basics.location.country}
+          onChange={(country) =>
+            patchResume({
+              basics: { ...model.basics, location: { ...model.basics.location, country } },
+            })
+          }
+        />
+        <Field
+          id="basics-linkedin"
+          label="LinkedIn"
+          value={getLinkValue(model, 'linkedin')}
+          onChange={(value) => patchResume(replaceLinkValue(model, 'linkedin', value))}
+        />
+        <Field
+          id="basics-website"
+          label="Website"
+          value={getLinkValue(model, 'website')}
+          onChange={(value) => patchResume(replaceLinkValue(model, 'website', value))}
+        />
       </div>
     </div>
   )

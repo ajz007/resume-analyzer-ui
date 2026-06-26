@@ -31,7 +31,7 @@ export const TailorResultPanel = ({
       <div className="space-y-4">
         <div>
           <p className="text-sm font-semibold text-gray-800">Summary</p>
-          <p className="mt-1 text-sm leading-6 text-gray-700">{result.resume.summary || 'No summary.'}</p>
+          <p className="mt-1 text-sm leading-6 text-gray-700">{result.resume.summary.text || 'No summary.'}</p>
         </div>
         <div>
           <p className="text-sm font-semibold text-gray-800">Skills</p>
