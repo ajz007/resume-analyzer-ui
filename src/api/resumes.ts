@@ -48,24 +48,56 @@ export type ResumeAchievement = {
   text: string
 }
 
-export type ResumeContact = {
-  name?: string
-  email?: string
-  phone?: string
-  location?: string
-  linkedin?: string
-  website?: string
+export type ResumeLink = {
+  label: string
+  url: string
+}
+
+export type ResumeLocation = {
+  city: string
+  state: string
+  country: string
+}
+
+export type ResumeBasics = {
+  fullName: string
+  headline: string
+  email: string
+  phone: string
+  location: ResumeLocation
+  links: ResumeLink[]
+}
+
+export type ResumeTarget = {
+  roleTitle: string
+  seniority: string
+  persona: string
+  industry: string
+}
+
+export type ResumeSummary = {
+  text: string
+}
+
+export type ResumeCustomSection = {
+  id?: string
+  title?: string
+  [key: string]: unknown
 }
 
 export type ResumeModel = {
-  contact: ResumeContact
-  summary: string
+  schemaVersion: 'resume.v1'
+  basics: ResumeBasics
+  target: ResumeTarget
+  summary: ResumeSummary
   skills: string[]
   experience: ResumeExperience[]
   projects: ResumeProject[]
   education: ResumeEducation[]
   certifications: ResumeCertification[]
   achievements: ResumeAchievement[]
+  customSections: ResumeCustomSection[]
+  sectionOrder: string[]
 }
 
 export type ResumeRecord = {
@@ -122,6 +154,18 @@ export type TailorResumeResponse = ResumeRecord & {
   missingRequirements: string[]
 }
 
+export type ResumeApiModel = ReturnType<typeof serializeResumeForApi>
+
+export type CreateResumeDraftRequest = {
+  title: string
+  resume: ResumeApiModel
+}
+
+export type SaveResumeRequest = {
+  title: string
+  resume: ResumeApiModel
+}
+
 type ListResponse = { items?: unknown[] } | unknown[]
 
 const nowIso = () => new Date().toISOString()
@@ -158,6 +202,9 @@ const asOptionalString = (value: unknown) => (typeof value === 'string' ? value 
 
 const asStringArray = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+
+const asRecordArray = (value: unknown): Record<string, unknown>[] =>
+  Array.isArray(value) ? value.filter((item): item is Record<string, unknown> => !!item && typeof item === 'object') : []
 
 const requiredString = (value: unknown, field: string) => {
   if (typeof value === 'string' && value.trim().length > 0) return value
@@ -247,15 +294,65 @@ const normalizeAchievements = (value: unknown): ResumeAchievement[] =>
       })
     : []
 
+const normalizeLinks = (value: unknown): ResumeLink[] =>
+  Array.isArray(value)
+    ? value
+        .map((item) => {
+          if (typeof item === 'string') return { label: '', url: item }
+          const record = asRecord(item)
+          return {
+            label: asString(record.label || record.type),
+            url: asString(record.url || record.href),
+          }
+        })
+        .filter((item) => item.url.trim().length > 0)
+    : []
+
+const normalizeLocation = (value: unknown): ResumeLocation => {
+  if (typeof value === 'string') {
+    return { city: value, state: '', country: '' }
+  }
+  const record = asRecord(value)
+  return {
+    city: asString(record.city),
+    state: asString(record.state),
+    country: asString(record.country),
+  }
+}
+
+const createEmptyLinks = (): ResumeLink[] => []
+
+const createEmptyLocation = (): ResumeLocation => ({
+  city: '',
+  state: '',
+  country: '',
+})
+
 export const createBlankResumeModel = (): ResumeModel => ({
-  contact: {},
-  summary: '',
+  schemaVersion: 'resume.v1',
+  basics: {
+    fullName: '',
+    headline: '',
+    email: '',
+    phone: '',
+    location: createEmptyLocation(),
+    links: createEmptyLinks(),
+  },
+  target: {
+    roleTitle: '',
+    seniority: '',
+    persona: '',
+    industry: '',
+  },
+  summary: { text: '' },
   skills: [],
   experience: [],
   projects: [],
   education: [],
   certifications: [],
   achievements: [],
+  customSections: [],
+  sectionOrder: [],
 })
 
 export const createLocalResumeRecord = (title = 'Untitled resume'): ResumeRecord => ({
@@ -274,25 +371,92 @@ export const createLocalResumeRecord = (title = 'Untitled resume'): ResumeRecord
 
 export const normalizeResumeModel = (payload: unknown): ResumeModel => {
   const content = asRecord(payload)
-  const contact = asRecord(content.contact)
+  const basics = asRecord(Object.keys(asRecord(content.basics)).length > 0 ? content.basics : content.contact)
+  const legacyContact = asRecord(content.contact)
+  const target = asRecord(content.target)
+  const summaryRecord = asRecord(content.summary)
   return {
-    contact: {
-      name: asString(contact.name),
-      email: asString(contact.email),
-      phone: asString(contact.phone),
-      location: asString(contact.location),
-      linkedin: asString(contact.linkedin),
-      website: asString(contact.website),
+    schemaVersion: 'resume.v1',
+    basics: {
+      fullName: asString(basics.fullName || basics.name),
+      headline: asString(basics.headline),
+      email: asString(basics.email),
+      phone: asString(basics.phone),
+      location: normalizeLocation(basics.location || legacyContact.location),
+      links: normalizeLinks(
+        basics.links ?? [
+          ...(asString(legacyContact.linkedin) ? [{ label: 'linkedin', url: asString(legacyContact.linkedin) }] : []),
+          ...(asString(legacyContact.website) ? [{ label: 'website', url: asString(legacyContact.website) }] : []),
+        ],
+      ),
     },
-    summary: asString(content.summary),
+    target: {
+      roleTitle: asString(target.roleTitle),
+      seniority: asString(target.seniority),
+      persona: asString(target.persona),
+      industry: asString(target.industry),
+    },
+    summary: {
+      text: typeof content.summary === 'string' ? asString(content.summary) : asString(summaryRecord.text),
+    },
     skills: asStringArray(content.skills),
     experience: normalizeExperience(content.experience),
     projects: normalizeProjects(content.projects),
     education: normalizeEducation(content.education),
     certifications: normalizeCertifications(content.certifications),
     achievements: normalizeAchievements(content.achievements),
+    customSections: asRecordArray(content.customSections),
+    sectionOrder: asStringArray(content.sectionOrder),
   }
 }
+
+const normalizeResumeLinkForApi = (value: ResumeLink) => ({
+  label: value.label,
+  url: value.url,
+})
+
+export const serializeResumeForApi = (resume: ResumeModel) => ({
+  schemaVersion: 'resume.v1' as const,
+  basics: {
+    fullName: resume.basics.fullName,
+    headline: resume.basics.headline,
+    email: resume.basics.email,
+    phone: resume.basics.phone,
+    location: {
+      city: resume.basics.location.city,
+      state: resume.basics.location.state,
+      country: resume.basics.location.country,
+    },
+    links: resume.basics.links.map(normalizeResumeLinkForApi),
+  },
+  target: {
+    roleTitle: resume.target.roleTitle,
+    seniority: resume.target.seniority,
+    persona: resume.target.persona,
+    industry: resume.target.industry,
+  },
+  summary: {
+    text: resume.summary.text,
+  },
+  skills: resume.skills,
+  experience: resume.experience,
+  projects: resume.projects,
+  education: resume.education,
+  certifications: resume.certifications,
+  achievements: resume.achievements,
+  customSections: resume.customSections,
+  sectionOrder: resume.sectionOrder,
+})
+
+export const serializeCreateResumeRequest = (title: string, resume: ResumeModel): CreateResumeDraftRequest => ({
+  title,
+  resume: serializeResumeForApi(resume),
+})
+
+export const serializeSaveResumeRequest = (record: ResumeRecord): SaveResumeRequest => ({
+  title: record.title,
+  resume: serializeResumeForApi(record.resume),
+})
 
 export const normalizeResumeRecord = (payload: unknown): ResumeRecord => {
   const record = asRecord(payload)
@@ -378,14 +542,28 @@ const mockRecord: ResumeRecord = {
   status: 'draft',
   currentVersionId: 'mock-version-1',
   resume: {
-    contact: {
-      name: 'Alex Morgan',
+    schemaVersion: 'resume.v1',
+    basics: {
+      fullName: 'Alex Morgan',
+      headline: 'Senior Frontend Engineer',
       email: 'alex@example.com',
-      location: 'Remote',
-      linkedin: 'linkedin.com/in/alexmorgan',
+      phone: '',
+      location: {
+        city: 'Remote',
+        state: '',
+        country: '',
+      },
+      links: [{ label: 'linkedin', url: 'linkedin.com/in/alexmorgan' }],
     },
-    summary:
-      'Frontend engineer focused on React, design systems, and performance improvements for SaaS products.',
+    target: {
+      roleTitle: 'Senior Frontend Engineer',
+      seniority: 'Senior',
+      persona: '',
+      industry: 'SaaS',
+    },
+    summary: {
+      text: 'Frontend engineer focused on React, design systems, and performance improvements for SaaS products.',
+    },
     skills: ['React', 'TypeScript', 'Accessibility', 'Performance'],
     experience: [
       {
@@ -406,6 +584,8 @@ const mockRecord: ResumeRecord = {
     education: [{ id: 'edu-1', school: 'State University', degree: 'BS', field: 'Computer Science' }],
     certifications: [],
     achievements: [],
+    customSections: [],
+    sectionOrder: [],
   },
   readinessWarnings: ['Several bullets lack measurable impact.'],
   requiresUserInput: [],
@@ -478,7 +658,7 @@ export async function createResumeDraft(title: string, resume: ResumeModel): Pro
     await apiRequest<unknown>('/api/v1/resumes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, resume }),
+      body: JSON.stringify(serializeCreateResumeRequest(title, resume)),
     }),
   )
 }
@@ -487,10 +667,17 @@ export async function generateResumeFromNotes(request: GenerateResumeRequest): P
   if (env.useMockApi) {
     const generatedModel: ResumeModel = {
       ...createBlankResumeModel(),
-      summary:
-        request.generationMode === 'from_job_description' && !request.experienceText.trim()
-          ? `${request.seniority} ${request.targetRole} resume template based on the pasted job description.`
-          : `${request.seniority} ${request.targetRole} with experience across ${request.skillsText || 'core role skills'}.`,
+      target: {
+        ...createBlankResumeModel().target,
+        roleTitle: request.targetRole,
+        seniority: request.seniority,
+      },
+      summary: {
+        text:
+          request.generationMode === 'from_job_description' && !request.experienceText.trim()
+            ? `${request.seniority} ${request.targetRole} resume template based on the pasted job description.`
+            : `${request.seniority} ${request.targetRole} with experience across ${request.skillsText || 'core role skills'}.`,
+      },
       skills: request.skillsText
         .split(/[,;\n]/)
         .map((skill) => skill.trim())
@@ -561,10 +748,7 @@ export async function saveResume(record: ResumeRecord): Promise<ResumeRecord> {
     await apiRequest<unknown>(`/api/v1/resumes/${record.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        currentVersionId: record.currentVersionId,
-        resume: record.resume,
-      }),
+      body: JSON.stringify(serializeSaveResumeRequest(record)),
     }),
   )
 }
@@ -581,13 +765,15 @@ export async function tailorResume(id: string, jobDescription: string): Promise<
       sourceVersionId: base.currentVersionId,
       resume: {
         ...base.resume,
-        summary: `${base.resume.summary} Tailored for the pasted job description.`,
+        summary: {
+          text: `${base.resume.summary.text} Tailored for the pasted job description.`,
+        },
       },
       changes: [
         {
           section: 'Summary',
-          before: base.resume.summary,
-          after: `${base.resume.summary} Tailored for the pasted job description.`,
+          before: base.resume.summary.text,
+          after: `${base.resume.summary.text} Tailored for the pasted job description.`,
           reason: 'Mirrors the target role language from the job description.',
           risk: 'Review for accuracy before saving.',
           requiresUserInput: ['Confirm that all generated claims are supported by your actual work.'],

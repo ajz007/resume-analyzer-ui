@@ -20,14 +20,35 @@ import {
   createLocalResumeRecord,
   normalizeResumeRecord,
   resumeDocxPath,
+  serializeCreateResumeRequest,
+  serializeResumeForApi,
+  serializeSaveResumeRequest,
   validateResumeModel,
   type ResumeModel,
   type ResumeRecord,
 } from '../../api/resumes'
 
 const sampleModel = (): ResumeModel => ({
-  contact: {},
-  summary: 'Platform engineer with Kubernetes and developer experience.',
+  schemaVersion: 'resume.v1',
+  basics: {
+    fullName: '',
+    headline: '',
+    email: '',
+    phone: '',
+    location: {
+      city: '',
+      state: '',
+      country: '',
+    },
+    links: [],
+  },
+  target: {
+    roleTitle: '',
+    seniority: '',
+    persona: '',
+    industry: '',
+  },
+  summary: { text: 'Platform engineer with Kubernetes and developer experience.' },
   skills: ['Kubernetes', 'Go'],
   experience: [
     {
@@ -41,6 +62,8 @@ const sampleModel = (): ResumeModel => ({
   education: [],
   certifications: [],
   achievements: [],
+  customSections: [],
+  sectionOrder: [],
 })
 
 const sampleResume = (): ResumeRecord => ({
@@ -357,8 +380,205 @@ describe('Resume Workspace UI', () => {
 
     expect(normalized.id).toBe('resume-123')
     expect(normalized.currentVersionId).toBe('version-123')
-    expect(normalized.resume.summary).toContain('Platform engineer')
+    expect(normalized.resume.summary.text).toContain('Platform engineer')
     expect(normalized.readinessWarnings).toEqual(['Add contact details.'])
+  })
+
+  it('serializes create and save resume content to the backend contract', () => {
+    const resume = {
+      ...sampleModel(),
+      basics: {
+        fullName: 'Alex Morgan',
+        headline: 'Platform Engineer',
+        email: 'alex@example.com',
+        phone: '555-0100',
+        location: {
+          city: 'Bengaluru',
+          state: 'Karnataka',
+          country: 'India',
+        },
+        links: [
+          { label: 'linkedin', url: 'https://linkedin.com/in/alexmorgan' },
+          { label: 'website', url: 'https://alex.dev' },
+        ],
+      },
+      target: {
+        roleTitle: 'Senior Platform Engineer',
+        seniority: 'Senior',
+        persona: 'builder',
+        industry: 'Cloud',
+      },
+    }
+    const payload = serializeResumeForApi(resume)
+
+    expect(payload).toEqual({
+      schemaVersion: 'resume.v1',
+      basics: {
+        fullName: 'Alex Morgan',
+        headline: 'Platform Engineer',
+        email: 'alex@example.com',
+        phone: '555-0100',
+        location: {
+          city: 'Bengaluru',
+          state: 'Karnataka',
+          country: 'India',
+        },
+        links: [
+          { label: 'linkedin', url: 'https://linkedin.com/in/alexmorgan' },
+          { label: 'website', url: 'https://alex.dev' },
+        ],
+      },
+      target: {
+        roleTitle: 'Senior Platform Engineer',
+        seniority: 'Senior',
+        persona: 'builder',
+        industry: 'Cloud',
+      },
+      summary: { text: 'Platform engineer with Kubernetes and developer experience.' },
+      skills: ['Kubernetes', 'Go'],
+      experience: [
+        {
+          id: 'exp-1',
+          company: 'Acme',
+          title: 'Platform Engineer',
+          bullets: [{ id: 'bullet-1', text: 'Improved deploy reliability by 25%.' }],
+        },
+      ],
+      projects: [],
+      education: [],
+      certifications: [],
+      achievements: [],
+      customSections: [],
+      sectionOrder: [],
+    })
+  })
+
+  it('serializes create requests with title and backend-compatible resume only', () => {
+    const request = serializeCreateResumeRequest('Senior Software Engineer', {
+      ...sampleModel(),
+      basics: {
+        fullName: 'Ajit Shukla',
+        headline: '',
+        email: 'official.aj.shukla@gmail.com',
+        phone: '',
+        location: {
+          city: 'Navi Mumbai',
+          state: 'Maharashtra',
+          country: 'India',
+        },
+        links: [],
+      },
+    })
+
+    expect(request).toEqual({
+      title: 'Senior Software Engineer',
+      resume: {
+        schemaVersion: 'resume.v1',
+        basics: {
+          fullName: 'Ajit Shukla',
+          headline: '',
+          email: 'official.aj.shukla@gmail.com',
+          phone: '',
+          location: {
+            city: 'Navi Mumbai',
+            state: 'Maharashtra',
+            country: 'India',
+          },
+          links: [],
+        },
+        target: {
+          roleTitle: '',
+          seniority: '',
+          persona: '',
+          industry: '',
+        },
+        summary: {
+          text: 'Platform engineer with Kubernetes and developer experience.',
+        },
+        skills: ['Kubernetes', 'Go'],
+        experience: [
+          {
+            id: 'exp-1',
+            company: 'Acme',
+            title: 'Platform Engineer',
+            bullets: [{ id: 'bullet-1', text: 'Improved deploy reliability by 25%.' }],
+          },
+        ],
+        projects: [],
+        education: [],
+        certifications: [],
+        achievements: [],
+        customSections: [],
+        sectionOrder: [],
+      },
+    })
+  })
+
+  it('serializes update requests with title and without currentVersionId', () => {
+    const request = serializeSaveResumeRequest({
+      ...sampleResume(),
+      title: 'Senior Software Engineer',
+      currentVersionId: 'version-123',
+      resume: {
+        ...sampleModel(),
+        basics: {
+          fullName: 'Ajit Shukla',
+          headline: '',
+          email: 'official.aj.shukla@gmail.com',
+          phone: '',
+          location: {
+            city: 'Navi Mumbai',
+            state: 'Maharashtra',
+            country: 'India',
+          },
+          links: [],
+        },
+      },
+    })
+
+    expect(request).toEqual({
+      title: 'Senior Software Engineer',
+      resume: {
+        schemaVersion: 'resume.v1',
+        basics: {
+          fullName: 'Ajit Shukla',
+          headline: '',
+          email: 'official.aj.shukla@gmail.com',
+          phone: '',
+          location: {
+            city: 'Navi Mumbai',
+            state: 'Maharashtra',
+            country: 'India',
+          },
+          links: [],
+        },
+        target: {
+          roleTitle: '',
+          seniority: '',
+          persona: '',
+          industry: '',
+        },
+        summary: {
+          text: 'Platform engineer with Kubernetes and developer experience.',
+        },
+        skills: ['Kubernetes', 'Go'],
+        experience: [
+          {
+            id: 'exp-1',
+            company: 'Acme',
+            title: 'Platform Engineer',
+            bullets: [{ id: 'bullet-1', text: 'Improved deploy reliability by 25%.' }],
+          },
+        ],
+        projects: [],
+        education: [],
+        certifications: [],
+        achievements: [],
+        customSections: [],
+        sectionOrder: [],
+      },
+    })
+    expect(request).not.toHaveProperty('currentVersionId')
   })
 
   it('separates structural validation errors from readiness warnings', () => {
