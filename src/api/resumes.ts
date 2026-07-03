@@ -128,13 +128,63 @@ export type GenerateResumeRequest = {
   title: string
   targetRole: string
   seniority: string
-  generationMode: 'from_notes' | 'from_job_description' | 'blank'
+  generationMode: 'from_experience' | 'sample_from_job_description' | 'blank'
   jobDescription: string
   experienceText: string
   skillsText: string
   educationText: string
   additionalInstructions: string
 }
+
+export type ResumeGenerationStatus = 'queued' | 'processing' | 'completed' | 'failed'
+
+export type ResumeGenerationStartResponse = {
+  generationId: string
+  status: Extract<ResumeGenerationStatus, 'queued' | 'processing'>
+}
+
+export type ResumeGenerationQueuedResponse = {
+  generationId: string
+  status: 'queued'
+  createdAt: string
+  startedAt: null
+  completedAt: null
+}
+
+export type ResumeGenerationProcessingResponse = {
+  generationId: string
+  status: 'processing'
+  createdAt: string
+  startedAt: string
+  completedAt: null
+}
+
+export type ResumeGenerationCompletedResponse = {
+  generationId: string
+  status: 'completed'
+  resumeId: string
+  currentVersionId: string
+  resume: ResumeModel
+  readinessWarnings: string[]
+  requiresUserInput: string[]
+  assumptions: string[]
+  warnings: string[]
+  createdAt: string
+  startedAt: string
+  completedAt: string
+}
+
+export type ResumeGenerationFailedResponse = {
+  generationId: string
+  status: 'failed'
+  errorMessage: string
+}
+
+export type ResumeGenerationResponse =
+  | ResumeGenerationQueuedResponse
+  | ResumeGenerationProcessingResponse
+  | ResumeGenerationCompletedResponse
+  | ResumeGenerationFailedResponse
 
 export type TailorChange = {
   before: string
@@ -152,6 +202,13 @@ export type TailorResumeResponse = ResumeRecord & {
   sourceVersionId: string
   changes: TailorChange[]
   missingRequirements: string[]
+  sampleExamples: string[]
+}
+
+export type TailorResumeRequest = {
+  jobDescription: string
+  targetRole?: string
+  additionalInstructions?: string
 }
 
 export type ResumeApiModel = ReturnType<typeof serializeResumeForApi>
@@ -167,8 +224,11 @@ export type SaveResumeRequest = {
 }
 
 type ListResponse = { items?: unknown[] } | unknown[]
+type MockGenerationState = { request: GenerateResumeRequest; attempt: number }
 
 const nowIso = () => new Date().toISOString()
+const DEFAULT_RESUME_GENERATION_POLL_MS = 2000
+const RESUME_GENERATION_TIMEOUT_MS = 120_000
 
 export const createResumeItemId = (prefix: string) => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -189,6 +249,13 @@ const parseResumeStatus = (value: unknown): ResumeStatus => {
     return value as ResumeStatus
   }
   throw new Error(`Invalid resume status: ${String(value ?? '') || 'missing'}.`)
+}
+
+const parseResumeGenerationStatus = (value: unknown): ResumeGenerationStatus => {
+  if (value === 'queued' || value === 'processing' || value === 'completed' || value === 'failed') {
+    return value
+  }
+  throw new Error(`Invalid resume generation status: ${String(value ?? '') || 'missing'}.`)
 }
 
 export const resumeDocxPath = (id: string) => `/api/v1/resumes/${id}/export/docx`
@@ -596,6 +663,7 @@ const mockRecord: ResumeRecord = {
 }
 
 const mockResumes: ResumeRecord[] = [mockRecord]
+const mockResumeGenerations = new Map<string, MockGenerationState>()
 
 export async function fetchResumes(): Promise<ResumeListItem[]> {
   if (env.useMockApi) {
@@ -607,7 +675,12 @@ export async function fetchResumes(): Promise<ResumeListItem[]> {
               id: record.id,
               title: record.title,
               status: record.status,
-              originType: record.status === 'tailored' ? 'tailored' : 'manual',
+              originType:
+                record.status === 'tailored'
+                  ? 'tailored'
+                  : record.title.toLowerCase().startsWith('sample template')
+                    ? 'sample template'
+                    : 'manual',
               sourceResumeId: undefined,
               createdAt: record.createdAt,
               updatedAt: record.updatedAt,
@@ -663,72 +736,292 @@ export async function createResumeDraft(title: string, resume: ResumeModel): Pro
   )
 }
 
-export async function generateResumeFromNotes(request: GenerateResumeRequest): Promise<ResumeRecord> {
-  if (env.useMockApi) {
-    const generatedModel: ResumeModel = {
-      ...createBlankResumeModel(),
-      target: {
-        ...createBlankResumeModel().target,
-        roleTitle: request.targetRole,
-        seniority: request.seniority,
-      },
-      summary: {
-        text:
-          request.generationMode === 'from_job_description' && !request.experienceText.trim()
-            ? `${request.seniority} ${request.targetRole} resume template based on the pasted job description.`
-            : `${request.seniority} ${request.targetRole} with experience across ${request.skillsText || 'core role skills'}.`,
-      },
-      skills: request.skillsText
-        .split(/[,;\n]/)
-        .map((skill) => skill.trim())
-        .filter(Boolean),
-      experience: request.experienceText
-        ? [
-            {
-              id: createResumeItemId('experience'),
-              company: '',
-              title: request.targetRole,
-              bullets: request.experienceText
-                .split('\n')
-                .map((text) => ({ id: createResumeItemId('bullet'), text: text.trim() }))
-                .filter((item) => item.text),
-            },
-          ]
-        : [],
-      education: request.educationText
+const buildMockGeneratedResume = (request: GenerateResumeRequest): ResumeRecord => {
+  const isSample = request.generationMode === 'sample_from_job_description'
+  const generatedModel: ResumeModel = {
+    ...createBlankResumeModel(),
+    target: {
+      ...createBlankResumeModel().target,
+      roleTitle: request.targetRole,
+      seniority: request.seniority,
+    },
+    summary: {
+      text:
+        isSample
+          ? `Sample resume for ${request.targetRole || 'the target role'} based on the pasted job description.`
+          : `${request.seniority} ${request.targetRole} with experience across ${request.skillsText || 'core role skills'}.`,
+    },
+    skills: isSample
+      ? ['Tailored keywords', 'Role-specific evidence', 'Impact-oriented bullets']
+      : request.skillsText
+      .split(/[,;\n]/)
+      .map((skill) => skill.trim())
+      .filter(Boolean),
+    experience: isSample
+      ? [
+          {
+            id: createResumeItemId('experience'),
+            company: 'Example Company',
+            title: request.targetRole || 'Target Role',
+            bullets: [
+              {
+                id: createResumeItemId('bullet'),
+                text: 'Example bullet showing the type of impact this role likely expects. Replace with your real work.',
+              },
+            ],
+          },
+        ]
+      : request.experienceText
+      ? [
+          {
+            id: createResumeItemId('experience'),
+            company: '',
+            title: request.targetRole,
+            bullets: request.experienceText
+              .split('\n')
+              .map((text) => ({ id: createResumeItemId('bullet'), text: text.trim() }))
+              .filter((item) => item.text),
+          },
+        ]
+      : [],
+    education:
+      !isSample && request.educationText
         ? [{ id: createResumeItemId('education'), school: request.educationText }]
         : [],
-    }
-    const generated: ResumeRecord = {
-      id: createResumeItemId('resume'),
-      title: request.title || 'Generated resume',
-      status: 'generated',
-      currentVersionId: createResumeItemId('version'),
-      resume: generatedModel,
-      readinessWarnings: request.experienceText ? [] : ['Add at least one experience or project.'],
-      requiresUserInput:
-        request.generationMode === 'from_job_description' && !request.experienceText.trim()
-          ? ['Add your real experience before applying.']
-          : ['Review generated claims before using this resume.'],
-      assumptions:
-        request.generationMode === 'from_job_description'
-          ? ['Role targeting is based on the pasted job description.']
-          : [],
-      warnings: ['Confirm all generated claims are supported by your experience.'],
-      createdAt: nowIso(),
-      updatedAt: nowIso(),
-    }
-    mockResumes.unshift(generated)
-    return new Promise((resolve) => setTimeout(() => resolve(generated), 300))
   }
 
-  return normalizeResumeRecord(
+  return {
+    id: createResumeItemId('resume'),
+    title: request.title || (isSample ? 'Sample template' : 'Generated resume'),
+    status: 'generated',
+    currentVersionId: createResumeItemId('version'),
+    resume: generatedModel,
+    readinessWarnings: isSample ? ['Sample resume only - not ready to apply.'] : request.experienceText ? [] : ['Add at least one experience or project.'],
+    requiresUserInput: isSample
+      ? ['Replace every example with your real experience before applying.']
+      : ['Review generated claims before using this resume.'],
+    assumptions:
+      isSample
+        ? ['Role targeting is based on the pasted job description.']
+        : [],
+    warnings: [
+      isSample
+        ? 'This is a sample/template for inspiration, not a verified resume.'
+        : 'Confirm all generated claims are supported by your experience.',
+    ],
+    createdAt: nowIso(),
+    updatedAt: nowIso(),
+  }
+}
+
+const normalizeResumeGenerationStartResponse = (payload: unknown): ResumeGenerationStartResponse => {
+  const record = asRecord(payload)
+  const status = parseResumeGenerationStatus(record.status)
+  if (status !== 'queued' && status !== 'processing') {
+    throw new Error('Malformed resume generation response: expected queued or processing status.')
+  }
+
+  return {
+    generationId: requiredString(record.generationId, 'generationId'),
+    status,
+  }
+}
+
+export const normalizeResumeGenerationResponse = (payload: unknown): ResumeGenerationResponse => {
+  const record = asRecord(payload)
+  const status = parseResumeGenerationStatus(record.status)
+  const generationId = requiredString(record.generationId, 'generationId')
+
+  if (status === 'queued') {
+    return {
+      generationId,
+      status,
+      createdAt: asString(record.createdAt, nowIso()),
+      startedAt: null,
+      completedAt: null,
+    }
+  }
+
+  if (status === 'processing') {
+    return {
+      generationId,
+      status,
+      createdAt: asString(record.createdAt, nowIso()),
+      startedAt: asString(record.startedAt, nowIso()),
+      completedAt: null,
+    }
+  }
+
+  if (status === 'failed') {
+    return {
+      generationId,
+      status,
+      errorMessage: requiredString(record.errorMessage, 'errorMessage'),
+    }
+  }
+
+  return {
+    generationId,
+    status,
+    resumeId: requiredString(record.resumeId, 'resumeId'),
+    currentVersionId: requiredString(record.currentVersionId, 'currentVersionId'),
+    resume: normalizeResumeModel(record.resume),
+    readinessWarnings: asStringArray(record.readinessWarnings),
+    requiresUserInput: asStringArray(record.requiresUserInput),
+    assumptions: asStringArray(record.assumptions),
+    warnings: asStringArray(record.warnings),
+    createdAt: asString(record.createdAt, nowIso()),
+    startedAt: asString(record.startedAt, nowIso()),
+    completedAt: asString(record.completedAt, nowIso()),
+  }
+}
+
+export async function startResumeGeneration(request: GenerateResumeRequest): Promise<ResumeGenerationStartResponse> {
+  if (env.useMockApi) {
+    const generationId = createResumeItemId('generation')
+    mockResumeGenerations.set(generationId, { request, attempt: 0 })
+    return new Promise((resolve) => setTimeout(() => resolve({ generationId, status: 'queued' }), 200))
+  }
+
+  return normalizeResumeGenerationStartResponse(
     await apiRequest<unknown>('/api/v1/resumes/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(request),
     }),
   )
+}
+
+export async function fetchResumeGeneration(generationId: string): Promise<ResumeGenerationResponse> {
+  if (env.useMockApi) {
+    const state = mockResumeGenerations.get(generationId)
+    if (!state) {
+      throw new Error('Resume generation not found.')
+    }
+    state.attempt += 1
+    if (state.attempt === 1) {
+      return new Promise((resolve) =>
+        setTimeout(
+          () =>
+            resolve({
+              generationId,
+              status: 'queued',
+              createdAt: nowIso(),
+              startedAt: null,
+              completedAt: null,
+            }),
+          200,
+        ),
+      )
+    }
+    if (state.attempt === 2) {
+      return new Promise((resolve) =>
+        setTimeout(
+          () =>
+            resolve({
+              generationId,
+              status: 'processing',
+              createdAt: nowIso(),
+              startedAt: nowIso(),
+              completedAt: null,
+            }),
+          200,
+        ),
+      )
+    }
+
+    const generated = buildMockGeneratedResume(state.request)
+    mockResumes.unshift(generated)
+    mockResumeGenerations.delete(generationId)
+    return new Promise((resolve) =>
+      setTimeout(
+        () =>
+          resolve({
+            generationId,
+            status: 'completed',
+            resumeId: generated.id,
+            currentVersionId: generated.currentVersionId,
+            resume: generated.resume,
+            readinessWarnings: generated.readinessWarnings,
+            requiresUserInput: generated.requiresUserInput,
+            assumptions: generated.assumptions,
+            warnings: generated.warnings,
+            createdAt: generated.createdAt,
+            startedAt: generated.createdAt,
+            completedAt: generated.updatedAt,
+          }),
+        200,
+      ),
+    )
+  }
+
+  return normalizeResumeGenerationResponse(
+    await apiRequest<unknown>(`/api/v1/resume-generations/${generationId}`, { method: 'GET' }),
+  )
+}
+
+export async function pollResumeGeneration(
+  generationId: string,
+  options: {
+    intervalMs?: number
+    timeoutMs?: number
+    signal?: AbortSignal
+    onUpdate?: (response: ResumeGenerationResponse) => void
+    onPollError?: (error: Error) => void
+  } = {},
+): Promise<ResumeGenerationCompletedResponse> {
+  const intervalMs = options.intervalMs ?? DEFAULT_RESUME_GENERATION_POLL_MS
+  const timeoutMs = options.timeoutMs ?? RESUME_GENERATION_TIMEOUT_MS
+  const startedAt = Date.now()
+  let lastError: Error | undefined
+
+  while (Date.now() - startedAt <= timeoutMs) {
+    if (options.signal?.aborted) {
+      throw new DOMException('Resume generation polling aborted.', 'AbortError')
+    }
+
+    let response: ResumeGenerationResponse | undefined
+    try {
+      response = await fetchResumeGeneration(generationId)
+      options.onUpdate?.(response)
+      lastError = undefined
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw error
+      }
+      lastError = error instanceof Error ? error : new Error('Could not check resume generation status.')
+      options.onPollError?.(lastError)
+    }
+
+    if (response?.status === 'completed') return response
+    if (response?.status === 'failed') {
+      throw new Error(response.errorMessage)
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      const timer = globalThis.setTimeout(() => {
+        if (abortHandler) {
+          options.signal?.removeEventListener('abort', abortHandler)
+        }
+        resolve()
+      }, intervalMs)
+
+      const abortHandler =
+        options.signal == null
+          ? undefined
+          : () => {
+              globalThis.clearTimeout(timer)
+              options.signal?.removeEventListener('abort', abortHandler)
+              reject(new DOMException('Resume generation polling aborted.', 'AbortError'))
+            }
+
+      if (abortHandler) {
+        options.signal.addEventListener('abort', abortHandler, { once: true })
+      }
+    })
+  }
+
+  throw lastError ?? new Error('Resume generation timed out.')
 }
 
 export async function saveResume(record: ResumeRecord): Promise<ResumeRecord> {
@@ -753,7 +1046,7 @@ export async function saveResume(record: ResumeRecord): Promise<ResumeRecord> {
   )
 }
 
-export async function tailorResume(id: string, jobDescription: string): Promise<TailorResumeResponse> {
+export async function tailorResume(id: string, request: TailorResumeRequest): Promise<TailorResumeResponse> {
   if (env.useMockApi) {
     const base = await fetchResume(id)
     const tailored: TailorResumeResponse = {
@@ -766,20 +1059,30 @@ export async function tailorResume(id: string, jobDescription: string): Promise<
       resume: {
         ...base.resume,
         summary: {
-          text: `${base.resume.summary.text} Tailored for the pasted job description.`,
+          text: `${base.resume.summary.text} Tailored for ${request.targetRole || 'the pasted job description'}.`,
         },
       },
       changes: [
         {
           section: 'Summary',
           before: base.resume.summary.text,
-          after: `${base.resume.summary.text} Tailored for the pasted job description.`,
+          after: `${base.resume.summary.text} Tailored for ${request.targetRole || 'the pasted job description'}.`,
           reason: 'Mirrors the target role language from the job description.',
           risk: 'Review for accuracy before saving.',
           requiresUserInput: ['Confirm that all generated claims are supported by your actual work.'],
         },
+        {
+          section: 'Experience bullets',
+          before: 'Earlier bullets emphasized broad ownership.',
+          after: 'Bullets were rewritten to foreground the most relevant role evidence already present in your resume.',
+          reason: 'Highlights stronger match signals without inventing new experience.',
+          risk: 'Safe rewrite, but still confirm wording matches your work.',
+        },
       ],
-      missingRequirements: jobDescription.toLowerCase().includes('kubernetes') ? ['Kubernetes'] : [],
+      missingRequirements: request.jobDescription.toLowerCase().includes('kubernetes') ? ['Kubernetes'] : [],
+      sampleExamples: [
+        'Use this only if true for your experience: Led Kubernetes migration for a multi-service platform.',
+      ],
       warnings: ['Confirm all generated claims are supported by your experience.'],
       readinessWarnings: [],
       requiresUserInput: ['Confirm that all generated claims are supported by your actual work.'],
@@ -795,7 +1098,7 @@ export async function tailorResume(id: string, jobDescription: string): Promise<
     await apiRequest<unknown>(`/api/v1/resumes/${id}/tailor`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jobDescription }),
+      body: JSON.stringify(request),
     }),
   )
 
@@ -819,6 +1122,7 @@ export async function tailorResume(id: string, jobDescription: string): Promise<
         })
       : [],
     missingRequirements: asStringArray(record.missingRequirements),
+    sampleExamples: asStringArray(record.sampleExamples),
   }
 }
 

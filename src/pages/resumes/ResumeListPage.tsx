@@ -4,6 +4,7 @@ import { ui } from '../../app/uiTokens'
 import { downloadResumeDocx, fetchResumes, type ResumeListItem } from '../../api/resumes'
 import AppPageMetadata from '../../components/seo/AppPageMetadata'
 import { useToastStore } from '../../store/useToastStore'
+import { getResumeOriginType, isSampleTemplateResume } from './resumeFlowState'
 
 export const ResumeListView = ({
   resumes,
@@ -37,9 +38,9 @@ export const ResumeListView = ({
     ) : resumes.length === 0 ? (
       <div className={`${ui.card.base} p-8 text-center space-y-3`}>
         <h2 className="text-xl font-bold text-gray-900">No resumes yet</h2>
-        <p className={ui.text.subtitle}>Generate ATS-friendly resume content from notes or start blank.</p>
+        <p className={ui.text.subtitle}>Create a resume from your experience, tailor one for a job, or start blank.</p>
         <button type="button" className={ui.button.primary} onClick={onNew}>
-          Generate ATS-friendly resume
+          Create or tailor a resume
         </button>
       </div>
     ) : (
@@ -58,9 +59,9 @@ export const ResumeListView = ({
                 <span className="inline-flex rounded-full border bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-800">
                   {resume.status}
                 </span>
-                {resume.originType ? (
+                {getResumeOriginType(resume) ? (
                   <span className="inline-flex rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">
-                    {resume.originType}
+                    {getResumeOriginType(resume)}
                   </span>
                 ) : null}
               </div>
@@ -75,7 +76,11 @@ export const ResumeListView = ({
                 onClick={() => onDownload(resume)}
                 disabled={downloadingId === resume.id}
               >
-                {downloadingId === resume.id ? 'Preparing...' : 'Download DOCX'}
+                {downloadingId === resume.id
+                  ? 'Preparing...'
+                  : isSampleTemplateResume(resume)
+                    ? 'Download sample DOCX'
+                    : 'Download DOCX'}
               </button>
             </div>
           </div>

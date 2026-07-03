@@ -3,9 +3,14 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router-dom'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import NewResumePage, { NewResumeFormView, buildGenerateResumeRequest } from './NewResumePage'
+import NewResumePage, {
+  NewResumeFormView,
+  buildGenerateResumeRequest,
+  getDefaultTailorResumeId,
+} from './NewResumePage'
 import { ResumeListView } from './ResumeListPage'
 import { TailorResultPanel } from './TailorResumePage'
+import { ResumeWorkspaceAlerts } from './ResumeWorkspacePage'
 import RequireLogin from '../../components/auth/RequireLogin'
 import { getPrimaryNavItems, guestNavItems, primaryNavItems } from '../../components/layout/AppShell'
 import PricingPage from '../PricingPage'
@@ -76,6 +81,17 @@ const sampleResume = (): ResumeRecord => ({
   readinessWarnings: ['Add contact details.', 'Several bullets lack measurable impact.'],
 })
 
+const formNotes = {
+  title: 'Platform Engineer Resume',
+  targetRole: 'Platform Engineer',
+  seniority: 'Senior',
+  jobDescription: 'Platform role needing Kubernetes and Terraform.',
+  experienceText: 'Led platform reliability work',
+  skillsText: 'Go, Kubernetes',
+  educationText: 'BS Computer Science',
+  additionalInstructions: 'Keep claims conservative.',
+}
+
 const withRouter = (node: React.ReactElement) => <MemoryRouter>{node}</MemoryRouter>
 
 describe('Resume Workspace UI', () => {
@@ -109,16 +125,17 @@ describe('Resume Workspace UI', () => {
   it('renders the create from notes form', () => {
     const html = renderToStaticMarkup(withRouter(<NewResumePage />))
 
-    expect(html).toContain('Create your resume')
-    expect(html).toContain('Start from notes')
-    expect(html).toContain('Start from job description')
+    expect(html).toContain('Create or tailor your resume')
+    expect(html).toContain('Tailor my resume for a job')
+    expect(html).toContain('Build from my experience')
+    expect(html).toContain('See sample resume for a job')
     expect(html).toContain('Start blank')
-    expect(html).toContain('Target role')
-    expect(html).toContain('Experience notes')
-    expect(html).toContain('Generate Resume')
+    expect(html).toContain('Recommended')
+    expect(html).toContain('Upload resume for analysis')
+    expect(html).toContain('Tailor resume')
   })
 
-  it('renders job-description creation mode with truthful template guidance', () => {
+  it('renders sample creation mode with truthful template guidance', () => {
     const notes = {
       title: 'Backend Engineer Resume',
       targetRole: 'Backend Engineer',
@@ -132,24 +149,26 @@ describe('Resume Workspace UI', () => {
     const html = renderToStaticMarkup(
       withRouter(
         <NewResumeFormView
-          mode="job_description"
+          mode="sample"
           notes={notes}
+          savedResumes={[]}
           onModeChange={vi.fn()}
+          onBaseResumeChange={vi.fn()}
           onNoteChange={vi.fn()}
           onSubmit={vi.fn()}
           onCancel={vi.fn()}
+          onUploadResume={vi.fn()}
         />,
       ),
     )
 
     expect(html).toContain('Job description')
-    expect(html).toContain('Optional experience notes')
-    expect(html).toContain('We will create a role-targeted resume template from this job description')
-    expect(html).toContain('Add your real experience before applying.')
+    expect(html).toContain('This creates a sample resume/template for inspiration.')
+    expect(html).toContain('Replace all examples with your real experience before applying.')
   })
 
-  it('builds the job-description generation request shape', () => {
-    const request = buildGenerateResumeRequest('job_description', {
+  it('builds the sample generation request shape', () => {
+    const request = buildGenerateResumeRequest('sample', {
       title: 'Backend Engineer Resume',
       targetRole: 'Backend Engineer',
       seniority: 'Senior',
@@ -161,14 +180,14 @@ describe('Resume Workspace UI', () => {
     })
 
     expect(request).toMatchObject({
-      generationMode: 'from_job_description',
+      generationMode: 'sample_from_job_description',
       jobDescription: 'Go and AWS role',
       experienceText: 'Built APIs',
     })
   })
 
-  it('keeps the notes generation request shape wired', () => {
-    const request = buildGenerateResumeRequest('notes', {
+  it('keeps the build-from-experience request shape wired', () => {
+    const request = buildGenerateResumeRequest('experience', {
       title: 'Platform Engineer Resume',
       targetRole: 'Platform Engineer',
       seniority: 'Senior',
@@ -180,8 +199,8 @@ describe('Resume Workspace UI', () => {
     })
 
     expect(request).toMatchObject({
-      generationMode: 'from_notes',
-      jobDescription: '',
+      generationMode: 'from_experience',
+      jobDescription: 'Ignored for notes mode',
       experienceText: 'Led platform reliability work',
       skillsText: 'Go, Kubernetes',
       educationText: 'BS Computer Science',
@@ -204,17 +223,77 @@ describe('Resume Workspace UI', () => {
         <NewResumeFormView
           mode="blank"
           notes={notes}
+          savedResumes={[]}
           onModeChange={vi.fn()}
+          onBaseResumeChange={vi.fn()}
           onNoteChange={vi.fn()}
           onSubmit={vi.fn()}
           onCancel={vi.fn()}
+          onUploadResume={vi.fn()}
         />,
       ),
     )
 
-    expect(html).toContain('Create blank draft')
-    expect(html).toContain('minimal structured draft')
+    expect(html).toContain('Start blank')
+    expect(html).toContain('minimal structured ResumeModel')
     expect(html).not.toContain('Job description</span>')
+  })
+
+  it('marks tailor as the recommended flow card', () => {
+    const html = renderToStaticMarkup(
+      withRouter(
+        <NewResumeFormView
+          mode="tailor"
+          notes={formNotes}
+          savedResumes={[]}
+          onModeChange={vi.fn()}
+          onBaseResumeChange={vi.fn()}
+          onNoteChange={vi.fn()}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+          onUploadResume={vi.fn()}
+        />,
+      ),
+    )
+
+    expect(html).toContain('Tailor my resume for a job')
+    expect(html).toContain('Recommended')
+  })
+
+  it('selects the only saved resume by default for tailoring', () => {
+    expect(
+      getDefaultTailorResumeId([
+        {
+          id: 'resume-123',
+          title: 'Platform Engineer Resume',
+          status: 'draft',
+          createdAt: '2026-06-16T01:00:00.000Z',
+          updatedAt: '2026-06-17T01:00:00.000Z',
+        },
+      ]),
+    ).toBe('resume-123')
+  })
+
+  it('shows upload, build, and blank options when no saved resumes exist for tailoring', () => {
+    const html = renderToStaticMarkup(
+      withRouter(
+        <NewResumeFormView
+          mode="tailor"
+          notes={formNotes}
+          savedResumes={[]}
+          onModeChange={vi.fn()}
+          onBaseResumeChange={vi.fn()}
+          onNoteChange={vi.fn()}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+          onUploadResume={vi.fn()}
+        />,
+      ),
+    )
+
+    expect(html).toContain('Upload resume for analysis')
+    expect(html).toContain('Build from experience')
+    expect(html).toContain('Start blank')
   })
 
   it('uses clear top navigation labels without duplicate resume builder labels', () => {
@@ -271,6 +350,24 @@ describe('Resume Workspace UI', () => {
     expect(html).toContain('Professional summary')
     expect(html).toContain('Tailor for Job')
     expect(html).toContain('Run ATS Analysis')
+  })
+
+  it('renders sample templates with persistent warning-oriented workspace actions', () => {
+    const html = renderToStaticMarkup(
+      withRouter(
+        <ResumeWorkspaceView
+          resume={{ ...sampleResume(), title: 'Sample template - Platform Engineer' }}
+          isSampleTemplate
+          onChange={vi.fn()}
+          onSave={vi.fn()}
+          onDownloadDocx={vi.fn()}
+        />,
+      ),
+    )
+
+    expect(html).toContain('sample template')
+    expect(html).toContain('Download sample DOCX')
+    expect(html).toContain('replace every example with your real experience')
   })
 
   it('edits skills and experience bullets immutably before save', () => {
@@ -335,19 +432,75 @@ describe('Resume Workspace UI', () => {
           warnings: ['Confirm generated claims are accurate.'],
           requiresUserInput: ['Confirm tailored claims.'],
           assumptions: ['No external profile data was used.'],
+          sampleExamples: ['Use this only if true for your experience: Led Terraform rollout.'],
         }}
       />,
     )
 
     expect(html).toContain('Generated tailored resume')
-    expect(html).toContain('Before')
-    expect(html).toContain('After')
-    expect(html).toContain('Reason')
-    expect(html).toContain('Risk')
+    expect(html).toContain('Safe rewrites')
+    expect(html).toContain('Needs your confirmation')
     expect(html).toContain('Terraform')
+    expect(html).toContain('Examples to adapt')
+    expect(html).toContain('Use this only if true for your experience.')
     expect(html).toContain('Confirm generated claims are accurate.')
     expect(html).toContain('Confirm tailored claims.')
     expect(html).toContain('No external profile data was used.')
+  })
+
+  it('shows the sample disclaimer before and after generation', () => {
+    const formHtml = renderToStaticMarkup(
+      withRouter(
+        <NewResumeFormView
+          mode="sample"
+          notes={formNotes}
+          savedResumes={[]}
+          onModeChange={vi.fn()}
+          onBaseResumeChange={vi.fn()}
+          onNoteChange={vi.fn()}
+          onSubmit={vi.fn()}
+          onCancel={vi.fn()}
+          onUploadResume={vi.fn()}
+        />,
+      ),
+    )
+    const alertHtml = renderToStaticMarkup(
+      <ResumeWorkspaceAlerts
+        generationMode="sample"
+        generationResult={{
+          generationId: 'gen-123',
+          status: 'completed',
+          resumeId: 'resume-123',
+          currentVersionId: 'version-123',
+          resume: sampleModel(),
+          readinessWarnings: ['Sample resume only - not ready to apply.'],
+          requiresUserInput: ['Replace every example with your real experience before applying.'],
+          assumptions: [],
+          warnings: ['This is a sample/template for inspiration, not a verified resume.'],
+          createdAt: '2026-06-17T01:00:00.000Z',
+          startedAt: '2026-06-17T01:00:02.000Z',
+          completedAt: '2026-06-17T01:00:20.000Z',
+        }}
+      />,
+    )
+
+    expect(formHtml).toContain('This creates a sample resume/template for inspiration.')
+    expect(alertHtml).toContain('Sample resume only - not ready to apply.')
+  })
+
+  it('shows the sample disclaimer again when the sample is reopened later', () => {
+    const alertHtml = renderToStaticMarkup(
+      <ResumeWorkspaceAlerts
+        generationMode="sample"
+        sampleTemplateWarnings={[
+          'Replace every example with your real experience before applying.',
+          'This is a sample/template for inspiration, not a verified resume.',
+        ]}
+      />,
+    )
+
+    expect(alertHtml).toContain('Sample resume only - not ready to apply.')
+    expect(alertHtml).toContain('Replace every example with your real experience before applying.')
   })
 
   it('uses the resume DOCX export endpoint', () => {
@@ -601,7 +754,7 @@ describe('Resume Workspace UI', () => {
     expect(validation.structuralErrors).toContain('Experience 1 bullets contains duplicate id "duplicate".')
   })
 
-  it('does not reference retired public response aliases in resume workspace source', () => {
+  it('does not reference retired synchronous response aliases in resume workspace source', () => {
     const files = [
       'src/api/resumes.ts',
       'src/pages/resumes/ResumeWorkspacePage.tsx',
@@ -610,12 +763,23 @@ describe('Resume Workspace UI', () => {
     ]
     const combined = files.map((file) => readFileSync(join(process.cwd(), file), 'utf8')).join('\n')
 
-    expect(combined).not.toMatch(/\bresumeId\b/)
     expect(combined).not.toMatch(/\bversionId\b/)
     expect(combined).not.toContain('tailoredResume')
     expect(combined).not.toContain('resumeModel')
     expect(combined).not.toContain('record.model')
     expect(combined).not.toContain('record.data')
+  })
+
+  it('removes retired start-from-job-description copy from the workspace sources', () => {
+    const files = [
+      'src/pages/resumes/NewResumePage.tsx',
+      'src/pages/resumes/ResumeListPage.tsx',
+      'src/pages/resumes/TailorResumePage.tsx',
+    ]
+    const combined = files.map((file) => readFileSync(join(process.cwd(), file), 'utf8')).join('\n')
+
+    expect(combined).not.toContain('Start from job description')
+    expect(combined).not.toContain('Generate resume from job description')
   })
 
   it('keeps public SEO pages on real routes without placeholder links', () => {

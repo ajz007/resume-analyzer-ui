@@ -26,6 +26,7 @@ type ResumeWorkspaceViewProps = {
   selectedSection?: ResumeSectionId
   saving?: boolean
   downloading?: boolean
+  isSampleTemplate?: boolean
   structuralErrors?: string[]
   onChange: (resume: ResumeRecord) => void
   onSave: () => void
@@ -199,6 +200,7 @@ const ResumeWorkspaceView = ({
   selectedSection,
   saving = false,
   downloading = false,
+  isSampleTemplate = false,
   structuralErrors = [],
   onChange,
   onSave,
@@ -741,11 +743,13 @@ const ResumeWorkspaceView = ({
           <p className="text-sm font-semibold text-blue-700">Resume Workspace</p>
           <h1 className={ui.text.h2}>{resume.title}</h1>
           <p className={ui.text.subtitle}>
-            Edit structured resume sections, save changes, tailor for this job, or download DOCX.
+            {isSampleTemplate
+              ? 'Review this sample template carefully, replace every example with your real experience, then save your edits before applying or downloading.'
+              : 'Edit structured resume sections, save changes, tailor for this job, or download DOCX.'}
           </p>
         </div>
         <span className="rounded-full border bg-gray-50 px-3 py-1 text-sm font-semibold text-gray-800">
-          {resume.status}
+          {isSampleTemplate ? 'sample template' : resume.status}
         </span>
       </div>
 
@@ -809,7 +813,7 @@ const ResumeWorkspaceView = ({
             onClick={onDownloadDocx}
             disabled={downloading}
           >
-            {downloading ? 'Preparing...' : 'Download DOCX'}
+            {downloading ? 'Preparing...' : isSampleTemplate ? 'Download sample DOCX' : 'Download DOCX'}
           </button>
           <button
             type="button"
