@@ -6,6 +6,9 @@ import ResultsPage from '../pages/ResultsPage'
 import PricingPage from '../pages/PricingPage'
 import PrivacyPage from '../pages/PrivacyPage'
 import TermsPage from '../pages/TermsPage'
+import RefundPage from '../pages/RefundPage'
+import DeliveryPage from '../pages/DeliveryPage'
+import ContactPage from '../pages/ContactPage'
 import SharedReportPage from '../pages/SharedReportPage'
 import AtsResumeCheckerPage from '../pages/AtsResumeCheckerPage'
 import AiResumeBuilderPage from '../pages/AiResumeBuilderPage'
@@ -93,6 +96,18 @@ export const router = createBrowserRouter([
       {
         path: 'terms',
         element: <TermsPage />,
+      },
+      {
+        path: 'refund',
+        element: <RefundPage />,
+      },
+      {
+        path: 'delivery',
+        element: <DeliveryPage />,
+      },
+      {
+        path: 'contact',
+        element: <ContactPage />,
       },
     ],
   },

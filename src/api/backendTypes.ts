@@ -182,6 +182,9 @@ export interface BackendMissingInformation {
 }
 
 export interface BackendAnalysisResult {
+  // Paywall flags come from the GET /analyses/:id envelope and are merged in client-side.
+  locked?: boolean
+  lockedSections?: string[]
   meta?: BackendMeta
   summary?: BackendSummary
   ats?: BackendATS

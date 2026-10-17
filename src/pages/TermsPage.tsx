@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 const TermsPage = () => {
   const navigate = useNavigate()
@@ -12,6 +12,14 @@ const TermsPage = () => {
       <p className="text-gray-700">
         You must have the right to upload any resume or job description. Do not upload sensitive or
         confidential data you are not authorized to share.
+      </p>
+      <p className="text-gray-700">
+        Paid report unlocks are one-time purchases processed by Razorpay. Prices are shown before
+        checkout. Refunds follow our{' '}
+        <Link className="text-blue-700 underline" to="/refund">
+          refund policy
+        </Link>
+        .
       </p>
       <p className="text-gray-700">
         Service availability, features, and pricing may change. Continued use constitutes acceptance

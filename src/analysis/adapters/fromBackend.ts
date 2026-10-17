@@ -328,5 +328,7 @@ export const fromBackendResult = (result: BackendAnalysisResult): AnalysisRespon
     fixThisFirst: mapFixThisFirst(result.fixThisFirst),
     summary: pickSummaryText(result.summary),
     nextSteps: getActionPlanSteps(result.actionPlan),
+    locked: result.locked === true,
+    lockedSections: toArray(result.lockedSections),
   }
 }
