@@ -1,0 +1,103 @@
+name: UI CI / Deploy
+
+# Pull requests: test + build.
+# Push to main (or manual run): test, then -- after approval on the "production"
+# environment -- build with production settings, sync to S3, invalidate CloudFront.
+#
+# Setup (see the API repo's DEPLOYMENT.md):
+#   Repository variables: AWS_REGION, AWS_ROLE_ARN, UI_BUCKET,
+#                         CLOUDFRONT_DISTRIBUTION_ID, VITE_API_BASE_URL
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ui-${{ github.event_name == 'pull_request' && github.ref || 'deploy' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Test
+        run: npx vitest run
+
+      - name: Build
+        run: npm run build
+
+  deploy:
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      UI_BUCKET: ${{ vars.UI_BUCKET }}
+      CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Check configuration
+        run: |
+          missing=0
+          for name in UI_BUCKET CLOUDFRONT_DISTRIBUTION_ID; do
+            if [ -z "${!name}" ]; then echo "::error::Repository variable $name is not set"; missing=1; fi
+          done
+          if [ -z "${{ vars.VITE_API_BASE_URL }}" ]; then echo "::error::Repository variable VITE_API_BASE_URL is not set"; missing=1; fi
+          if [ -z "${{ vars.AWS_ROLE_ARN }}" ]; then echo "::error::Repository variable AWS_ROLE_ARN is not set"; missing=1; fi
+          exit $missing
+
+      - run: npm ci
+
+      - name: Build production bundle
+        env:
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+          VITE_UPLOAD_MODE: s3
+          VITE_USE_MOCK_API: 'false'
+        run: npm run build:prod
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Upload to S3
+        run: |
+          set -euo pipefail
+          # Vite's hashed bundles (dist/assets) can be cached forever. Everything else
+          # (index.html, robots.txt, sitemap.xml, favicon) keeps its name, so it must revalidate.
+          aws s3 sync dist/assets/ "s3://$UI_BUCKET/assets/" --delete \
+            --cache-control "public, max-age=31536000, immutable"
+          aws s3 sync dist/ "s3://$UI_BUCKET/" --delete \
+            --exclude "assets/*" \
+            --cache-control "no-cache"
+
+      - name: Invalidate CloudFront
+        run: |
+          id=$(aws cloudfront create-invalidation --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" \
+            --paths "/*" --query 'Invalidation.Id' --output text)
+          echo "Created invalidation $id"

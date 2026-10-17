@@ -4,6 +4,8 @@ React + Vite front-end for the Resume Analyzer application.
 
 ## Production Deployment (S3 + CloudFront)
 
+Deploys run automatically from GitHub Actions (`.github/workflows/deploy.yml`) on push to `main`, after approval on the `production` environment. Setup steps (IAM role, repository variables) are in the API repo's `DEPLOYMENT.md`. The manual steps below still work as a fallback.
+
 ### Environment model
 
 - `.env.local` is dev-only and must not be uploaded to S3.
