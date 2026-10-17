@@ -12,7 +12,8 @@ const includedFeatures = [
   'DOCX downloads',
 ]
 
-const faqs = [
+// Copy that changes once paid report unlocks are live.
+export const buildFaqs = (paywallEnabled: boolean) => [
   {
     question: 'What counts as an analysis?',
     answer:
@@ -20,8 +21,9 @@ const faqs = [
   },
   {
     question: 'Do I need a credit card?',
-    answer:
-      'No. Rethink Resume is currently available during early access with no credit card required.',
+    answer: paywallEnabled
+      ? 'Not for free analyses. You only pay, through Razorpay, if you choose to unlock the full report for an analysis.'
+      : 'No. Rethink Resume is currently available during early access with no credit card required.',
   },
   {
     question: 'Do you store my resume?',
@@ -30,13 +32,14 @@ const faqs = [
   },
   {
     question: 'Will pricing change later?',
-    answer:
-      'The product may introduce paid plans later as more features launch. For now, free accounts include 15 analyses per month, and guests can try 3 analyses per month while we continue improving the platform.',
+    answer: paywallEnabled
+      ? 'Free accounts include 15 analyses per month and guests can try 3. Full report unlocks are a one-time payment per report, with no subscription. We will announce any pricing changes before they apply.'
+      : 'The product may introduce paid plans later as more features launch. For now, free accounts include 15 analyses per month, and guests can try 3 analyses per month while we continue improving the platform.',
   },
 ]
 
-// Shown only once the backend paywall is live, so early-access copy stays accurate until then.
-const FullReportUnlock = () => {
+// Prices are empty until the backend paywall is live, so early-access copy stays accurate until then.
+const usePaywallPrices = () => {
   const [prices, setPrices] = useState<PaymentPrice[]>([])
 
   useEffect(() => {
@@ -51,6 +54,10 @@ const FullReportUnlock = () => {
     }
   }, [])
 
+  return prices
+}
+
+const FullReportUnlock = ({ prices }: { prices: PaymentPrice[] }) => {
   if (!prices.length) return null
   return (
     <section className="rounded-lg border border-blue-200 bg-blue-50 p-6 space-y-3" data-testid="full-report-unlock">
@@ -77,6 +84,9 @@ const FullReportUnlock = () => {
 
 const PricingPage = () => {
   const navigate = useNavigate()
+  const prices = usePaywallPrices()
+  const paywallEnabled = prices.length > 0
+  const faqs = buildFaqs(paywallEnabled)
 
   return (
     <div className="mx-auto max-w-5xl space-y-10">
@@ -116,7 +126,9 @@ const PricingPage = () => {
             </div>
 
             <div className="grid gap-2 text-sm font-medium text-gray-700 sm:grid-cols-2 lg:grid-cols-1">
-              <div className="rounded-md bg-gray-50 px-3 py-2">No credit card required</div>
+              <div className="rounded-md bg-gray-50 px-3 py-2">
+                {paywallEnabled ? 'No credit card needed for free analyses' : 'No credit card required'}
+              </div>
               <div className="rounded-md bg-gray-50 px-3 py-2">
                 Currently available during early access
               </div>
@@ -181,7 +193,7 @@ const PricingPage = () => {
         </div>
       </section>
 
-      <FullReportUnlock />
+      <FullReportUnlock prices={prices} />
 
       <section className="rounded-lg bg-gray-950 p-6 text-white sm:p-8">
         <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
