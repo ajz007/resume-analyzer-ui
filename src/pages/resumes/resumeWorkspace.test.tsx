@@ -649,7 +649,7 @@ describe('Resume Workspace UI', () => {
     expect(pricingHtml).not.toContain('10 analyses')
     expect(combined).toContain('Try 3 analyses as a guest, or sign in for 15 free analyses/month.')
     expect(combined).toContain('Save this analysis and get 15 free analyses/month by signing in.')
-    expect(combined).toContain('!loggedIn ? <GuestResultsCta')
+    expect(combined).toContain('!loggedIn && !isLocked ? <GuestResultsCta')
     expect(combined).not.toContain('10 free analyses')
     expect(combined).not.toContain('10 analyses per month')
   })

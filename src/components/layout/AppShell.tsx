@@ -256,7 +256,7 @@ const AppShell = () => {
           <Outlet />
         </main>
         <footer className="bg-white border-t mt-auto">
-          <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-2 text-sm text-gray-600">
+          <div className="max-w-7xl mx-auto px-6 py-4 flex flex-wrap items-center gap-2 text-sm text-gray-600">
             <NavLink to="/pricing" className={ui.nav.footerLink}>
               Early Access
             </NavLink>
@@ -267,6 +267,18 @@ const AppShell = () => {
             <span className="text-gray-300 select-none">|</span>
             <NavLink to="/terms" className={ui.nav.footerLink}>
               Terms
+            </NavLink>
+            <span className="text-gray-300 select-none">|</span>
+            <NavLink to="/refund" className={ui.nav.footerLink}>
+              Refunds
+            </NavLink>
+            <span className="text-gray-300 select-none">|</span>
+            <NavLink to="/delivery" className={ui.nav.footerLink}>
+              Delivery
+            </NavLink>
+            <span className="text-gray-300 select-none">|</span>
+            <NavLink to="/contact" className={ui.nav.footerLink}>
+              Contact
             </NavLink>
           </div>
         </footer>

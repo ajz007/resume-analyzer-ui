@@ -4,6 +4,7 @@ import RecommendationsPanel from '../RecommendationsPanel'
 import AtsChecksSection from './AtsChecksSection'
 import BulletSuggestions from './BulletSuggestions'
 import NextStepsPanel from './NextStepsPanel'
+import ScoreDisclaimer from './ScoreDisclaimer'
 import { COPY } from '../../constants/uiCopy'
 import { ReportCard } from '../results/ReportCard'
 import { SectionHeader } from '../results/SectionHeader'
@@ -129,6 +130,7 @@ const AtsReport = ({ result }: Props) => {
           </div>
         ) : null}
       </div>
+      <ScoreDisclaimer />
 
       {fixThisFirst.length ? (
         <div id="fix-first">

@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import type { AnalysisResponse } from '../api/types'
 import { normalizeAnalysisResponse } from '../analysis/normalizeAnalysisResponse'
 import ResultBox from './ResultBox'
+import { SCORE_DISCLAIMER } from './reports/ScoreDisclaimer'
 import v2_4JobMatchReportRaw from '../fixtures/v2_4-job-match-report.json?raw'
 
 const buildResult = (overrides: Partial<AnalysisResponse> = {}): AnalysisResponse => ({
@@ -335,5 +336,14 @@ describe('ResultBox wrapper', () => {
     )
     const html = renderToStaticMarkup(<ResultBox result={normalized} mode="JOB_MATCH" />)
     expect(html).toContain('Job Match')
+  })
+
+  it('shows the score disclaimer in both report modes', () => {
+    const ats = normalizeAnalysisResponse(buildResult({ ats: { score: 72 }, matchScore: 0 }))
+    const jobMatch = normalizeAnalysisResponse(buildResult())
+    expect(renderToStaticMarkup(<ResultBox result={ats} mode="ATS" />)).toContain(SCORE_DISCLAIMER)
+    expect(renderToStaticMarkup(<ResultBox result={jobMatch} mode="JOB_MATCH" />)).toContain(
+      SCORE_DISCLAIMER,
+    )
   })
 })

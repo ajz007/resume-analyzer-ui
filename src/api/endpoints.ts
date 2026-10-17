@@ -1,6 +1,13 @@
 import { env } from '../app/env'
 import { apiRequest } from './client'
-import type { AnalysisResponse, ShareLinkResponse, SharedAnalysisResponse, UsageResponse } from './types'
+import type {
+  AnalysisResponse,
+  PaymentConfig,
+  PaymentOrder,
+  ShareLinkResponse,
+  SharedAnalysisResponse,
+  UsageResponse,
+} from './types'
 import type { BackendAnalysisResult } from './backendTypes'
 import type { UploadedDoc } from './documents'
 import { fromBackendResult } from '../analysis/adapters/fromBackend'
@@ -51,6 +58,8 @@ type AnalyzeStatusResponse = {
   pollAfterMs?: number
   retryAfterMs?: number
   result?: BackendAnalysisResult
+  locked?: boolean
+  lockedSections?: string[]
 } & ParseFailurePayload
 type ClaimGuestResponse = { migratedCount?: number }
 type ListParams = { limit?: number; offset?: number }
@@ -61,6 +70,8 @@ type SharedAnalysisApiResponse = {
   startedAt?: string
   completedAt?: string
   result?: BackendAnalysisResult
+  locked?: boolean
+  lockedSections?: string[]
 }
 type AnalysisListItem = Pick<AnalysisResponse, 'analysisId' | 'createdAt' | 'matchScore'> & {
   status?: string
@@ -191,6 +202,8 @@ const normalizeSharedAnalysis = (payload: SharedAnalysisApiResponse): SharedAnal
 
   const resultWithMeta: BackendAnalysisResult = {
     ...payload.result,
+    locked: payload.locked,
+    lockedSections: payload.lockedSections,
     meta: {
       ...payload.result.meta,
       analysisId: payload.result.meta?.analysisId ?? payload.id,
@@ -307,6 +320,8 @@ export const withResultAnalysisId = (
   if (statusBody.status !== 'completed' || !statusBody.result) return undefined
   return {
     ...statusBody.result,
+    locked: statusBody.locked,
+    lockedSections: statusBody.lockedSections,
     // GET /analyses/:id may only return the id at top-level in guest mode.
     meta: {
       ...statusBody.result.meta,
@@ -574,6 +589,36 @@ export async function fetchSharedAnalysis(token: string): Promise<SharedAnalysis
     { suppressToastOnStatus: [404] },
   )
   return normalizeSharedAnalysis(payload)
+}
+
+export async function fetchPaymentConfig(): Promise<PaymentConfig> {
+  if (env.useMockApi) {
+    return { paywallEnabled: false, prices: [] }
+  }
+  return apiRequest<PaymentConfig>('/payments/config', { method: 'GET' }, { suppressToast: true })
+}
+
+export async function createPaymentOrder(
+  analysisId: string,
+  currency: PaymentOrder['currency'],
+): Promise<PaymentOrder> {
+  return apiRequest<PaymentOrder>('/payments/orders', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ analysisId, currency }),
+  })
+}
+
+export async function verifyPayment(payload: {
+  orderId: string
+  paymentId: string
+  signature: string
+}): Promise<{ analysisId: string; unlocked: boolean }> {
+  return apiRequest<{ analysisId: string; unlocked: boolean }>('/payments/verify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
 }
 
 export async function claimGuestAnalyses(): Promise<ClaimGuestResponse> {

@@ -72,12 +72,13 @@ const HomePage = () => (
         </div>
         <div className="space-y-4">
           <h1 className="max-w-4xl text-4xl font-bold tracking-normal text-gray-950 sm:text-5xl">
-            AI Resume Analyzer & ATS Checker for Engineers
+            See which requirements a job weighs most, and where your resume falls short
           </h1>
           <p className="max-w-3xl text-lg leading-8 text-gray-700">
-            Rethink Resume helps technical professionals improve resumes before applying. Analyze
-            ATS readiness, compare your resume with job descriptions, find missing skills, and use
-            AI guidance to make your experience clearer, stronger, and easier to evaluate.
+            Rethink Resume is an AI resume analyzer and ATS checker for engineers. Paste a job
+            description to get a weighted, priority-ranked breakdown of what the role needs, a
+            per-requirement match against your resume, the gaps to fix first, and an ATS readiness
+            check of your formatting and structure.
           </p>
           <p className="max-w-3xl text-sm font-medium text-blue-800">
             Try 3 analyses as a guest, or sign in for 15 free analyses/month.

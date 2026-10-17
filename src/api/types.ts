@@ -178,6 +178,8 @@ export interface AnalysisResponse {
   fixThisFirst?: FixThisFirstItem[]
   summary: string
   nextSteps: string[]
+  locked?: boolean
+  lockedSections?: string[]
 }
 
 export interface UsageResponse {
@@ -187,6 +189,23 @@ export interface UsageResponse {
   remaining?: number
   authenticated?: boolean
   resetsAt: string
+}
+
+export interface PaymentPrice {
+  currency: 'INR' | 'USD'
+  amount: number
+}
+
+export interface PaymentConfig {
+  paywallEnabled: boolean
+  prices: PaymentPrice[]
+}
+
+export interface PaymentOrder {
+  orderId: string
+  amount: number
+  currency: 'INR' | 'USD'
+  keyId: string
 }
 
 export interface ShareLinkResponse {

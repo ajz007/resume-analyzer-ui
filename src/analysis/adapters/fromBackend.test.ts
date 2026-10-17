@@ -64,3 +64,15 @@ describe('fromBackendResult', () => {
     expect(result.ats?.score).toBeUndefined()
   })
 })
+
+describe('fromBackendResult paywall flags', () => {
+  it('maps locked and lockedSections', () => {
+    const locked = fromBackendResult({ locked: true, lockedSections: ['bulletRewrites'] })
+    expect(locked.locked).toBe(true)
+    expect(locked.lockedSections).toEqual(['bulletRewrites'])
+
+    const open = fromBackendResult({})
+    expect(open.locked).toBe(false)
+    expect(open.lockedSections).toEqual([])
+  })
+})

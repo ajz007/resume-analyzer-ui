@@ -1,4 +1,8 @@
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { fetchPaymentConfig } from '../api/endpoints'
+import type { PaymentPrice } from '../api/types'
+import { formatPrice } from '../payments/razorpay'
 
 const includedFeatures = [
   '15 resume analyses/month',
@@ -30,6 +34,46 @@ const faqs = [
       'The product may introduce paid plans later as more features launch. For now, free accounts include 15 analyses per month, and guests can try 3 analyses per month while we continue improving the platform.',
   },
 ]
+
+// Shown only once the backend paywall is live, so early-access copy stays accurate until then.
+const FullReportUnlock = () => {
+  const [prices, setPrices] = useState<PaymentPrice[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    fetchPaymentConfig()
+      .then((config) => {
+        if (!cancelled && config.paywallEnabled) setPrices(config.prices ?? [])
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  if (!prices.length) return null
+  return (
+    <section className="rounded-lg border border-blue-200 bg-blue-50 p-6 space-y-3" data-testid="full-report-unlock">
+      <h2 className="text-2xl font-bold text-gray-950">Full report unlock</h2>
+      <p className="text-base leading-7 text-gray-700">
+        Every analysis shows your scores and top 3 fixes for free. A one-time payment unlocks the
+        full report for that analysis: the weighted per-requirement job match, bullet rewrites, every
+        issue, and the action plan. There's no subscription.
+      </p>
+      <p className="text-3xl font-bold text-gray-950">
+        {prices.map((price) => formatPrice(price)).join(' / ')}
+        <span className="ml-2 text-base font-normal text-gray-600">per report</span>
+      </p>
+      <p className="text-sm text-gray-700">
+        Payments are processed securely by Razorpay. See our{' '}
+        <Link to="/refund" className="text-blue-700 underline">
+          refund policy
+        </Link>
+        .
+      </p>
+    </section>
+  )
+}
 
 const PricingPage = () => {
   const navigate = useNavigate()
@@ -136,6 +180,8 @@ const PricingPage = () => {
           </ul>
         </div>
       </section>
+
+      <FullReportUnlock />
 
       <section className="rounded-lg bg-gray-950 p-6 text-white sm:p-8">
         <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">

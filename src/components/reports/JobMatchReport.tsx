@@ -5,6 +5,7 @@ import RecommendationsPanel from '../RecommendationsPanel'
 import AtsChecksSection from './AtsChecksSection'
 import BulletSuggestions from './BulletSuggestions'
 import NextStepsPanel from './NextStepsPanel'
+import ScoreDisclaimer from './ScoreDisclaimer'
 import { ReportCard } from '../results/ReportCard'
 import { SectionHeader } from '../results/SectionHeader'
 import { SeverityChip } from '../results/SeverityChip'
@@ -235,6 +236,7 @@ const JobMatchReport = ({ result }: Props) => {
           ? scoreCard('ATS Readiness', atsScore, false, atsStatusShort(atsScore))
           : null}
       </div>
+      <ScoreDisclaimer />
 
       {showJobIntent ? (
         <Section title="What this job is really asking for" id="job-intent">

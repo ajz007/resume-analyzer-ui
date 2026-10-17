@@ -1,6 +1,7 @@
 import { useNavigate, useParams } from 'react-router-dom'
 import AtsReport from '../components/reports/AtsReport'
 import JobMatchReport from '../components/reports/JobMatchReport'
+import UnlockCard from '../components/reports/UnlockCard'
 import ResultsLayout from '../components/results/ResultsLayout'
 import { useAnalysisStore } from '../store/useAnalysisStore'
 import { createAnalysisShare, fetchAnalysisResult } from '../api/endpoints'
@@ -44,6 +45,7 @@ const ResultsPage = () => {
   const [isCopyingLink, setIsCopyingLink] = useState(false)
   const [shareUrl, setShareUrl] = useState('')
   const [shareError, setShareError] = useState<string | undefined>(undefined)
+  const [unlockedResult, setUnlockedResult] = useState<AnalysisResponse | null>(null)
   const loggedIn = isLoggedIn()
   const authStartUrl = useMemo(() => {
     const base = (env.apiBaseUrl || '').replace(/\/$/, '')
@@ -92,7 +94,28 @@ const ResultsPage = () => {
   }, [analysisId, result, latestId])
 
   const hasMatchingResult = result && analysisId && latestId === analysisId
-  const toRender = hasMatchingResult && result ? result : cachedResult
+  const toRender = unlockedResult ?? (hasMatchingResult && result ? result : cachedResult)
+  const isLocked = toRender?.locked === true
+  const signIn = () => window.open(authStartUrl, '_self')
+
+  const handleUnlocked = async () => {
+    if (!analysisId) return
+    const storageKey = `analysis:${analysisId}`
+    try {
+      localStorage.removeItem(storageKey)
+    } catch {
+      // Storage may be unavailable; the refetch below still shows the full report.
+    }
+    const fetched = await fetchAnalysisResult(analysisId)
+    if (!fetched) return
+    setUnlockedResult(normalizeCachedResult(fetched))
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(fetched))
+    } catch {
+      // Ignore storage quota or privacy-mode errors.
+    }
+    showToast({ type: 'success', title: 'Report unlocked', message: 'The full report is now available.' })
+  }
   const normalized = toRender ? normalizeAnalysisResponse(toRender) : null
 
   const resolveMode = (mode?: string) => {
@@ -271,12 +294,21 @@ const ResultsPage = () => {
 
       {normalized ? (
         <>
+          {isLocked && analysisId ? (
+            <UnlockCard
+              analysisId={analysisId}
+              lockedSections={toRender?.lockedSections ?? []}
+              loggedIn={loggedIn}
+              onSignIn={signIn}
+              onUnlocked={handleUnlocked}
+            />
+          ) : null}
           {reportMode === 'JOB_MATCH' ? (
             <JobMatchReport result={normalized} />
           ) : (
             <AtsReport result={normalized} />
           )}
-          {!loggedIn ? <GuestResultsCta onSignIn={() => window.open(authStartUrl, '_self')} /> : null}
+          {!loggedIn && !isLocked ? <GuestResultsCta onSignIn={signIn} /> : null}
         </>
       ) : (
         <div className={`${ui.card.padded} space-y-3`}>
@@ -292,14 +324,6 @@ const ResultsPage = () => {
       )}
 
       <div className="space-y-3">
-        <div className={ui.results.text.meta}>
-          <p className="font-semibold text-gray-700">Next (coming soon)</p>
-          <ul className={ui.results.list.bulletsSecondary}>
-            <li>Apply recommended updates to your resume</li>
-            <li>Track score improvement</li>
-            <li>Generate role-specific versions</li>
-          </ul>
-        </div>
         <div className="flex flex-wrap gap-3">
           <button
             onClick={() => {
