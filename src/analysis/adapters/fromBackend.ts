@@ -29,7 +29,7 @@ const mapSeverity = (severity?: BackendSeverity): Severity => {
 
 const pickSummaryText = (summary?: BackendSummary) => {
   if (!summary) return ''
-  return summary.overview ?? ''
+  return summary.overallAssessment ?? summary.overview ?? ''
 }
 
 const mapIssueToCheck = (issue: BackendIssue, index: number): AtsCheck => ({
@@ -199,8 +199,22 @@ const mapJobRequirementProfile = (
       resumeMatchStatus: item.resumeMatchStatus ?? 'UNKNOWN',
       whyItMatters: item.whyItMatters ?? '',
     })),
-    hiddenExpectations: toArray(profile.hiddenExpectations),
-    niceToHaveSignals: toArray(profile.niceToHaveSignals),
+    hiddenExpectations: toArray(profile.hiddenExpectations)
+      .map((item, index) => ({
+        id: item.id ?? `hidden-${index + 1}`,
+        expectation: item.expectation ?? '',
+        resumeMatchStatus: item.resumeMatchStatus ?? 'UNKNOWN',
+        whyItMatters: item.whyItMatters ?? '',
+      }))
+      .filter((item) => item.expectation.trim() !== ''),
+    niceToHaveSignals: toArray(profile.niceToHaveSignals)
+      .map((item, index) => ({
+        id: item.id ?? `nice-${index + 1}`,
+        signal: item.signal ?? '',
+        resumeMatchStatus: item.resumeMatchStatus ?? 'UNKNOWN',
+        whyItMatters: item.whyItMatters ?? '',
+      }))
+      .filter((item) => item.signal.trim() !== ''),
   }
 }
 
@@ -281,7 +295,8 @@ export const fromBackendResult = (result: BackendAnalysisResult): AnalysisRespon
       ? toArray(result.ats?.matchedKeywords)
       : toArray(result.summary?.matchedKeywords)
 
-  const atsChecks = toArray(result.ats?.formattingIssues).map(mapIssueToCheck)
+  const formattingIssues = toArray(result.ats?.formattingIssues)
+  const atsChecks = formattingIssues.map((item, index) => mapIssueToCheck(typeof item === 'string' ? { message: item, title: 'Formatting observation' } : item, index))
   const bulletSuggestions = toArray(result.bulletRewrites).map((rewrite, idx) => ({
     original: rewrite.before ?? rewrite.original ?? `Original bullet ${idx + 1}`,
     suggested: rewrite.after ?? rewrite.rewrite ?? rewrite.original ?? 'Add measurable impact.',
@@ -308,9 +323,10 @@ export const fromBackendResult = (result: BackendAnalysisResult): AnalysisRespon
   return {
     analysisId,
     createdAt,
+    report: result.report,
     finalScore: typeof result.finalScore === 'number' ? clamp(Math.round(result.finalScore)) : finalScore,
     matchScore: getMatchScore(result),
-    analysisMode: result.meta?.analysisMode ?? 'job_match',
+    analysisMode: result.meta?.analysisMode ?? ((result.meta?.mode === 'ATS' || result.meta?.primaryScoreType === 'ATS' || result.meta?.jobDescriptionProvided === false) ? 'resume_only' : 'job_match'),
     scoreExplanation: mapScoreExplanation(result.ats?.scoreExplanation),
     missingKeywords,
     missingKeywordBuckets,
@@ -324,7 +340,11 @@ export const fromBackendResult = (result: BackendAnalysisResult): AnalysisRespon
     jobRequirementProfile: mapJobRequirementProfile(result.jobRequirementProfile),
     jobMatchScoring: mapJobMatchScoring(result.jobMatchScoring),
     aiScreening: mapAIScreening(result.aiScreening),
-    ats: typeof result.ats?.score === 'number' ? { score: clamp(Math.round(result.ats.score)) } : undefined,
+    ats: result.ats ? {
+      score: typeof result.ats.score === 'number' ? clamp(Math.round(result.ats.score)) : undefined,
+      missingKeywords: missingKeywordBuckets,
+      formattingIssues: formattingIssues.map(item => typeof item === 'string' ? item : item.problem ?? item.message ?? '').filter(Boolean),
+    } : undefined,
     fixThisFirst: mapFixThisFirst(result.fixThisFirst),
     summary: pickSummaryText(result.summary),
     nextSteps: getActionPlanSteps(result.actionPlan),

@@ -46,8 +46,11 @@ const AtsChecksSection = ({
   })
 
   const rows = atsIssues
+  const formattingIssues = result.normalized.atsFormattingIssues
+  const missingKeywords = result.normalized.missingKeywordsFromJD
   const atsScore = getATSScore(result)
-  if (!atsIssues.length && typeof atsScore !== 'number') return null
+  const hasFindings = rows.length > 0 || formattingIssues.length > 0 || missingKeywords.length > 0
+  if (!hasFindings && typeof atsScore !== 'number') return null
 
   return (
     <ReportCard>
@@ -72,8 +75,31 @@ const AtsChecksSection = ({
         {typeof atsScore === 'number' ? (
           <p className={ui.results.text.secondary}>ATS Readiness: {atsScore}/100</p>
         ) : null}
-        {!rows.length ? (
+        {!hasFindings ? (
           <p className={ui.results.text.secondary}>No ATS-specific issues were flagged.</p>
+        ) : null}
+        {missingKeywords.length ? (
+          <div className="space-y-2">
+            <p className={ui.results.text.label}>Job keywords missing from your resume</p>
+            <ul className="flex flex-wrap gap-2" aria-label="Missing job keywords">
+              {missingKeywords.map((keyword) => (
+                <li key={keyword} className={`${ui.results.chip.base} ${ui.results.chip.info}`}>
+                  {keyword}
+                </li>
+              ))}
+            </ul>
+            <p className={ui.results.text.meta}>Add a keyword only where your experience genuinely supports it.</p>
+          </div>
+        ) : null}
+        {formattingIssues.length ? (
+          <div className="space-y-2">
+            <p className={ui.results.text.label}>Formatting and structure</p>
+            <ul className={ui.results.list.bulletsSecondary}>
+              {formattingIssues.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
         ) : null}
         {showAtsChecks && (
           <div id="ats-checks-panel">

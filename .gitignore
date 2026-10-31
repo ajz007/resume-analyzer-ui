@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local candidate evaluations must never be committed.
+/dev/*results.json
+/dev/*reports.json
+/dev/*summary.json
+/dev/*reference.json
+/dev/*documents/

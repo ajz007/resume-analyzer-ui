@@ -141,9 +141,9 @@ const SharedReportPage = () => {
 
           {normalized ? (
             reportMode === 'JOB_MATCH' ? (
-              <JobMatchReport result={normalized} />
+              <JobMatchReport result={normalized} readOnly />
             ) : (
-              <AtsReport result={normalized} />
+              <AtsReport result={normalized} readOnly />
             )
           ) : (
             <div className={`${ui.card.padded} space-y-3`}>

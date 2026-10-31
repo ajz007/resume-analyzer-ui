@@ -6,6 +6,7 @@ import { ui } from '../../app/uiTokens'
 import { CheckoutDismissedError, defaultCurrency, formatPrice, openCheckout } from '../../payments/razorpay'
 
 const SECTION_LABELS: Record<string, string> = {
+  report: 'Finished edits, revised passages, evidence and focused follow-up questions',
   jobRequirements: 'Weighted per-requirement match for this job',
   bulletRewrites: 'Bullet rewrites tied to your actual resume content',
   issues: 'Every issue found, not just the top 3',
