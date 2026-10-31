@@ -1,6 +1,6 @@
 export const ui = {
   layout: {
-    page: 'min-h-screen bg-gray-100',
+    page: 'min-h-screen bg-stone-50',
     container: 'max-w-7xl mx-auto px-4',
     stack: 'space-y-4',
     header: 'flex items-start justify-between gap-4',
@@ -31,9 +31,9 @@ export const ui = {
     dropzoneActive: 'border-blue-500 bg-blue-50',
   },
   button: {
-    primary: 'bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50',
+    primary: 'bg-teal-800 text-white px-5 py-3 rounded-lg hover:bg-teal-900 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800',
     secondary:
-      'border border-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-50 disabled:opacity-50',
+      'border border-slate-300 bg-white text-slate-800 px-4 py-3 rounded-lg hover:bg-slate-50 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800',
     pill: 'inline-flex items-center px-3 py-1 rounded-full border text-sm font-semibold text-gray-800',
   },
   nav: {

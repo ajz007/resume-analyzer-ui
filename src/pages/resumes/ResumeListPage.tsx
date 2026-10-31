@@ -1,7 +1,13 @@
+import SavedUploads from '../../components/SavedUploads'
+import { Link } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ui } from '../../app/uiTokens'
-import { downloadResumeDocx, fetchResumes, type ResumeListItem } from '../../api/resumes'
+import {
+  downloadResumeDocx,
+  fetchResumes,
+  type ResumeListItem,
+} from '../../api/resumes'
 import AppPageMetadata from '../../components/seo/AppPageMetadata'
 import { useToastStore } from '../../store/useToastStore'
 
@@ -24,8 +30,10 @@ export const ResumeListView = ({
     <div className={ui.layout.header}>
       <div className="space-y-1">
         <p className="text-sm font-semibold text-blue-700">Resume Workspace</p>
-        <h1 className={ui.text.h2}>Resumes</h1>
-        <p className={ui.text.subtitle}>View structured resumes, open a workspace, or download DOCX.</p>
+        <h2 className={ui.text.h2}>Editable resume workspaces</h2>
+        <p className={ui.text.subtitle}>
+          View structured resumes, open a workspace, or download DOCX.
+        </p>
       </div>
       <button type="button" className={ui.button.primary} onClick={onNew}>
         New resume
@@ -33,13 +41,18 @@ export const ResumeListView = ({
     </div>
 
     {loading ? (
-      <div className={`${ui.card.base} p-8 text-center text-gray-700`}>Loading resumes...</div>
+      <div className={`${ui.card.base} p-8 text-center text-gray-700`}>
+        Loading resumes...
+      </div>
     ) : resumes.length === 0 ? (
       <div className={`${ui.card.base} p-8 text-center space-y-3`}>
         <h2 className="text-xl font-bold text-gray-900">No resumes yet</h2>
-        <p className={ui.text.subtitle}>Generate ATS-friendly resume content from notes or start blank.</p>
+        <p className={ui.text.subtitle}>
+          Start with your own experience, or maintain an existing structured
+          draft.
+        </p>
         <button type="button" className={ui.button.primary} onClick={onNew}>
-          Generate ATS-friendly resume
+          Create a factual draft
         </button>
       </div>
     ) : (
@@ -52,8 +65,12 @@ export const ResumeListView = ({
             }`}
           >
             <div className="min-w-0 space-y-1">
-              <h2 className="truncate text-base font-semibold text-gray-900">{resume.title}</h2>
-              <p className="text-sm text-gray-600">Updated {new Date(resume.updatedAt).toLocaleString()}</p>
+              <h2 className="truncate text-base font-semibold text-gray-900">
+                {resume.title}
+              </h2>
+              <p className="text-sm text-gray-600">
+                Updated {new Date(resume.updatedAt).toLocaleString()}
+              </p>
               <div className="flex flex-wrap gap-2">
                 <span className="inline-flex rounded-full border bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-800">
                   {resume.status}
@@ -66,7 +83,11 @@ export const ResumeListView = ({
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button type="button" className={ui.button.secondary} onClick={() => onOpen(resume.id)}>
+              <button
+                type="button"
+                className={ui.button.secondary}
+                onClick={() => onOpen(resume.id)}
+              >
                 Open
               </button>
               <button
@@ -90,7 +111,9 @@ const ResumeListPage = () => {
   const showToast = useToastStore((state) => state.showToast)
   const [resumes, setResumes] = useState<ResumeListItem[]>([])
   const [loading, setLoading] = useState(false)
-  const [downloadingId, setDownloadingId] = useState<string | undefined>(undefined)
+  const [downloadingId, setDownloadingId] = useState<string | undefined>(
+    undefined,
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -100,8 +123,10 @@ const ResumeListPage = () => {
         const items = await fetchResumes()
         if (!cancelled) setResumes(items)
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to load resumes.'
-        if (!cancelled) showToast({ type: 'error', title: 'Could not load resumes', message })
+        const message =
+          err instanceof Error ? err.message : 'Failed to load resumes.'
+        if (!cancelled)
+          showToast({ type: 'error', title: 'Could not load resumes', message })
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -113,7 +138,11 @@ const ResumeListPage = () => {
   }, [showToast])
 
   const sorted = useMemo(
-    () => [...resumes].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
+    () =>
+      [...resumes].sort(
+        (a, b) =>
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      ),
     [resumes],
   )
 
@@ -122,7 +151,8 @@ const ResumeListPage = () => {
     try {
       await downloadResumeDocx(resume.id, resume.title)
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Could not download DOCX.'
+      const message =
+        err instanceof Error ? err.message : 'Could not download DOCX.'
       showToast({ type: 'error', title: 'Download failed', message })
     } finally {
       setDownloadingId(undefined)
@@ -131,7 +161,23 @@ const ResumeListPage = () => {
 
   return (
     <>
-      <AppPageMetadata title="My Resumes | Rethink Resume" description="View and manage your saved resumes." />
+      <AppPageMetadata
+        title="My Resumes | Rethink Resume"
+        description="View and manage your saved resumes."
+      />
+      <section className="space-y-6">
+        <header>
+          <h1 className="text-3xl font-semibold text-slate-950">My resumes</h1>
+          <p className="mt-3 text-slate-600">
+            Reuse your uploaded sources and maintain your editable resume
+            drafts.
+          </p>
+        </header>
+        <SavedUploads />
+        <Link className={ui.button.primary} to="/app/analyzer?mode=job-match">
+          Upload a resume for a new review
+        </Link>
+      </section>
       <ResumeListView
         resumes={sorted}
         loading={loading}

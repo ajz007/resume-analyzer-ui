@@ -16,11 +16,18 @@ import {
 } from '../app/config'
 import { COPY } from '../constants/uiCopy'
 import { isLoggedIn } from '../auth/identity'
-import { getAnalyzerQuotaMessage, getLimitReachedCopy, resolveUsage } from '../usage/quota'
+import {
+  getAnalyzerQuotaMessage,
+  getLimitReachedCopy,
+  resolveUsage,
+} from '../usage/quota'
 import AlertCard from './AlertCard'
+import SavedUploads from './SavedUploads'
+import { fetchPrimaryResume } from '../api/workspace'
 
 const formatFileSize = (bytes: number) => `${Math.round(bytes / 1024)} KB`
-const formatFileLimit = (bytes: number) => `${Math.round(bytes / (1024 * 1024))}MB`
+const formatFileLimit = (bytes: number) =>
+  `${Math.round(bytes / (1024 * 1024))}MB`
 
 type ResumeFormProps = {
   analysisMode: 'ATS' | 'JOB_MATCH'
@@ -37,7 +44,8 @@ export const ResumeQuotaNotice = ({
 }) => {
   const resolvedUsage = resolveUsage(usage, loggedIn)
   const limitReached =
-    typeof resolvedUsage.used === 'number' && resolvedUsage.used >= resolvedUsage.limit
+    typeof resolvedUsage.used === 'number' &&
+    resolvedUsage.used >= resolvedUsage.limit
   const quotaMessage = getAnalyzerQuotaMessage(usage, loggedIn)
   const limitReachedCopy = getLimitReachedCopy(usage, loggedIn)
 
@@ -56,7 +64,11 @@ export const ResumeQuotaNotice = ({
             <p>{limitReachedCopy.description}</p>
           </div>
           {limitReachedCopy.showSignIn ? (
-            <button type="button" onClick={onSignIn} className={ui.button.primary}>
+            <button
+              type="button"
+              onClick={onSignIn}
+              className={ui.button.primary}
+            >
               Sign in with Google
             </button>
           ) : null}
@@ -68,54 +80,6 @@ export const ResumeQuotaNotice = ({
   )
 }
 
-const jobMatchProgressSteps = [
-  'Upload received',
-  'Reading resume content',
-  'Identifying job priorities',
-  'Comparing resume evidence with role requirements',
-  'Preparing recommendations and rewrite suggestions',
-  'Finalizing report',
-]
-
-const atsProgressSteps = [
-  'Upload received',
-  'Reading resume content',
-  'Checking structure and formatting',
-  'Finding ATS readability issues',
-  'Preparing recommendations',
-  'Finalizing report',
-]
-
-const jobMatchStatusMessages = [
-  'Reading your resume structure...',
-  'Extracting skills and experience...',
-  'Identifying what the job is really asking for...',
-  'Comparing resume evidence against role requirements...',
-  'Finding top gaps to improve match...',
-  'Preparing suggested resume updates...',
-  'Finalizing your report...',
-]
-
-const atsStatusMessages = [
-  'Reading your resume structure...',
-  'Checking section clarity...',
-  'Looking for formatting and parsing risks...',
-  'Reviewing keyword coverage...',
-  'Preparing ATS recommendations...',
-  'Finalizing your report...',
-]
-
-const getCurrentProgressStep = (elapsedSeconds: number, runStatus?: string) => {
-  if (runStatus === 'queued') return elapsedSeconds < 5 ? 0 : 1
-  if (elapsedSeconds < 10) return 1
-  if (elapsedSeconds < 25) return 2
-  if (elapsedSeconds < 45) return 3
-  if (elapsedSeconds < 70) return 4
-  return 5
-}
-
-const formatElapsed = (seconds: number) => `Elapsed: ${seconds}s`
-
 type AnalysisProgressCardProps = {
   analysisMode: 'ATS' | 'JOB_MATCH'
   elapsedSeconds: number
@@ -123,107 +87,77 @@ type AnalysisProgressCardProps = {
   complete?: boolean
   rootRef?: Ref<HTMLDivElement>
 }
-
 export const AnalysisProgressCard = ({
   analysisMode,
   elapsedSeconds,
   runStatus,
   complete = false,
   rootRef,
-}: AnalysisProgressCardProps) => {
-  const progressSteps = analysisMode === 'ATS' ? atsProgressSteps : jobMatchProgressSteps
-  const progressMessages = analysisMode === 'ATS' ? atsStatusMessages : jobMatchStatusMessages
-  const currentProgressStep = getCurrentProgressStep(elapsedSeconds, runStatus)
-  const rotatingMessage = progressMessages[Math.floor(elapsedSeconds / 6) % progressMessages.length]
-  const progressDescription =
-    analysisMode === 'ATS'
-      ? 'We\u2019re checking readability, structure, formatting, and ATS parsing risk.'
-      : 'We\u2019re checking ATS readability, job requirements, proof gaps, and AI shortlist signals.'
-
-  return (
-    <div
-      ref={rootRef}
-      className="rounded-lg border border-blue-100 bg-blue-50/60 p-4 text-sm text-gray-700 space-y-3"
-      aria-live="polite"
-    >
-      {complete ? (
-        <>
-          <p className="font-semibold text-gray-900">Report ready. Opening your results...</p>
-          <p className="text-sm text-gray-600">Your analysis is complete.</p>
-        </>
-      ) : (
-        <>
-          <div className="space-y-1">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="font-semibold text-gray-900">Analyzing your resume</p>
-              <span className="text-xs font-medium text-blue-700">{formatElapsed(elapsedSeconds)}</span>
-            </div>
-            <p className="text-sm text-gray-700">{progressDescription}</p>
-            <p className="text-sm text-blue-700">{rotatingMessage}</p>
-          </div>
-
-          <ol className="space-y-2">
-            {progressSteps.map((step, index) => {
-              const state =
-                index < currentProgressStep
-                  ? 'completed'
-                  : index === currentProgressStep
-                  ? 'current'
-                  : 'upcoming'
-              return (
-                <li key={step} className="flex items-start gap-3">
-                  <span
-                    className={`mt-1 h-2.5 w-2.5 rounded-full border ${
-                      state === 'completed'
-                        ? 'border-blue-500 bg-blue-500'
-                        : state === 'current'
-                        ? 'border-blue-500 bg-white ring-2 ring-blue-100'
-                        : 'border-gray-300 bg-white'
-                    }`}
-                    aria-hidden="true"
-                  />
-                  <span
-                    className={
-                      state === 'upcoming'
-                        ? 'text-gray-500'
-                        : state === 'current'
-                        ? 'font-medium text-gray-900'
-                        : 'text-gray-700'
-                    }
-                  >
-                    {step}
-                  </span>
-                </li>
-              )
-            })}
-          </ol>
-
-          {elapsedSeconds > 120 ? (
-            <p className="text-xs text-gray-600">
-              This can occasionally take longer for larger resumes or detailed job descriptions. You can keep this page
-              open while we continue checking.
-            </p>
-          ) : elapsedSeconds > 60 ? (
-            <p className="text-xs text-gray-600">
-              This is taking a little longer than usual, but the analysis is still running. Please keep this page open.
-            </p>
-          ) : null}
-        </>
-      )}
-    </div>
-  )
-}
+}: AnalysisProgressCardProps) => (
+  <section
+    ref={rootRef}
+    className="rounded-lg border border-teal-200 bg-teal-50 p-5 text-slate-800"
+    aria-live="polite"
+  >
+    {complete ? (
+      <>
+        <p className="font-semibold">Report ready. Opening your results...</p>
+        <p>Your analysis is complete.</p>
+      </>
+    ) : (
+      <>
+        <p className="font-semibold">
+          {runStatus === 'queued'
+            ? 'Your review is in the queue'
+            : runStatus === 'processing'
+              ? 'Analyzing your resume'
+              : 'Starting your review request'}
+        </p>
+        <p className="mt-2">
+          {analysisMode === 'ATS'
+            ? 'We’re checking readability, structure, formatting, and ATS parsing risk.'
+            : 'We’re checking ATS readability, job requirements, proof gaps, and AI shortlist signals.'}
+        </p>
+        <p className="mt-3 text-sm">
+          Status:{' '}
+          {runStatus === 'queued'
+            ? 'Queued'
+            : runStatus === 'processing'
+              ? 'Processing'
+              : 'Submitting request'}{' '}
+          · Elapsed: {elapsedSeconds}s
+        </p>
+        {elapsedSeconds > 60 && (
+          <p className="mt-3 text-sm">
+            This is taking a little longer than usual. No completion estimate is
+            available.
+          </p>
+        )}
+        <p className="mt-2 text-sm">
+          You can return to Applications while this request continues. You do
+          not need to submit it again.
+        </p>
+      </>
+    )}
+  </section>
+)
 
 const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
   const allowedMimeTypes = new Set(ALLOWED_RESUME_MIME_TYPES)
   const allowedExtensions = new Set(ALLOWED_RESUME_EXTENSIONS)
-  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const selectionEpoch = useRef(0)
   const progressRef = useRef<HTMLDivElement | null>(null)
-  const [uploadStatus, setUploadStatus] = useState<string | undefined>(undefined)
+  const [uploadStatus, setUploadStatus] = useState<string | undefined>(
+    undefined,
+  )
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
 
   const {
     jdText,
+    companyName,
+    targetRole,
+    setApplicationLabels,
+    applicationSaveError,
     status,
     error,
     errorDetail,
@@ -250,23 +184,53 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
   }, [])
 
   useEffect(() => {
-    const loadCurrent = async () => {
+    let cancelled = false
+    const load = async () => {
       try {
-        const doc = await getCurrentDocument({ silent: true })
-        if (doc) setUploadedDoc(doc)
+        const doc = await fetchPrimaryResume()
+        if (
+          !cancelled &&
+          selectionEpoch.current === 0 &&
+          doc &&
+          !useAnalysisStore.getState().uploadedDoc
+        )
+          setUploadedDoc(doc)
       } catch {
-        // silent fail in demo mode
+        try {
+          const doc = await getCurrentDocument({ silent: true })
+          if (
+            !cancelled &&
+            selectionEpoch.current === 0 &&
+            doc &&
+            !useAnalysisStore.getState().uploadedDoc
+          )
+            setUploadedDoc(doc)
+        } catch {
+          /* Existing upload remains usable. */
+        }
       }
     }
-    void loadCurrent()
+    void load()
+    window.addEventListener('guest-claim-complete', load)
+    return () => {
+      cancelled = true
+      window.removeEventListener('guest-claim-complete', load)
+    }
   }, [setUploadedDoc])
 
   // wire store to push to history on successful analyze
   const submitWithHistory = async () => {
     useAnalysisStore.setState({ addToHistory: addItem })
-    await submitAnalysis()
-    const latestId = useAnalysisStore.getState().analysisId
-    if (latestId) {
+    const pending = submitAnalysis()
+    const submittedAt = useAnalysisStore.getState().lastSubmitAt
+    await pending
+    const current = useAnalysisStore.getState()
+    const latestId = current.analysisId
+    if (
+      latestId &&
+      current.status === 'success' &&
+      current.lastSubmitAt === submittedAt
+    ) {
       navigate(`/app/results/${latestId}`)
     }
   }
@@ -279,20 +243,24 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
   const jdTooShort = requiresJd && trimmedLength < JD_MIN_CHARS
   const jdLength = jdText.length
   const shouldRetry =
-    lastStatus === 'failed' || lastStatus === 'timed_out' || lastErrorCode === 'retry_required'
+    lastStatus === 'failed' ||
+    lastStatus === 'timed_out' ||
+    lastErrorCode === 'retry_required'
   const baseAnalyzeLabel =
     analysisMode === 'ATS' ? COPY.form.ats.cta : COPY.form.jobMatch.cta
   const analyzeLabel = loading
     ? 'Analyzing...'
     : shouldRetry
-    ? 'Retry analysis'
-    : baseAnalyzeLabel
+      ? 'Retry analysis'
+      : baseAnalyzeLabel
   const displayedElapsedSeconds =
     analysisActive && lastSubmitAt
       ? Math.max(elapsedSeconds, Math.floor((Date.now() - lastSubmitAt) / 1000))
       : elapsedSeconds
   const resolvedUsage = resolveUsage(usage, loggedIn)
-  const limitReached = typeof resolvedUsage.used === 'number' && resolvedUsage.used >= resolvedUsage.limit
+  const limitReached =
+    typeof resolvedUsage.used === 'number' &&
+    resolvedUsage.used >= resolvedUsage.limit
 
   useEffect(() => {
     if (!analysisActive) {
@@ -302,7 +270,9 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
 
     const startedAt = lastSubmitAt ?? Date.now()
     const updateElapsed = () => {
-      setElapsedSeconds(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)))
+      setElapsedSeconds(
+        Math.max(0, Math.floor((Date.now() - startedAt) / 1000)),
+      )
     }
 
     updateElapsed()
@@ -315,11 +285,15 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
     const rect = progressRef.current.getBoundingClientRect()
     const isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight
     if (!isVisible) {
-      progressRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      progressRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      })
     }
   }, [analysisActive])
 
   const handleUploadAnotherResume = () => {
+    selectionEpoch.current++
     setResumeFile(null)
     setUploadedDoc(undefined)
     setError(undefined)
@@ -329,6 +303,7 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
   }
 
   const validateAndSetFile = async (file: File | null) => {
+    const epoch = ++selectionEpoch.current
     if (!file) {
       setResumeFile(null)
       setUploadedDoc(undefined)
@@ -337,7 +312,8 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
     }
 
     const fileExt = file.name.split('.').pop()?.toLowerCase() ?? ''
-    const isTypeAllowed = allowedMimeTypes.has(file.type) || allowedExtensions.has(fileExt)
+    const isTypeAllowed =
+      allowedMimeTypes.has(file.type) || allowedExtensions.has(fileExt)
 
     if (!isTypeAllowed) {
       setResumeFile(null)
@@ -349,26 +325,31 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
     if (file.size > MAX_RESUME_FILE_BYTES) {
       setResumeFile(null)
       setUploadedDoc(undefined)
-      setError(`File size must be under ${formatFileLimit(MAX_RESUME_FILE_BYTES)}.`)
+      setError(
+        `File size must be under ${formatFileLimit(MAX_RESUME_FILE_BYTES)}.`,
+      )
       return
     }
 
     setError(undefined)
+    setUploadedDoc(undefined)
     setResumeFile(file)
     setUploadStatus(undefined)
     try {
       const doc = await uploadDocument(file, (statusMessage) => {
         setUploadStatus(statusMessage)
       })
+      if (epoch !== selectionEpoch.current) return
       setUploadedDoc(doc)
       setUploadStatus(undefined)
     } catch (err) {
+      if (epoch !== selectionEpoch.current) return
       const message =
         err instanceof Error
           ? err.message
           : typeof (err as { message?: unknown })?.message === 'string'
-          ? String((err as { message?: unknown }).message)
-          : 'Failed to upload resume.'
+            ? String((err as { message?: unknown }).message)
+            : 'Failed to upload resume.'
       setError(message)
       setResumeFile(null)
       setUploadedDoc(undefined)
@@ -376,13 +357,21 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
     }
   }
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const {
+    getRootProps,
+    getInputProps,
+    isDragActive,
+    inputRef: fileInputRef,
+  } = useDropzone({
+    noClick: !!uploadedDoc,
+    disabled: analysisActive,
     multiple: false,
     maxSize: MAX_RESUME_FILE_BYTES,
     accept: {
       'application/pdf': ['.pdf'],
       'application/msword': ['.doc'],
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+        ['.docx'],
     },
     onDrop: async (acceptedFiles, fileRejections) => {
       if (fileRejections.length > 0) {
@@ -432,21 +421,39 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
   }
 
   return (
-    <form className="bg-white p-4 rounded-lg shadow-md space-y-4" onSubmit={onSubmit}>
+    <form
+      className="rounded-xl border border-slate-200 bg-white p-5 sm:p-7 space-y-6"
+      onSubmit={onSubmit}
+    >
       <div className="space-y-1">
         <h2 className="text-lg font-semibold text-gray-900">
-          {analysisMode === 'ATS' ? COPY.form.ats.header : COPY.form.jobMatch.header}
+          {analysisMode === 'ATS'
+            ? COPY.form.ats.header
+            : COPY.form.jobMatch.header}
         </h2>
         <p className="text-sm text-gray-600">
-          {analysisMode === 'ATS' ? COPY.form.ats.description : COPY.form.jobMatch.description}
+          {analysisMode === 'ATS'
+            ? COPY.form.ats.description
+            : COPY.form.jobMatch.description}
         </p>
       </div>
+      {loggedIn && (
+        <details>
+          <summary className="min-h-11 py-2 font-medium text-teal-800">
+            Choose from saved uploads
+          </summary>
+          <SavedUploads picker disabled={analysisActive} />
+        </details>
+      )}
       <div>
         <label className="block mb-1 font-semibold" htmlFor="resume">
           {COPY.form.uploadLabel}
         </label>
         <p className="text-xs text-gray-500 mb-2">
-          {COPY.form.uploadHelper.replace('{maxSize}', formatFileLimit(MAX_RESUME_FILE_BYTES))}
+          {COPY.form.uploadHelper.replace(
+            '{maxSize}',
+            formatFileLimit(MAX_RESUME_FILE_BYTES),
+          )}
         </p>
         <div
           {...getRootProps({
@@ -455,26 +462,18 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
             }`,
           })}
         >
-          <input
-            {...inputProps}
-            ref={(node) => {
-              fileInputRef.current = node
-              const ref = inputProps.ref
-              if (typeof ref === 'function') {
-                ref(node)
-              } else if (ref) {
-                // @ts-expect-error react-dropzone may supply a mutable ref
-                ref.current = node
-              }
-            }}
-          />
+          <input {...inputProps} />
           {uploadedDoc ? (
             <div className="text-left space-y-2">
               <div className="flex items-center gap-2 text-sm text-gray-800">
                 <span aria-hidden>Uploaded:</span>
-                <span className="font-semibold truncate">{uploadedDoc.fileName}</span>
+                <span className="font-semibold truncate">
+                  {uploadedDoc.fileName}
+                </span>
               </div>
-              <p className="text-xs text-gray-600">Size: {formatFileSize(uploadedDoc.sizeBytes)}</p>
+              <p className="text-xs text-gray-600">
+                Size: {formatFileSize(uploadedDoc.sizeBytes)}
+              </p>
               <div className="flex gap-2 justify-center">
                 <button
                   type="button"
@@ -487,6 +486,7 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
                   type="button"
                   className="border border-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-50 disabled:opacity-50"
                   onClick={() => {
+                    selectionEpoch.current++
                     setResumeFile(null)
                     setUploadedDoc(undefined)
                     setError(undefined)
@@ -505,15 +505,55 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
             </p>
           )}
         </div>
-        {uploadStatus && <div className="text-sm text-gray-600 mt-2">{uploadStatus}</div>}
+        {uploadStatus && (
+          <div className="text-sm text-gray-600 mt-2">{uploadStatus}</div>
+        )}
       </div>
 
       {analysisMode === 'JOB_MATCH' ? (
-        <div>
+        <div className="space-y-5">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="space-y-1">
+              <span>Company (optional)</span>
+              <input
+                className="w-full rounded-lg border border-slate-300 p-3"
+                maxLength={120}
+                value={companyName}
+                disabled={analysisActive}
+                onChange={(e) =>
+                  setApplicationLabels({
+                    companyName: e.target.value,
+                    targetRole,
+                  })
+                }
+              />
+            </label>
+            <label className="space-y-1">
+              <span>Target position (optional)</span>
+              <input
+                className="w-full rounded-lg border border-slate-300 p-3"
+                maxLength={120}
+                value={targetRole}
+                disabled={analysisActive}
+                onChange={(e) =>
+                  setApplicationLabels({
+                    companyName,
+                    targetRole: e.target.value,
+                  })
+                }
+              />
+            </label>
+          </div>
+          <p className="text-sm text-slate-600">
+            Confirm these labels to find this review by company or position
+            later.
+          </p>
           <label className="block mb-1 font-semibold" htmlFor="jd">
             {COPY.form.jobMatch.jdLabel}
           </label>
-          <p className="text-xs text-gray-500 mb-2">{COPY.form.jobMatch.jdHelper}</p>
+          <p className="text-xs text-gray-500 mb-2">
+            {COPY.form.jobMatch.jdHelper}
+          </p>
           <textarea
             id="jd"
             className="w-full p-2 border rounded"
@@ -538,15 +578,23 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
         </div>
       ) : null}
 
+      {applicationSaveError && (
+        <p role="alert" className="text-amber-900">
+          {applicationSaveError}
+        </p>
+      )}
       {error && (
         <div className="text-red-600 text-sm space-y-2">
           <p>{error}</p>
-          {status === 'error' && (lastStatus === 'failed' || lastStatus === 'timed_out') ? (
+          {status === 'error' &&
+          (lastStatus === 'failed' || lastStatus === 'timed_out') ? (
             <p>The analysis could not be completed. Please try again.</p>
           ) : null}
           {errorDetail && (
             <details className="text-xs text-red-700">
-              <summary className="cursor-pointer">{COPY.form.detailsLabel}</summary>
+              <summary className="cursor-pointer">
+                {COPY.form.detailsLabel}
+              </summary>
               <p className="mt-1">{errorDetail}</p>
             </details>
           )}
@@ -559,7 +607,8 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
           description={
             <div className="space-y-3">
               <p>
-                We couldn&apos;t reliably extract enough text to analyze your resume.
+                We couldn&apos;t reliably extract enough text to analyze your
+                resume.
               </p>
               <div>
                 <p>This commonly happens with:</p>
@@ -571,23 +620,26 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
                 </ul>
               </div>
               <p>
-                Many Applicant Tracking Systems (ATS) may experience similar difficulties
-                processing these formats.
+                Many Applicant Tracking Systems (ATS) may experience similar
+                difficulties processing these formats.
               </p>
             </div>
           }
         >
-
           <div className="border-t border-amber-200 pt-3 space-y-1">
-            <p className="font-semibold text-amber-950">ATS Compatibility Warning</p>
+            <p className="font-semibold text-amber-950">
+              ATS Compatibility Warning
+            </p>
             <p>
-              If our parser cannot reliably extract text from your resume, some ATS platforms may
-              also struggle to process it.
+              If our parser cannot reliably extract text from your resume, some
+              ATS platforms may also struggle to process it.
             </p>
           </div>
 
-            <div className="space-y-2 pb-2">
-            <p className="font-semibold text-amber-950">Try one of these options:</p>
+          <div className="space-y-2 pb-2">
+            <p className="font-semibold text-amber-950">
+              Try one of these options:
+            </p>
             <ul className="space-y-1">
               {[
                 'Upload a DOCX version',
@@ -623,7 +675,7 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
       <div className="flex gap-3">
         <button
           type="submit"
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+          className={ui.button.primary}
           disabled={
             loading ||
             lastStatus === 'processing' ||
@@ -650,7 +702,9 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
           className="text-blue-700 underline text-sm"
           disabled={loading}
         >
-          {analysisMode === 'ATS' ? COPY.form.ats.switch : COPY.form.jobMatch.switch}
+          {analysisMode === 'ATS'
+            ? COPY.form.ats.switch
+            : COPY.form.jobMatch.switch}
         </button>
       </div>
 

@@ -220,26 +220,23 @@ describe('Resume Workspace UI', () => {
   it('uses clear top navigation labels without duplicate resume builder labels', () => {
     const labels = primaryNavItems.map((item) => item.label)
 
-    expect(labels).toEqual(['Build Resume', 'My Resumes', 'ATS Checker', 'Job Match', 'History'])
+    expect(labels).toEqual(['Home', 'Applications', 'My resumes'])
     expect(labels).not.toContain('AI Resume Builder')
     expect(labels).not.toContain('Resume Workspace')
     expect(labels).not.toContain('Resume Analysis')
-    expect(labels).toContain('History')
+    expect(labels).toContain('Applications')
   })
 
   it('shows public marketing navigation for guests and app navigation for signed-in users', () => {
     expect(guestNavItems.map((item) => item.label)).toEqual([
-      'AI Resume Builder',
-      'ATS Checker',
-      'Resume Analysis',
-      'Early Access',
+      'Improve my resume',
+      'Resume readability',
+      'Pricing',
     ])
     expect(getPrimaryNavItems(true).map((item) => item.label)).toEqual([
-      'Build Resume',
-      'My Resumes',
-      'ATS Checker',
-      'Job Match',
-      'History',
+      'Home',
+      'Applications',
+      'My resumes',
     ])
   })
 
@@ -649,7 +646,7 @@ describe('Resume Workspace UI', () => {
     expect(pricingHtml).not.toContain('10 analyses')
     expect(combined).toContain('Try 3 analyses as a guest, or sign in for 15 free analyses/month.')
     expect(combined).toContain('Save this analysis and get 15 free analyses/month by signing in.')
-    expect(combined).toContain('!loggedIn && !isLocked ? <GuestResultsCta')
+    expect(combined).toMatch(/!loggedIn\s*&&\s*!isLocked\s*\?\s*\(?\s*<GuestResultsCta/)
     expect(combined).not.toContain('10 free analyses')
     expect(combined).not.toContain('10 analyses per month')
   })
