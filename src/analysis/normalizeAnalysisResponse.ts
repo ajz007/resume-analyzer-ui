@@ -5,6 +5,7 @@ export type NormalizedAnalysis = AnalysisResponse & {
     bulletSuggestions: BulletSuggestion[]
     missingKeywordsFromJD: string[]
     missingKeywordsIndustryCommon: string[]
+    atsFormattingIssues: string[]
     atsScore?: number
   }
 }
@@ -43,7 +44,7 @@ const buildBulletSuggestions = (result: AnalysisResponse): BulletSuggestion[] =>
 }
 
 export const normalizeAnalysisResponse = (result: AnalysisResponse): NormalizedAnalysis => {
-  const ats = (result as { ats?: { score?: number; missingKeywords?: unknown } }).ats
+  const ats = (result as { ats?: { score?: number; missingKeywords?: unknown; formattingIssues?: unknown } }).ats
   const missingKeywords = (ats?.missingKeywords ?? {}) as {
     fromJobDescription?: unknown
     industryCommon?: unknown
@@ -58,6 +59,17 @@ export const normalizeAnalysisResponse = (result: AnalysisResponse): NormalizedA
     ? toStringArray(missingKeywords.industryCommon)
     : toStringArray(result.missingKeywordBuckets?.industryCommon)
 
+  // Formatting issues arrive as strings (v2.4+) or as issue objects (older versions).
+  const atsFormattingIssues = toArray(ats?.formattingIssues as unknown[] | undefined)
+    .map((item) =>
+      typeof item === 'string'
+        ? item
+        : ((item as { problem?: string; message?: string })?.problem ??
+          (item as { message?: string })?.message ??
+          ''),
+    )
+    .filter((item) => item.trim() !== '')
+
   const atsScore =
     typeof ats?.score === 'number'
       ? ats.score
@@ -71,6 +83,7 @@ export const normalizeAnalysisResponse = (result: AnalysisResponse): NormalizedA
       bulletSuggestions: buildBulletSuggestions(result),
       missingKeywordsFromJD,
       missingKeywordsIndustryCommon,
+      atsFormattingIssues,
       atsScore,
     },
   }

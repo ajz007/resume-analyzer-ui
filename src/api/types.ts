@@ -1,3 +1,4 @@
+import type { ReviewReport } from './reviewReport'
 export type Severity = 'low' | 'medium' | 'high'
 export type AnalysisMode = 'resume_only' | 'job_match'
 
@@ -80,6 +81,20 @@ export interface JobPriority {
   whyItMatters: string
 }
 
+export interface HiddenExpectation {
+  id: string
+  expectation: string
+  resumeMatchStatus: string
+  whyItMatters: string
+}
+
+export interface NiceToHaveSignal {
+  id: string
+  signal: string
+  resumeMatchStatus: string
+  whyItMatters: string
+}
+
 export interface JobRequirementProfile {
   isApplicable: boolean
   primaryRole?: string
@@ -87,8 +102,8 @@ export interface JobRequirementProfile {
   roleType?: string
   recruiterIntentSummary?: string
   topPriorities?: JobPriority[]
-  hiddenExpectations?: unknown[]
-  niceToHaveSignals?: unknown[]
+  hiddenExpectations?: HiddenExpectation[]
+  niceToHaveSignals?: NiceToHaveSignal[]
 }
 
 export interface RequirementScore {
@@ -142,6 +157,8 @@ export interface AIScreening {
 
 export interface ATSScore {
   score?: number
+  formattingIssues?: string[]
+  missingKeywords?: MissingKeywordBuckets
 }
 
 export interface FixThisFirstItem {
@@ -156,6 +173,7 @@ export interface FixThisFirstItem {
 }
 
 export interface AnalysisResponse {
+  report?: ReviewReport
   analysisId: string
   createdAt: string
   finalScore?: number

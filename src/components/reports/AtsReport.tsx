@@ -1,4 +1,5 @@
-﻿import { useState } from 'react'
+import ReviewReportView from './ReviewReportView'
+import { useState } from 'react'
 import type { NormalizedAnalysis } from '../../analysis/normalizeAnalysisResponse'
 import RecommendationsPanel from '../RecommendationsPanel'
 import AtsChecksSection from './AtsChecksSection'
@@ -11,7 +12,7 @@ import { SectionHeader } from '../results/SectionHeader'
 import { ui } from '../../app/uiTokens'
 import { getAIScreeningScore, getATSScore } from '../../analysis/reportScores'
 
-export type Props = { result: NormalizedAnalysis }
+export type Props = { result: NormalizedAnalysis; readOnly?: boolean }
 
 const Section = ({
   title,
@@ -50,7 +51,7 @@ const Chip = ({ children }: { children: React.ReactNode }) => (
   <span className={`${ui.results.chip.base} ${ui.results.chip.info}`}>{children}</span>
 )
 
-const AtsReport = ({ result }: Props) => {
+const LegacyAtsReport = ({ result }: Props) => {
   const [showFindings, setShowFindings] = useState(false)
   const [showOptionalActionPlan, setShowOptionalActionPlan] = useState(false)
   const [showAiBreakdown, setShowAiBreakdown] = useState(false)
@@ -269,5 +270,9 @@ const AtsReport = ({ result }: Props) => {
     </div>
   )
 }
+
+const AtsReport = ({ result, readOnly = false }: Props) => result.report?.schemaVersion === "3"
+  ? <ReviewReportView key={result.analysisId} result={result} readOnly={readOnly} />
+  : <LegacyAtsReport result={result} />
 
 export default AtsReport

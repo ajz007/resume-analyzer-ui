@@ -1,6 +1,9 @@
+import type { ReviewReport } from './reviewReport'
 export type BackendSeverity = 'info' | 'warning' | 'critical' | 'low' | 'medium' | 'high'
 
 export interface BackendMeta {
+  mode?: "ATS" | "JOB_MATCH"
+  primaryScoreType?: "ATS" | "JOB_MATCH"
   analysisId?: string
   createdAt?: string
   analysisMode?: 'resume_only' | 'job_match'
@@ -9,6 +12,7 @@ export interface BackendMeta {
 }
 
 export interface BackendSummary {
+  overallAssessment?: string
   matchScore?: number
   overview?: string
   matchedKeywords?: string[]
@@ -64,7 +68,7 @@ export interface BackendATS {
         industryCommon?: string[]
       }
   matchedKeywords?: string[]
-  formattingIssues?: BackendIssue[]
+  formattingIssues?: (BackendIssue | string)[]
 }
 
 export interface BackendBulletRewrite {
@@ -115,8 +119,22 @@ export interface BackendJobRequirementProfile {
   roleType?: string
   recruiterIntentSummary?: string
   topPriorities?: BackendJobPriority[]
-  hiddenExpectations?: unknown[]
-  niceToHaveSignals?: unknown[]
+  hiddenExpectations?: BackendHiddenExpectation[]
+  niceToHaveSignals?: BackendNiceToHaveSignal[]
+}
+
+export interface BackendHiddenExpectation {
+  id?: string
+  expectation?: string
+  resumeMatchStatus?: string
+  whyItMatters?: string
+}
+
+export interface BackendNiceToHaveSignal {
+  id?: string
+  signal?: string
+  resumeMatchStatus?: string
+  whyItMatters?: string
 }
 
 export interface BackendRequirementScore {
@@ -182,6 +200,7 @@ export interface BackendMissingInformation {
 }
 
 export interface BackendAnalysisResult {
+  report?: ReviewReport
   // Paywall flags come from the GET /analyses/:id envelope and are merged in client-side.
   locked?: boolean
   lockedSections?: string[]

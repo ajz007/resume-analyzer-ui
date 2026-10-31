@@ -1,4 +1,5 @@
-﻿import { useMemo, useState } from 'react'
+import ReviewReportView from './ReviewReportView'
+import { useMemo, useState } from 'react'
 import type { NormalizedAnalysis } from '../../analysis/normalizeAnalysisResponse'
 import { ui } from '../../app/uiTokens'
 import RecommendationsPanel from '../RecommendationsPanel'
@@ -11,7 +12,7 @@ import { SectionHeader } from '../results/SectionHeader'
 import { SeverityChip } from '../results/SeverityChip'
 import { getAIScreeningScore, getATSScore, getJobMatchScore } from '../../analysis/reportScores'
 
-export type Props = { result: NormalizedAnalysis }
+export type Props = { result: NormalizedAnalysis; readOnly?: boolean }
 
 const Chip = ({ children }: { children: React.ReactNode }) => (
   <span className={`${ui.results.chip.base} ${ui.results.chip.info}`}>{children}</span>
@@ -66,6 +67,42 @@ const effortTone = (value: string) => {
   if (token === 'high') return ui.results.chip.effortHigh
   return ui.results.chip.effortMedium
 }
+
+const matchStatusLabel = (status: string) => {
+  const token = status.toUpperCase()
+  if (token === 'STRONG') return { label: 'On your resume', tone: ui.results.chip.ok }
+  if (token === 'PARTIAL') return { label: 'Partly shown', tone: ui.results.chip.warning }
+  if (token === 'WEAK') return { label: 'Weak', tone: ui.results.chip.warning }
+  if (token === 'MISSING') return { label: 'Not shown', tone: ui.results.chip.critical }
+  return { label: 'Unclear', tone: ui.results.chip.info }
+}
+
+const ExpectationList = ({
+  title,
+  items,
+}: {
+  title: string
+  items: { id: string; text: string; resumeMatchStatus: string; whyItMatters: string }[]
+}) =>
+  items.length ? (
+    <div className="space-y-2">
+      <p className={ui.results.text.label}>{title}</p>
+      <ul className="space-y-2">
+        {items.map((item) => {
+          const status = matchStatusLabel(item.resumeMatchStatus)
+          return (
+            <li key={item.id} className={`${ui.results.card.muted} space-y-1`}>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <p className={ui.results.text.body}>{item.text}</p>
+                <GapChip tone={status.tone}>{status.label}</GapChip>
+              </div>
+              {item.whyItMatters ? <p className={ui.results.text.secondary}>{item.whyItMatters}</p> : null}
+            </li>
+          )
+        })}
+      </ul>
+    </div>
+  ) : null
 
 const firstSentence = (text?: string) => {
   if (!text) return undefined
@@ -129,7 +166,7 @@ const scoreCard = (label: string, score: number, primary = false, detail?: strin
   </div>
 )
 
-const JobMatchReport = ({ result }: Props) => {
+const LegacyJobMatchReport = ({ result }: Props) => {
   const [showFindings, setShowFindings] = useState(false)
   const [expandedIssues, setExpandedIssues] = useState<Set<string>>(() => new Set())
   const [showAllPriorities, setShowAllPriorities] = useState(false)
@@ -167,7 +204,11 @@ const JobMatchReport = ({ result }: Props) => {
     (result.actionPlan?.quickWins?.length ?? 0) > 0 ||
     (result.actionPlan?.mediumEffort?.length ?? 0) > 0 ||
     (result.actionPlan?.deepFixes?.length ?? 0) > 0
-  const hasFindings = (result.recommendations?.length ?? 0) > 0
+  // Top Gaps already shows the fixThisFirst items, so don't repeat them under findings.
+  const findings = (result.recommendations ?? []).filter(
+    (item) => !(fixThisFirst.length > 0 && item.id.startsWith('FIX_THIS_FIRST_')),
+  )
+  const hasFindings = findings.length > 0
 
   const toggleIssue = (key: string) => {
     setExpandedIssues((current) => {
@@ -266,6 +307,14 @@ const JobMatchReport = ({ result }: Props) => {
               {showAllPriorities ? 'Hide role priorities' : 'View all role priorities'}
             </button>
           ) : null}
+          <ExpectationList
+            title="What the recruiter expects but the JD doesn't spell out"
+            items={(profile?.hiddenExpectations ?? []).map((item) => ({ ...item, text: item.expectation }))}
+          />
+          <ExpectationList
+            title="Bonus signals"
+            items={(profile?.niceToHaveSignals ?? []).map((item) => ({ ...item, text: item.signal }))}
+          />
         </Section>
       ) : null}
 
@@ -279,8 +328,8 @@ const JobMatchReport = ({ result }: Props) => {
                     <p className={ui.results.text.cardTitle}>{item.title}</p>
                   </div>
                   <div className="flex gap-2">
-                    <GapChip tone={impactTone(item.expectedImpact)}>{item.expectedImpact}</GapChip>
-                    <GapChip tone={effortTone(item.effort)}>{item.effort}</GapChip>
+                    <GapChip tone={impactTone(item.expectedImpact)}>Impact: {item.expectedImpact}</GapChip>
+                    <GapChip tone={effortTone(item.effort)}>Effort: {item.effort}</GapChip>
                   </div>
                 </div>
                 <div className="grid gap-3 md:grid-cols-2">
@@ -510,7 +559,7 @@ const JobMatchReport = ({ result }: Props) => {
             </div>
             {showFindings && (
               <div id="findings-panel">
-                <RecommendationsPanel recommendations={result.recommendations} showHeader={false} />
+                <RecommendationsPanel recommendations={findings} showHeader={false} />
               </div>
             )}
           </div>
@@ -537,5 +586,9 @@ const JobMatchReport = ({ result }: Props) => {
     </div>
   )
 }
+
+const JobMatchReport = ({ result, readOnly = false }: Props) => result.report?.schemaVersion === "3"
+  ? <ReviewReportView key={result.analysisId} result={result} readOnly={readOnly} />
+  : <LegacyJobMatchReport result={result} />
 
 export default JobMatchReport

@@ -339,8 +339,8 @@ const pollAnalysisResult = async (
   let nextDelayMs = initialPollAfterMs ?? DEFAULT_POLL_MS
 
   while (true) {
-    if (Date.now() - start > 120_000) {
-      throw new Error('Analysis timed out')
+    if (Date.now() - start > 360_000) {
+      throw new Error('Your report is still processing. Open History to check its status; you do not need to submit it again.')
     }
 
     try {
