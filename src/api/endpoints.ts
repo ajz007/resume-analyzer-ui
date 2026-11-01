@@ -333,6 +333,7 @@ export const withResultAnalysisId = (
 const pollAnalysisResult = async (
   analysisId: string,
   initialPollAfterMs?: number,
+  onStatus?: (status: string) => void,
 ): Promise<AnalysisResponse> => {
   const start = Date.now()
   let backoffMs = DEFAULT_POLL_MS
@@ -350,6 +351,7 @@ const pollAnalysisResult = async (
         { suppressToastOnStatus: [400, 409, 422, 429] },
       )
 
+      onStatus?.(statusBody.status)
       const resultWithId = withResultAnalysisId(statusBody, analysisId)
       if (resultWithId) {
         const adapted = fromBackendResult(resultWithId)
@@ -395,7 +397,7 @@ export async function analyzeDocument(
   documentId: string,
   jobDescription: string,
   mode: 'ATS' | 'JOB_MATCH',
-  options: { retry?: boolean } = {},
+  options: { retry?: boolean; onStarted?: (id: string) => Promise<void>; onStatus?: (status: string) => void } = {},
 ): Promise<AnalysisResponse> {
   if (env.useMockApi) {
     return analyzeMock(documentId, jobDescription, mode)
@@ -423,7 +425,9 @@ export async function analyzeDocument(
     throw new Error('Analysis failed')
   }
 
-  return pollAnalysisResult(startResponse.analysisId, startResponse.pollAfterMs)
+  options.onStatus?.(startResponse.status)
+  await options.onStarted?.(startResponse.analysisId)
+  return pollAnalysisResult(startResponse.analysisId, startResponse.pollAfterMs, options.onStatus)
 }
 
 const buildMockUsage = (): UsageResponse => {

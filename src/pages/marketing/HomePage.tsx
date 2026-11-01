@@ -72,7 +72,7 @@ const HomePage = () => (
         </div>
         <div className="space-y-4">
           <h1 className="max-w-4xl text-4xl font-bold tracking-normal text-gray-950 sm:text-5xl">
-            See which requirements a job weighs most, and where your resume falls short
+            Make your experience clear for the job you want
           </h1>
           <p className="max-w-3xl text-lg leading-8 text-gray-700">
             Rethink Resume is an AI resume analyzer and ATS checker for engineers. Paste a job
@@ -86,16 +86,16 @@ const HomePage = () => (
         </div>
         <div className="flex flex-col gap-3 sm:flex-row">
           <Link
-            to="/ai-resume-builder"
+            to="/app/analyzer?mode=job-match"
             className="inline-flex items-center justify-center rounded-md bg-blue-700 px-5 py-3 text-base font-semibold text-white transition-colors hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2"
           >
-            Build Resume with AI
+            Improve my existing resume
           </Link>
           <Link
-            to="/app/analyzer"
+            to="/app/home"
             className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-5 py-3 text-base font-semibold text-gray-900 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2"
           >
-            Analyze Existing Resume
+            Open my workspace
           </Link>
         </div>
       </div>

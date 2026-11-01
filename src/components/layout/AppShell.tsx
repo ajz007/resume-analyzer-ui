@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { ui } from '../../app/uiTokens'
 import { env } from '../../app/env'
 import ToastHost from '../ToastHost'
@@ -7,6 +7,7 @@ import { claimGuestAnalyses, fetchAnalyses } from '../../api/endpoints'
 import { useToastStore } from '../../store/useToastStore'
 import { getAuthToken, isLoggedIn } from '../../auth/identity'
 import { useHistoryStore } from '../../store/useHistoryStore'
+import { useAnalysisStore } from '../../store/useAnalysisStore'
 import rethinkResumeLogo from '../../assets/brand/rethink-resume-logo.svg'
 
 type NavItem = {
@@ -16,23 +17,25 @@ type NavItem = {
 }
 
 export const primaryNavItems: NavItem[] = [
-  { label: 'Build Resume', to: '/app/resumes/new', featured: true },
-  { label: 'My Resumes', to: '/app/resumes' },
-  { label: 'ATS Checker', to: '/app/analyzer?mode=ats' },
-  { label: 'Job Match', to: '/app/analyzer?mode=job-match' },
-  { label: 'History', to: '/app/history' },
+  { label: 'Home', to: '/app/home' },
+  { label: 'Applications', to: '/app/history' },
+  { label: 'My resumes', to: '/app/resumes' },
 ]
-
 export const guestNavItems: NavItem[] = [
-  { label: 'AI Resume Builder', to: '/ai-resume-builder', featured: true },
-  { label: 'ATS Checker', to: '/ats-resume-checker' },
-  { label: 'Resume Analysis', to: '/app/analyzer' },
-  { label: 'Early Access', to: '/pricing' },
+  { label: 'Improve my resume', to: '/app/analyzer', featured: true },
+  { label: 'Resume readability', to: '/ats-resume-checker' },
+  { label: 'Pricing', to: '/pricing' },
 ]
+export const getPrimaryNavItems = (loggedIn: boolean) =>
+  loggedIn ? primaryNavItems : guestNavItems
 
-export const getPrimaryNavItems = (loggedIn: boolean) => (loggedIn ? primaryNavItems : guestNavItems)
-
-const navLinkClass = ({ isActive, featured }: { isActive: boolean; featured?: boolean }) => {
+const navLinkClass = ({
+  isActive,
+  featured,
+}: {
+  isActive: boolean
+  featured?: boolean
+}) => {
   const base =
     'inline-flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2'
 
@@ -60,14 +63,22 @@ const AppShell = () => {
   const setHistoryItems = useHistoryStore((state) => state.setItems)
   const [loggedIn, setLoggedIn] = useState(isLoggedIn())
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [accountVersion, setAccountVersion] = useState(0)
+  const identityToken = useRef(getAuthToken())
   const navItems = getPrimaryNavItems(loggedIn)
+  const inWorkspace = loggedIn && location.pathname.startsWith('/app')
 
   const isNavItemActive = (item: NavItem) => {
     const current = `${location.pathname}${location.search}`
     if (item.to.includes('?')) {
       return current === item.to
     }
-    return location.pathname === item.to || location.pathname.startsWith(`${item.to}/`)
+    return (
+      location.pathname === item.to ||
+      location.pathname.startsWith(`${item.to}/`) ||
+      (item.to === '/app/history' &&
+        location.pathname.startsWith('/app/results/'))
+    )
   }
 
   useEffect(() => {
@@ -75,6 +86,8 @@ const AppShell = () => {
     const token = url.searchParams.get('token')
     if (token) {
       try {
+        if (getAuthToken() !== token) useAnalysisStore.getState().reset()
+        identityToken.current = token
         localStorage.setItem('auth_token', token)
       } catch {
         // ignore storage errors
@@ -82,7 +95,10 @@ const AppShell = () => {
       setLoggedIn(true)
       window.dispatchEvent(new Event('auth-updated'))
       url.searchParams.delete('token')
-      const newUrl = url.pathname + (url.search ? `?${url.searchParams.toString()}` : '') + url.hash
+      const newUrl =
+        url.pathname +
+        (url.search ? `?${url.searchParams.toString()}` : '') +
+        url.hash
       window.history.replaceState({}, '', newUrl)
     }
   }, [])
@@ -101,7 +117,10 @@ const AppShell = () => {
     const claim = async () => {
       try {
         const response = await claimGuestAnalyses()
-        if (typeof response.migratedCount === 'number' && response.migratedCount > 0) {
+        if (
+          typeof response.migratedCount === 'number' &&
+          response.migratedCount > 0
+        ) {
           showToast({
             type: 'success',
             title: 'Guest analyses imported',
@@ -127,7 +146,15 @@ const AppShell = () => {
   }, [setHistoryItems, showToast])
 
   useEffect(() => {
-    const handleAuthUpdate = () => setLoggedIn(isLoggedIn())
+    const handleAuthUpdate = () => {
+      const token = getAuthToken()
+      if (identityToken.current !== token) {
+        useAnalysisStore.getState().reset()
+        identityToken.current = token
+        setAccountVersion((n) => n + 1)
+      }
+      setLoggedIn(isLoggedIn())
+    }
     window.addEventListener('auth-updated', handleAuthUpdate)
     return () => window.removeEventListener('auth-updated', handleAuthUpdate)
   }, [])
@@ -138,6 +165,7 @@ const AppShell = () => {
     } catch {
       // ignore storage errors
     }
+    useAnalysisStore.getState().reset()
     setLoggedIn(false)
     window.dispatchEvent(new Event('auth-updated'))
     window.location.href = '/app/analyzer'
@@ -172,7 +200,9 @@ const AppShell = () => {
     <>
       <div className="min-h-screen flex flex-col bg-gray-100">
         <header className={ui.nav.header}>
-          <div className={`${ui.layout.container} flex items-center justify-between gap-4 py-3`}>
+          <div
+            className={`${ui.layout.container} flex items-center justify-between gap-4 py-3`}
+          >
             <NavLink to="/" className="inline-flex items-center">
               <img
                 src={rethinkResumeLogo}
@@ -184,12 +214,20 @@ const AppShell = () => {
             </NavLink>
 
             <div className="hidden items-center gap-4 md:flex">
-              <nav aria-label="Primary navigation" className="flex items-center gap-1">
+              <nav
+                aria-label="Primary navigation"
+                className={inWorkspace ? 'hidden' : 'flex items-center gap-1'}
+              >
                 {navItems.map((item) => (
                   <NavLink
                     key={item.to}
                     to={item.to}
-                    className={() => navLinkClass({ isActive: isNavItemActive(item), featured: item.featured })}
+                    className={() =>
+                      navLinkClass({
+                        isActive: isNavItemActive(item),
+                        featured: item.featured,
+                      })
+                    }
                   >
                     {item.label}
                   </NavLink>
@@ -229,6 +267,7 @@ const AppShell = () => {
 
           <div
             id="mobile-primary-navigation"
+            hidden={!mobileMenuOpen}
             className={`overflow-hidden border-t border-gray-200 bg-white transition-[max-height,opacity] duration-200 md:hidden ${
               mobileMenuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
             }`}
@@ -248,13 +287,46 @@ const AppShell = () => {
                   </NavLink>
                 ))}
               </nav>
-              <div className="border-t border-gray-200 pt-3">{renderAuthControl(true)}</div>
+              <div className="border-t border-gray-200 pt-3">
+                {renderAuthControl(true)}
+              </div>
             </div>
           </div>
         </header>
-        <main className={`${ui.layout.container} py-6 flex-1`}>
-          <Outlet />
-        </main>
+        <div className={`${ui.layout.container} flex flex-1 gap-8`}>
+          {inWorkspace && (
+            <aside
+              className="hidden w-44 shrink-0 border-r border-slate-200 py-8 pr-5 md:block"
+              aria-label="Workspace navigation"
+            >
+              <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-teal-800">
+                Workspace
+              </p>
+              <nav className="grid gap-2">
+                {primaryNavItems.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    className={() =>
+                      navLinkClass({ isActive: isNavItemActive(item) })
+                    }
+                  >
+                    {item.label}
+                  </NavLink>
+                ))}
+              </nav>
+              <NavLink
+                to="/app/analyzer?mode=job-match"
+                className="mt-7 block rounded-lg bg-teal-800 p-3 text-center text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2"
+              >
+                New job review
+              </NavLink>
+            </aside>
+          )}
+          <main id="main-content" className="min-w-0 flex-1 py-8">
+            <Outlet key={`${getAuthToken() ?? 'guest'}-${accountVersion}`} />
+          </main>
+        </div>
         <footer className="bg-white border-t mt-auto">
           <div className="max-w-7xl mx-auto px-6 py-4 flex flex-wrap items-center gap-2 text-sm text-gray-600">
             <NavLink to="/pricing" className={ui.nav.footerLink}>

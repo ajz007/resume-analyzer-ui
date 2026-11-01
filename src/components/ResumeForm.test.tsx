@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
-import ResumeForm, { AnalysisProgressCard, ResumeQuotaNotice } from './ResumeForm'
+import ResumeForm, {
+  AnalysisProgressCard,
+  ResumeQuotaNotice,
+} from './ResumeForm'
 import { useAnalysisStore } from '../store/useAnalysisStore'
 import { useUsageStore } from '../store/useUsageStore'
 
@@ -32,7 +35,12 @@ describe('ResumeForm rendering', () => {
 
   it('hides JD textarea in ATS mode', () => {
     resetStorage()
-    useUsageStore.setState({ usage: null, loading: false, error: undefined, errorStatus: undefined })
+    useUsageStore.setState({
+      usage: null,
+      loading: false,
+      error: undefined,
+      errorStatus: undefined,
+    })
     useAnalysisStore.setState({
       jdText: '',
       status: 'idle',
@@ -50,7 +58,12 @@ describe('ResumeForm rendering', () => {
 
   it('shows JD textarea in JOB_MATCH mode', () => {
     resetStorage()
-    useUsageStore.setState({ usage: null, loading: false, error: undefined, errorStatus: undefined })
+    useUsageStore.setState({
+      usage: null,
+      loading: false,
+      error: undefined,
+      errorStatus: undefined,
+    })
     useAnalysisStore.setState({
       jdText: '',
       status: 'idle',
@@ -82,7 +95,9 @@ describe('ResumeForm rendering', () => {
       />,
     )
 
-    expect(html).toContain('2 of 3 guest analyses remaining. Sign in for 15/month.')
+    expect(html).toContain(
+      '2 of 3 guest analyses remaining. Sign in for 15/month.',
+    )
   })
 
   it('shows logged-in quota messaging with remaining analyses', () => {
@@ -146,32 +161,48 @@ describe('ResumeForm rendering', () => {
 
   it('shows JOB_MATCH analysis progress steps while running', () => {
     const html = renderToStaticMarkup(
-      <AnalysisProgressCard analysisMode="JOB_MATCH" elapsedSeconds={0} runStatus="processing" />,
+      <AnalysisProgressCard
+        analysisMode="JOB_MATCH"
+        elapsedSeconds={0}
+        runStatus="processing"
+      />,
     )
 
     expect(html).toContain('Analyzing your resume')
     expect(html).toContain('Elapsed: 0s')
-    expect(html).toContain('checking ATS readability, job requirements, proof gaps, and AI shortlist signals')
-    expect(html).toContain('Upload received')
-    expect(html).toContain('Identifying job priorities')
-    expect(html).toContain('Comparing resume evidence with role requirements')
-    expect(html).toContain('Preparing recommendations and rewrite suggestions')
+    expect(html).toContain(
+      'checking ATS readability, job requirements, proof gaps, and AI shortlist signals',
+    )
+    expect(html).toContain('Status: Processing')
+    expect(html).not.toContain('Identifying job priorities')
+    expect(html).toContain('You do not need to submit it again')
+    expect(html).not.toContain('Finalizing report')
   })
 
   it('shows ATS analysis progress steps while running', () => {
     const html = renderToStaticMarkup(
-      <AnalysisProgressCard analysisMode="ATS" elapsedSeconds={0} runStatus="processing" />,
+      <AnalysisProgressCard
+        analysisMode="ATS"
+        elapsedSeconds={0}
+        runStatus="processing"
+      />,
     )
 
-    expect(html).toContain('checking readability, structure, formatting, and ATS parsing risk')
-    expect(html).toContain('Checking structure and formatting')
-    expect(html).toContain('Finding ATS readability issues')
-    expect(html).toContain('Preparing recommendations')
+    expect(html).toContain(
+      'checking readability, structure, formatting, and ATS parsing risk',
+    )
+    expect(html).toContain('Status: Processing')
+    expect(html).not.toContain('Finalizing report')
+    expect(html).not.toContain('aria-valuenow')
   })
 
   it('shows calm long-running helper text after sixty seconds', () => {
     const html = renderToStaticMarkup(
-      <AnalysisProgressCard analysisMode="JOB_MATCH" elapsedSeconds={61} runStatus="processing" />,
+      <AnalysisProgressCard
+        analysisMode="JOB_MATCH"
+        elapsedSeconds={61}
+        runStatus="processing"
+      />,
     )
 
     expect(html).toContain('This is taking a little longer than usual')
@@ -179,9 +210,21 @@ describe('ResumeForm rendering', () => {
 
   it('shows completion state without active progress copy', () => {
     const successHtml = renderToStaticMarkup(
-      <AnalysisProgressCard analysisMode="JOB_MATCH" elapsedSeconds={10} runStatus="completed" complete />,
+      <AnalysisProgressCard
+        analysisMode="JOB_MATCH"
+        elapsedSeconds={10}
+        runStatus="completed"
+        complete
+      />,
     )
     expect(successHtml).toContain('Report ready. Opening your results...')
     expect(successHtml).not.toContain('Elapsed:')
   })
+  it('keeps a long queued request queued rather than inferring completed stages',()=>{
+    const html=renderToStaticMarkup(<AnalysisProgressCard analysisMode="JOB_MATCH" elapsedSeconds={180} runStatus="queued" />)
+    expect(html).toContain('Status: Queued')
+    expect(html).not.toContain('Finalizing report')
+    expect(html).not.toContain('Preparing recommendations')
+  })
+
 })
