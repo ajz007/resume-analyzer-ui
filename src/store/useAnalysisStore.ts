@@ -250,6 +250,9 @@ export const useAnalysisStore = create<AnalysisState>((set, get) => ({
       }
     } catch (err) {
       if (generation !== submissionGeneration) return
+      // Read authoritative usage after any failure, including parse failures.
+      // A timeout may still be processing; never refund optimistically in the browser.
+      void useUsageStore.getState().fetch({ force: true })
       const apiErr = err as ApiError
       const parseFailure =
         err instanceof ResumeParseError
@@ -270,12 +273,6 @@ export const useAnalysisStore = create<AnalysisState>((set, get) => ({
 
       const errorCode =
         typeof apiErr?.code === 'string' ? apiErr.code : undefined
-      const isLimitReached =
-        (typeof apiErr?.code === 'string' && apiErr.code === 'limit_reached') ||
-        apiErr?.status === 429
-      if (isLimitReached) {
-        void useUsageStore.getState().fetch({ force: true })
-      }
       const technicalDetail = err instanceof Error ? err.message : undefined
       const isNotFound =
         errorCode === 'document_not_found' ||
