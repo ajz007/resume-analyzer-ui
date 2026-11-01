@@ -42,7 +42,7 @@ export function useReviewSession(report: ReviewReport, transport: ReviewSessionT
     operation.current = true; setWorking(true); setError('')
     try { applyResponse(await action()); return true }
     catch {
-      setError('The review could not be updated. Your answer is still in the form. Reload the review before trying again.')
+      setError(requestId ? 'The review could not be updated. Your answer is still in the form. Reload the review before trying again.' : 'The edit choice could not be saved. Your previous saved choices remain. Reload before trying again.')
       if (transport) { try {
         const recovered = await transport.load(); applyResponse(recovered)
         if (requestId && (recovered.session.pending?.requestId === requestId || recovered.session.answers.some(item => item.requestId === requestId))) { setError(''); return true }
