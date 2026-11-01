@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+const { refreshUsage } = vi.hoisted(() => ({ refreshUsage: vi.fn() }))
+
 vi.mock('../api/endpoints', () => ({
   ResumeParseError: class ResumeParseError extends Error {
     parseFailure: unknown
@@ -18,7 +20,7 @@ vi.mock('../api/workspace', () => ({ saveApplicationLabels: vi.fn() }))
 
 vi.mock('./useUsageStore', () => ({
   useUsageStore: {
-    getState: () => ({ fetch: vi.fn() }),
+    getState: () => ({ fetch: refreshUsage }),
   },
 }))
 
@@ -62,6 +64,7 @@ describe('useAnalysisStore validation', () => {
       result: undefined,
       analysisId: undefined,
     })
+    refreshUsage.mockReset()
     mockedSaveLabels.mockReset()
     mockedAnalyze.mockReset()
     mockedGetResumeParseFailure.mockReset()
@@ -139,6 +142,7 @@ describe('useAnalysisStore validation', () => {
     expect(useAnalysisStore.getState().parseFailure?.code).toBe(
       'UNSUPPORTED_RESUME_FORMAT',
     )
+    expect(refreshUsage).toHaveBeenCalledWith({ force: true })
   })
   const source = {
     documentId: 'doc-persisted',
@@ -204,4 +208,25 @@ describe('useAnalysisStore validation', () => {
       'without analyzing again',
     )
   })
+  it('refreshes server usage after a technical failure', async () => {
+    mockedAnalyze.mockRejectedValue(new Error('Review failed'))
+    useAnalysisStore.setState({ uploadedDoc: source, analysisMode: 'ATS' })
+    await useAnalysisStore.getState().submitAnalysis()
+    expect(refreshUsage).toHaveBeenCalledTimes(1)
+    expect(refreshUsage).toHaveBeenCalledWith({ force: true })
+    expect(useAnalysisStore.getState().lastStatus).toBe('failed')
+  })
+
+  it('does not refresh usage for a stale failure after account or review reset', async () => {
+    let reject!: (reason: Error) => void
+    mockedAnalyze.mockImplementation(() => new Promise((_resolve, fail) => { reject = fail }))
+    useAnalysisStore.setState({ uploadedDoc: source, analysisMode: 'ATS' })
+    const pending = useAnalysisStore.getState().submitAnalysis()
+    useAnalysisStore.getState().reset()
+    reject(new Error('Old review failed'))
+    await pending
+    expect(refreshUsage).not.toHaveBeenCalled()
+    expect(useAnalysisStore.getState().status).toBe('idle')
+  })
+
 })
