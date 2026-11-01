@@ -39,7 +39,7 @@ export default function HomePage() {
             Your experience. One target job.
           </p>
           <h1 className="text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
-            Make your experience clear for the job you want
+            Don’t make recruiters guess how your experience fits.
           </h1>
           <p className="max-w-xl text-lg leading-8 text-slate-600">
             Start with the resume you have. Understand the fit, review truthful edits and clarify relevant experience
