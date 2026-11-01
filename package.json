@@ -14,7 +14,8 @@
     "lint": "eslint .",
     "test": "vitest",
     "preview": "vite preview",
-    "test:review-browser": "node e2e/guided-review.mjs"
+    "test:review-browser": "node e2e/guided-review.mjs",
+    "test:pages-browser": "node e2e/pages.browser.mjs"
   },
   "dependencies": {
     "react": "^19.1.0",

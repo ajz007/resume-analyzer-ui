@@ -99,7 +99,7 @@ describe('Resume Workspace UI', () => {
       />,
     )
 
-    expect(html).toContain('Resume Workspace')
+    expect(html).toContain('Editable drafts')
     expect(html).toContain('Platform Engineer Resume')
     expect(html).toContain('manual')
     expect(html).toContain('Open')
@@ -641,10 +641,12 @@ describe('Resume Workspace UI', () => {
     ]
     const combined = publicFiles.map((file) => readFileSync(join(process.cwd(), file), 'utf8')).join('\n')
 
-    expect(pricingHtml).toContain('Free account - 15 analyses/month')
-    expect(pricingHtml).toContain('Guests can try 3 analyses/month without signing in.')
+    expect(pricingHtml).toContain('Free signed-in account')
+    expect(pricingHtml).toContain('15 analyses')
+    expect(pricingHtml).toContain('3 analyses')
+    expect(pricingHtml).toContain('Loading current access and pricing')
     expect(pricingHtml).not.toContain('10 analyses')
-    expect(combined).toContain('Try 3 analyses as a guest, or sign in for 15 free analyses/month.')
+    expect(combined).toContain('Try 3 analyses as a guest, or sign in for 15 analyses/month.')
     expect(combined).toContain('Save this analysis and get 15 free analyses/month by signing in.')
     expect(combined).toMatch(/!loggedIn\s*&&\s*!isLocked\s*\?\s*\(?\s*<GuestResultsCta/)
     expect(combined).not.toContain('10 free analyses')

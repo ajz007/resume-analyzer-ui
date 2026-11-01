@@ -5,6 +5,11 @@ const answer = (paywallEnabled: boolean, question: string) =>
   buildFaqs(paywallEnabled).find((faq) => faq.question === question)?.answer ?? ''
 
 describe('buildFaqs', () => {
+  it('does not infer free access from unavailable payment configuration', () => {
+    const faqs = buildFaqs(null).map(faq => faq.answer).join(' ')
+    expect(faqs).not.toContain('no credit card required')
+    expect(faqs).toContain('does not mean paid features are free')
+  })
   it('keeps early-access copy while the paywall is off', () => {
     expect(answer(false, 'Do I need a credit card?')).toContain('no credit card required')
     expect(answer(false, 'Will pricing change later?')).toContain('may introduce paid plans later')

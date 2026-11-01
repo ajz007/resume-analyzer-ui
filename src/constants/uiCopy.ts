@@ -31,10 +31,10 @@ export const COPY = {
       switch: 'Switch to Job Match',
     },
     jobMatch: {
-      header: 'Analyze Job Match',
+      header: 'Prepare this application',
       description:
-        'Paste the job description to see requirement-by-requirement match, proof gaps, and what to fix first.',
-      cta: 'Analyze Job Match',
+        'Review supported edits and the evidence this job needs. You can clarify relevant experience after the first review.',
+      cta: 'Start job review',
       switch: 'Switch to ATS Readiness',
       jdLabel: 'Job description',
       jdPlaceholder: 'Paste the full job post here (responsibilities + requirements).',

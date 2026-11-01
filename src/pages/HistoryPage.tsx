@@ -1,3 +1,4 @@
+import NewJobLink from '../components/NewJobLink'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -63,9 +64,9 @@ export default function HistoryPage() {
             Find the job you reviewed, the source resume and your next action.
           </p>
         </div>
-        <Link className={ui.button.primary} to="/app/analyzer?mode=job-match">
+        <NewJobLink className={ui.button.primary} >
           Review a new job
-        </Link>
+        </NewJobLink>
       </header>
       {!loggedIn ? (
         <div className={ui.card.padded}>
@@ -125,7 +126,7 @@ export default function HistoryPage() {
               {items.map((a) => (
                 <li
                   key={a.analysisId}
-                  className="flex flex-wrap items-center justify-between gap-4 py-6"
+                  className="flex flex-col items-start justify-between gap-4 py-6 sm:flex-row sm:items-center"
                 >
                   <div className="min-w-0 flex-1">
                     <p

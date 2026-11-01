@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { createPaymentOrder, fetchPaymentConfig, verifyPayment } from '../../api/endpoints'
 import type { PaymentPrice } from '../../api/types'
+import { LEGAL } from '../../constants/legal'
 import { ui } from '../../app/uiTokens'
 import { CheckoutDismissedError, defaultCurrency, formatPrice, openCheckout } from '../../payments/razorpay'
 
@@ -33,6 +34,8 @@ export const UnlockCardView = ({
   onUnlock,
   busy,
   error,
+  paymentPending = false,
+  onCheckStatus,
 }: {
   lockedSections: string[]
   loggedIn: boolean
@@ -43,16 +46,18 @@ export const UnlockCardView = ({
   onUnlock: () => void
   busy: boolean
   error?: string
+  paymentPending?: boolean
+  onCheckStatus?: () => void
 }) => {
   const selected = prices.find((price) => price.currency === currency) ?? prices[0]
   const labels = lockedSections.map((key) => SECTION_LABELS[key]).filter(Boolean)
   return (
-    <div className="rounded-lg border border-blue-200 bg-blue-50 p-5 space-y-3" data-testid="unlock-card">
+    <div className="rounded-lg border border-teal-200 bg-teal-50 p-5 space-y-3" data-testid="unlock-card">
       <div className="space-y-1">
         <h2 className="text-lg font-semibold text-gray-950">Unlock the full report</h2>
         <p className="text-sm text-gray-700">
-          Your scores and top fixes are free. A one-time payment unlocks the rest of this report.
-          There's no subscription.
+          Your scores and top fixes are free. A one-time payment unlocks the rest of this report. There's no
+          subscription.
         </p>
       </div>
       {labels.length ? (
@@ -83,8 +88,19 @@ export const UnlockCardView = ({
       ) : null}
       <div className="flex flex-wrap items-center gap-3">
         {loggedIn ? (
-          <button type="button" onClick={onUnlock} disabled={busy || !selected} className={ui.button.primary}>
-            {busy ? 'Opening payment…' : selected ? `Unlock for ${formatPrice(selected)}` : 'Unlock'}
+          <button
+            type="button"
+            onClick={onUnlock}
+            disabled={busy || !selected || paymentPending}
+            className={ui.button.primary}
+          >
+            {paymentPending
+              ? 'Payment confirmation pending'
+              : busy
+                ? 'Opening payment…'
+                : selected
+                  ? `Unlock for ${formatPrice(selected)}`
+                  : 'Unlock'}
           </button>
         ) : (
           <button type="button" onClick={onSignIn} className={ui.button.primary}>
@@ -95,6 +111,21 @@ export const UnlockCardView = ({
           Refund policy
         </Link>
       </div>
+      {paymentPending ? (
+        <div className="space-y-3">
+          <p>Check the existing payment before trying another. Your review remains saved.</p>
+          <button type="button" className={ui.button.secondary} disabled={busy} onClick={onCheckStatus}>
+            {busy ? 'Checking confirmation…' : 'Check review access'}
+          </button>
+          <p className="text-sm">
+            If confirmation remains unavailable,{' '}
+            <a className={ui.results.link} href={`mailto:${LEGAL.supportEmail}`}>
+              contact support
+            </a>{' '}
+            with the payment ID from your receipt.
+          </p>
+        </div>
+      ) : null}
       {error ? (
         <p className="text-sm text-red-700" role="alert">
           {error}
@@ -109,12 +140,62 @@ const UnlockCard = ({ analysisId, lockedSections, loggedIn, onSignIn, onUnlocked
   const [currency, setCurrency] = useState<PaymentPrice['currency']>(() => defaultCurrency())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | undefined>()
+  const marker = `payment-confirmation:${analysisId}`
+  const [paymentPending, setPaymentPending] = useState(() => {
+    try {
+      return sessionStorage.getItem(marker) === 'pending'
+    } catch {
+      return false
+    }
+  })
+  const proof = useRef<Parameters<typeof verifyPayment>[0] | null>(null)
+  const operation = useRef(false)
+  function markPending(value: boolean) {
+    setPaymentPending(value)
+    try {
+      if (value) sessionStorage.setItem(marker, 'pending')
+      else sessionStorage.removeItem(marker)
+    } catch {
+      /* In-memory recovery still works. */
+    }
+  }
+  async function confirmExisting() {
+    if (proof.current) {
+      try {
+        const result = await verifyPayment(proof.current)
+        if (!result.unlocked || result.analysisId !== analysisId) throw Error('Confirmation is not ready.')
+      } catch {
+        // A server-side payment update may already have unlocked the review.
+        // The owner-scoped refetch below must confirm access before recovery succeeds.
+      }
+    }
+    await onUnlocked()
+    markPending(false)
+    proof.current = null
+  }
+  async function checkStatus() {
+    if (operation.current) return
+    operation.current = true
+    setBusy(true)
+    setError(undefined)
+    try {
+      await confirmExisting()
+    } catch {
+      setError('Confirmation is still unavailable. Check your receipt or contact support before another payment.')
+    } finally {
+      operation.current = false
+      setBusy(false)
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
     fetchPaymentConfig()
       .then((config) => {
-        if (!cancelled) setPrices(config.prices ?? [])
+        if (!cancelled) {
+          setPrices(config.paywallEnabled ? config.prices ?? [] : [])
+          if (!config.paywallEnabled || !config.prices?.length) setError('Paid unlock pricing is unavailable. Reload the review or check the Pricing page.')
+        }
       })
       .catch(() => {
         if (!cancelled) setError('Pricing is unavailable right now. Please try again later.')
@@ -125,19 +206,23 @@ const UnlockCard = ({ analysisId, lockedSections, loggedIn, onSignIn, onUnlocked
   }, [])
 
   const handleUnlock = async () => {
+    if (operation.current || paymentPending) return
+    operation.current = true
     setBusy(true)
     setError(undefined)
     try {
       const order = await createPaymentOrder(analysisId, currency)
-      const checkout = await openCheckout(order)
-      await verifyPayment(checkout)
-      await onUnlocked()
+      markPending(true)
+      proof.current = await openCheckout(order)
+      await confirmExisting()
     } catch (err) {
-      if (!(err instanceof CheckoutDismissedError)) {
-        const message = (err as { message?: string })?.message
-        setError(message || 'Payment could not be completed. You have not been charged.')
-      }
+      if (err instanceof CheckoutDismissedError) markPending(false)
+      else
+        setError(
+          'Payment could not be completed or confirmed. If checkout opened, check its status before another payment.',
+        )
     } finally {
+      operation.current = false
       setBusy(false)
     }
   }
@@ -153,6 +238,8 @@ const UnlockCard = ({ analysisId, lockedSections, loggedIn, onSignIn, onUnlocked
       onUnlock={() => void handleUnlock()}
       busy={busy}
       error={error}
+      paymentPending={paymentPending}
+      onCheckStatus={() => void checkStatus()}
     />
   )
 }

@@ -1,238 +1,180 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
+import NewJobLink from '../components/NewJobLink'
 import { fetchPaymentConfig } from '../api/endpoints'
-import type { PaymentPrice } from '../api/types'
+import type { PaymentConfig } from '../api/types'
 import { formatPrice } from '../payments/razorpay'
+import { ui } from '../app/uiTokens'
 
-const includedFeatures = [
-  '15 resume analyses/month',
-  'Saved analysis history',
-  'Resume Workspace',
-  'Tailored resumes',
-  'DOCX downloads',
-]
-
-// Copy that changes once paid report unlocks are live.
-export const buildFaqs = (paywallEnabled: boolean) => [
+export const buildFaqs = (paywallEnabled: boolean | null) => [
   {
     question: 'What counts as an analysis?',
     answer:
-      'Each run where you upload a resume and compare it with a job description counts as one analysis. You can use the report to review match quality, ATS issues, missing skills, and improvement suggestions.',
+      'Starting a new job review or readability check uses one analysis. Reopening a saved review does not start another analysis. A saved resume can be reused for a different target job.',
   },
   {
     question: 'Do I need a credit card?',
-    answer: paywallEnabled
-      ? 'Not for free analyses. You only pay, through Razorpay, if you choose to unlock the full report for an analysis.'
-      : 'No. Rethink Resume is currently available during early access with no credit card required.',
+    answer:
+      paywallEnabled === null
+        ? 'Current payment availability could not yet be confirmed. Check the access status above before starting.'
+        : paywallEnabled
+          ? 'Not for free analyses. You only pay, through Razorpay, if you choose to unlock the full report for an analysis.'
+          : 'No. Rethink Resume is currently available during early access with no credit card required.',
   },
   {
     question: 'Do you store my resume?',
     answer:
-      'The product is designed to keep resume analysis practical and transparent. Current storage behavior depends on your session and account state, and we will keep improving privacy controls as the platform matures.',
+      'Yes. Saved uploads let you reuse a source file. Signed-in reviews keep company and role labels, confirmed answers and edit choices so you can return later. Editable drafts are separate from uploaded sources. See Privacy or contact us about stored information and removal.',
   },
   {
     question: 'Will pricing change later?',
-    answer: paywallEnabled
-      ? 'Free accounts include 15 analyses per month and guests can try 3. Full report unlocks are a one-time payment per report, with no subscription. We will announce any pricing changes before they apply.'
-      : 'The product may introduce paid plans later as more features launch. For now, free accounts include 15 analyses per month, and guests can try 3 analyses per month while we continue improving the platform.',
+    answer:
+      paywallEnabled === null
+        ? 'Current pricing is unavailable. Reload the access information above; an unavailable configuration does not mean paid features are free.'
+        : paywallEnabled
+          ? 'Free accounts include 15 analyses per month and guests can try 3. Full report unlocks are a one-time payment per report, with no subscription. We will announce any pricing changes before they apply.'
+          : 'The product may introduce paid plans later as more features launch. For now, free accounts include 15 analyses per month, and guests can try 3 analyses per month while we continue improving the platform.',
   },
 ]
 
-// Prices are empty until the backend paywall is live, so early-access copy stays accurate until then.
-const usePaywallPrices = () => {
-  const [prices, setPrices] = useState<PaymentPrice[]>([])
-
+export default function PricingPage() {
+  const [config, setConfig] = useState<PaymentConfig | null>(null)
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
+  const [retry, setRetry] = useState(0)
   useEffect(() => {
-    let cancelled = false
+    let active = true
+    setStatus('loading')
+    setConfig(null)
     fetchPaymentConfig()
-      .then((config) => {
-        if (!cancelled && config.paywallEnabled) setPrices(config.prices ?? [])
+      .then((value) => {
+        if (typeof value.paywallEnabled !== 'boolean') throw Error('Invalid access configuration')
+        if (active) {
+          setConfig(value)
+          setStatus('ready')
+        }
       })
-      .catch(() => undefined)
+      .catch(() => {
+        if (active) setStatus('error')
+      })
     return () => {
-      cancelled = true
+      active = false
     }
-  }, [])
-
-  return prices
-}
-
-const FullReportUnlock = ({ prices }: { prices: PaymentPrice[] }) => {
-  if (!prices.length) return null
-  return (
-    <section className="rounded-lg border border-blue-200 bg-blue-50 p-6 space-y-3" data-testid="full-report-unlock">
-      <h2 className="text-2xl font-bold text-gray-950">Full report unlock</h2>
-      <p className="text-base leading-7 text-gray-700">
-        Every analysis shows your scores and top 3 fixes for free. A one-time payment unlocks the
-        full report for that analysis: the weighted per-requirement job match, bullet rewrites, every
-        issue, and the action plan. There's no subscription.
-      </p>
-      <p className="text-3xl font-bold text-gray-950">
-        {prices.map((price) => formatPrice(price)).join(' / ')}
-        <span className="ml-2 text-base font-normal text-gray-600">per report</span>
-      </p>
-      <p className="text-sm text-gray-700">
-        Payments are processed securely by Razorpay. See our{' '}
-        <Link to="/refund" className="text-blue-700 underline">
-          refund policy
-        </Link>
-        .
-      </p>
-    </section>
-  )
-}
-
-const PricingPage = () => {
-  const navigate = useNavigate()
-  const prices = usePaywallPrices()
-  const paywallEnabled = prices.length > 0
-  const faqs = buildFaqs(paywallEnabled)
-
+  }, [retry])
+  const enabled = status === 'ready' ? config!.paywallEnabled : null
+  const prices = config?.prices ?? []
   return (
     <div className="mx-auto max-w-5xl space-y-10">
-      <section className="space-y-4 text-center">
-        <div className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-800">
-          Early access
-        </div>
-        <h1 className="text-4xl font-bold tracking-normal text-gray-950 sm:text-5xl">
-          Resume analysis during early access
-        </h1>
-        <p className="mx-auto max-w-2xl text-lg leading-8 text-gray-700">
-          Use Rethink Resume to compare your resume against real job descriptions, find ATS issues,
-          and improve your application before you submit it.
+      <header className="max-w-3xl space-y-4">
+        <p className="text-sm font-semibold uppercase tracking-widest text-teal-800">Access and pricing</p>
+        <h1 className="text-4xl font-semibold tracking-tight text-slate-950">Prepare one application at a time</h1>
+        <p className="text-lg leading-8 text-slate-600">
+          Understand the fit, review supported edits and decide what represents your experience accurately.
         </p>
-      </section>
-
-      <section className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-stretch">
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="space-y-4">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-950">Free account - 15 analyses/month</h2>
-              <p className="mt-2 text-base leading-7 text-gray-700">
-                Sign in to get 15 free analyses/month plus saved history, Resume Workspace access,
-                tailored resumes, and downloads where available.
-              </p>
-            </div>
-
-            <div className="rounded-lg border border-blue-200 bg-blue-50 p-5">
-              <div className="text-sm font-semibold uppercase tracking-wide text-blue-800">
-                Included usage
-              </div>
-              <div className="mt-2 text-4xl font-bold text-gray-950">15 analyses</div>
-              <div className="mt-1 text-base text-gray-700">per month</div>
-              <div className="mt-3 text-sm text-gray-700">
-                Guests can try 3 analyses/month without signing in.
-              </div>
-            </div>
-
-            <div className="grid gap-2 text-sm font-medium text-gray-700 sm:grid-cols-2 lg:grid-cols-1">
-              <div className="rounded-md bg-gray-50 px-3 py-2">
-                {paywallEnabled ? 'No credit card needed for free analyses' : 'No credit card required'}
-              </div>
-              <div className="rounded-md bg-gray-50 px-3 py-2">
-                Currently available during early access
-              </div>
-              <div className="rounded-md bg-gray-50 px-3 py-2">
-                Built for engineers and focused job seekers
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => navigate('/app/analyzer')}
-              className="inline-flex w-full items-center justify-center rounded-md bg-blue-700 px-5 py-3 text-base font-semibold text-white transition-colors hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2"
-            >
-              Analyze Your Resume
+      </header>
+      <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-6" aria-label="Current access">
+        {status === 'loading' ? (
+          <p role="status">Loading current access and pricing…</p>
+        ) : status === 'error' ? (
+          <div role="alert" className="space-y-3">
+            <h2 className="text-xl font-semibold">Current pricing could not be loaded</h2>
+            <p>Paid access has not been confirmed. Try again before deciding what is included.</p>
+            <button type="button" className={ui.button.secondary} onClick={() => setRetry((n) => n + 1)}>
+              Reload pricing
             </button>
           </div>
-        </div>
-
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="text-2xl font-bold text-gray-950">What&apos;s included</h2>
-          <p className="mt-3 text-base leading-7 text-gray-700">
-            Guests can try the analyzer without signing in. A free account expands the quota and
-            unlocks saved workflow features across devices.
+        ) : enabled ? (
+          <>
+            <h2 className="text-2xl font-semibold">Full review unlock</h2>
+            <p>
+              Scores and top fixes are available in the free preview. A one-time payment unlocks the full review for
+              that analysis. There is no subscription.
+            </p>
+            {prices.length ? (
+              <p className="text-3xl font-semibold">
+                {prices.map((price) => formatPrice(price)).join(' / ')}{' '}
+                <span className="text-base font-normal">per review</span>
+              </p>
+            ) : (
+              <div role="alert">
+                <p>Paid unlocks are enabled, but prices are unavailable. Check again before purchasing.</p>
+                <button type="button" className={ui.button.secondary} onClick={() => setRetry((n) => n + 1)}>
+                  Reload pricing
+                </button>
+              </div>
+            )}
+            <p className="text-sm text-slate-600">
+              Payments use Razorpay.{' '}
+              <Link className={ui.results.link} to="/refund">
+                Refund policy
+              </Link>
+              .
+            </p>
+          </>
+        ) : (
+          <>
+            <h2 className="text-2xl font-semibold">Early access · no report-unlock payment required</h2>
+            <p>No credit card required. Current analysis allowances still apply.</p>
+          </>
+        )}
+      </section>
+      <section className="grid gap-6 md:grid-cols-2" aria-label="Analysis allowances">
+        <div className="rounded-xl border border-slate-200 bg-white p-6">
+          <h2 className="text-xl font-semibold">Try as a guest</h2>
+          <p className="mt-3 text-3xl font-semibold text-teal-900">
+            3 analyses<span className="text-base font-normal text-slate-600"> / month</span>
           </p>
-          <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            <section className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-              <h3 className="text-lg font-semibold text-gray-950">Guest</h3>
-              <ul className="mt-3 space-y-2 text-sm text-gray-700">
-                <li>3 resume analyses/month</li>
-                <li>ATS score</li>
-                <li>Job match score</li>
-                <li>Basic suggestions</li>
-              </ul>
-            </section>
-            <section className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-              <h3 className="text-lg font-semibold text-gray-950">Free account</h3>
-              <ul className="mt-3 space-y-2 text-sm text-gray-700">
-                <li>15 resume analyses/month</li>
-                <li>Saved analysis history</li>
-                <li>Resume Workspace</li>
-                <li>Tailored resumes</li>
-                <li>DOCX downloads, if available</li>
-              </ul>
-            </section>
-          </div>
-          <ul className="mt-6 grid gap-3 sm:grid-cols-2">
-            {includedFeatures.map((feature) => (
-              <li
-                key={feature}
-                className="flex items-start gap-3 rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-base text-gray-800"
-              >
-                <span
-                  className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-800"
-                  aria-hidden="true"
-                >
-                  ✓
-                </span>
-                <span>{feature}</span>
-              </li>
-            ))}
+          <p className="mt-4 leading-7 text-slate-600">
+            Explore a job-specific review or a resume readability check without signing in. Sign in to keep reviews
+            available across devices.
+          </p>
+        </div>
+        <div className="rounded-xl border border-teal-200 bg-teal-50 p-6">
+          <h2 className="text-xl font-semibold">Free signed-in account</h2>
+          <p className="mt-3 text-3xl font-semibold text-teal-900">
+            15 analyses<span className="text-base font-normal text-slate-600"> / month</span>
+          </p>
+          <ul className="mt-4 list-disc space-y-2 pl-5 text-slate-700">
+            <li>Reuse saved uploads and choose a primary source.</li>
+            <li>Find application reviews by company and role.</li>
+            <li>Return to saved review choices and confirmed answers.</li>
           </ul>
-        </div>
-      </section>
-
-      <FullReportUnlock prices={prices} />
-
-      <section className="rounded-lg bg-gray-950 p-6 text-white sm:p-8">
-        <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
-          <div>
-            <h2 className="text-3xl font-bold">Try resume analysis before your next application</h2>
-          <p className="mt-3 max-w-3xl text-base leading-8 text-gray-200">
-            Guests can try 3 analyses/month without signing in. Free accounts get 15 analyses/month
-            plus saved history and resume workspace access.
+          <p className="mt-4 text-sm text-slate-600">
+            Account access and report unlocks are separate. Full-review availability follows the current access status
+            above.
           </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => navigate('/app/analyzer')}
-            className="inline-flex items-center justify-center rounded-md bg-white px-5 py-3 text-base font-semibold text-gray-950 transition-colors hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-950"
-          >
-            Try Resume Analysis
-          </button>
         </div>
       </section>
-
       <section className="space-y-5">
-        <div>
-          <h2 className="text-3xl font-bold text-gray-950">Early access FAQ</h2>
-          <p className="mt-3 text-base leading-8 text-gray-700">
-            Clear answers about current usage, access, and what to expect while the product is still
-            evolving.
-          </p>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          {faqs.map((faq) => (
-            <section key={faq.question} className="rounded-lg border border-gray-200 bg-white p-5">
-              <h3 className="text-lg font-semibold text-gray-950">{faq.question}</h3>
-              <p className="mt-2 text-base leading-7 text-gray-700">{faq.answer}</p>
-            </section>
+        <h2 className="text-2xl font-semibold">What a full review helps you do</h2>
+        <ul className="grid gap-4 sm:grid-cols-2">
+          {[
+            'Compare ready edits with the original passages.',
+            'Optionally clarify omitted experience with a confirmed answer.',
+            'Keep earlier choices while reviewing answer updates.',
+            'Download selected edits in Word when available.',
+          ].map((text) => (
+            <li key={text} className="border-l-2 border-teal-700 pl-4 leading-7">
+              {text}
+            </li>
           ))}
-        </div>
+        </ul>
+        <p className="text-sm leading-7 text-slate-600">
+          An answer may add a passage, ask for detail or make no change. Scores remain for the submitted resume. Word
+          downloads rebuild extracted text rather than preserving the original PDF design.
+        </p>
+      </section>
+      <div>
+        <NewJobLink className={`${ui.button.primary} inline-flex`}>Start a job review</NewJobLink>
+      </div>
+      <section className="space-y-5">
+        <h2 className="text-2xl font-semibold">Access questions</h2>
+        {buildFaqs(enabled).map((faq) => (
+          <details key={faq.question} className="border-b border-slate-200 pb-4">
+            <summary className="font-semibold">{faq.question}</summary>
+            <p className="mt-3 max-w-3xl leading-7 text-slate-600">{faq.answer}</p>
+          </details>
+        ))}
       </section>
     </div>
   )
 }
-
-export default PricingPage

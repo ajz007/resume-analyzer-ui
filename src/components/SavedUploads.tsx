@@ -126,7 +126,7 @@ export default function SavedUploads({
       <ul className="divide-y divide-slate-200">
         {documents.map((d) => (
           <li
-            className="flex flex-wrap items-center justify-between gap-4 py-4"
+            className="flex flex-col items-start justify-between gap-4 py-4 sm:flex-row sm:items-center"
             key={d.documentId}
           >
             <div className="min-w-0 flex-1">

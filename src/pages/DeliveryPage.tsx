@@ -10,19 +10,20 @@ const DeliveryPage = () => {
         {LEGAL.businessName} sells digital services only. Nothing is shipped physically.
       </p>
       <p className="text-gray-700">
-        When a payment succeeds, the full report unlocks immediately in your account. You can view
-        it any time from your history while signed in.
+        After a successful payment is verified, the full review becomes available for that analysis.
+        Find saved reviews in Applications while signed in. If confirmation is interrupted, check
+        the review status before making another payment.
       </p>
       <p className="text-gray-700">
         If a report does not unlock within a few minutes of a successful payment, email{' '}
-        <a className="text-blue-700 underline" href={`mailto:${LEGAL.supportEmail}`}>
+        <a className="text-teal-700 underline" href={`mailto:${LEGAL.supportEmail}`}>
           {LEGAL.supportEmail}
         </a>{' '}
         with your payment ID and we will resolve it.
       </p>
       <button
         onClick={() => navigate('/app/analyzer')}
-        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        className="bg-teal-600 text-white px-4 py-2 rounded hover:bg-teal-700"
       >
         Start analyzing
       </button>

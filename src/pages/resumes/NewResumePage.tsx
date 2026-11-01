@@ -110,7 +110,7 @@ export const NewResumeFormView = ({
       <AppPageMetadata title="Build Resume | Rethink Resume" description="Create a structured resume draft." />
       <div className={ui.layout.header}>
         <div className="space-y-1">
-          <p className="text-sm font-semibold text-blue-700">Resume Workspace</p>
+          <p className="text-sm font-semibold text-teal-700">Resume Workspace</p>
           <h1 className={ui.text.h2}>Create your resume</h1>
           <p className={ui.text.subtitle}>
             Start from your experience, a job description, or a blank structured draft.
@@ -128,8 +128,8 @@ export const NewResumeFormView = ({
               key={option.id}
               type="button"
               aria-pressed={selected}
-              className={`rounded-lg border p-4 text-left shadow-sm transition hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-600 ${
-                selected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'
+              className={`rounded-lg border p-4 text-left shadow-sm transition hover:shadow-md focus:outline-none focus:ring-2 focus:ring-teal-600 ${
+                selected ? 'border-teal-500 bg-teal-50' : 'border-gray-200 bg-white'
               }`}
               onClick={() => onModeChange(option.id)}
             >
@@ -145,7 +145,7 @@ export const NewResumeFormView = ({
           <span className="text-sm font-semibold text-gray-800">Title</span>
           <input
             id="resume-title"
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-100"
             value={notes.title}
             onChange={(event) => onNoteChange('title', event.target.value)}
             placeholder="Senior Frontend Engineer Resume"
@@ -158,7 +158,7 @@ export const NewResumeFormView = ({
               <span className="text-sm font-semibold text-gray-800">Target role</span>
               <input
                 id="target-role"
-                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-100"
                 value={notes.targetRole}
                 onChange={(event) => onNoteChange('targetRole', event.target.value)}
                 placeholder="Frontend Engineer"
@@ -168,7 +168,7 @@ export const NewResumeFormView = ({
               <span className="text-sm font-semibold text-gray-800">Seniority</span>
               <input
                 id="seniority"
-                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-100"
                 value={notes.seniority}
                 onChange={(event) => onNoteChange('seniority', event.target.value)}
                 placeholder="Senior"
@@ -189,7 +189,7 @@ export const NewResumeFormView = ({
                 <span className="text-sm font-semibold text-gray-800">{label}</span>
                 <textarea
                   id={field}
-                  className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-100"
                   rows={field === 'experienceText' ? 7 : 4}
                   value={notes[field as keyof typeof notes]}
                   onChange={(event) => onNoteChange(field as keyof typeof notes, event.target.value)}
@@ -206,7 +206,7 @@ export const NewResumeFormView = ({
               <span className="text-sm font-semibold text-gray-800">Job description</span>
               <textarea
                 id="jobDescription"
-                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-100"
                 rows={8}
                 value={notes.jobDescription}
                 onChange={(event) => onNoteChange('jobDescription', event.target.value)}
@@ -217,7 +217,7 @@ export const NewResumeFormView = ({
               <span className="text-sm font-semibold text-gray-800">Optional experience notes</span>
               <textarea
                 id="jobExperienceText"
-                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-100"
                 rows={5}
                 value={notes.experienceText}
                 onChange={(event) => onNoteChange('experienceText', event.target.value)}

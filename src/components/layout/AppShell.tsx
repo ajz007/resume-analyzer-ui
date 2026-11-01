@@ -1,3 +1,4 @@
+import NewJobLink from '../NewJobLink'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useEffect, useMemo, useState, useRef } from 'react'
 import { ui } from '../../app/uiTokens'
@@ -37,21 +38,21 @@ const navLinkClass = ({
   featured?: boolean
 }) => {
   const base =
-    'inline-flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2'
+    'inline-flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-teal-700 focus:ring-offset-2'
 
   if (featured) {
     return isActive
-      ? `${base} bg-blue-700 text-white shadow-sm`
-      : `${base} bg-blue-50 text-blue-800 hover:bg-blue-100`
+      ? `${base} bg-teal-700 text-white shadow-sm`
+      : `${base} bg-teal-50 text-teal-800 hover:bg-teal-100`
   }
 
   return isActive
-    ? `${base} bg-gray-100 text-gray-950`
+    ? `${base} bg-stone-50 text-gray-950`
     : `${base} text-gray-700 hover:bg-gray-50 hover:text-gray-950`
 }
 
 const authButtonClass =
-  'inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-800 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2'
+  'inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-800 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-700 focus:ring-offset-2'
 
 const AppShell = () => {
   const location = useLocation()
@@ -179,7 +180,7 @@ const AppShell = () => {
         className={`${authButtonClass} ${mobile ? 'w-full justify-center' : ''}`}
         onClick={() => window.open(authStartUrl, '_self')}
       >
-        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-gray-200 bg-white text-sm font-bold text-blue-600">
+        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-gray-200 bg-white text-sm font-bold text-teal-600">
           G
         </span>
         Sign in with Google
@@ -187,7 +188,7 @@ const AppShell = () => {
     ) : (
       <button
         type="button"
-        className={`rounded-md px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-950 focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2 ${
+        className={`rounded-md px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-950 focus:outline-none focus:ring-2 focus:ring-teal-700 focus:ring-offset-2 ${
           mobile ? 'w-full text-left' : ''
         }`}
         onClick={handleSignOut}
@@ -198,7 +199,8 @@ const AppShell = () => {
 
   return (
     <>
-      <div className="min-h-screen flex flex-col bg-gray-100">
+      <div className="min-h-screen flex flex-col bg-stone-50">
+        {import.meta.env.DEV && env.useMockApi ? <p className="bg-amber-50 px-4 py-2 text-center text-sm text-amber-950">Local preview · sample data. Sign-in and payments are not connected.</p> : null}
         <header className={ui.nav.header}>
           <div
             className={`${ui.layout.container} flex items-center justify-between gap-4 py-3`}
@@ -238,7 +240,7 @@ const AppShell = () => {
 
             <button
               type="button"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-800 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2 md:hidden"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-800 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-700 focus:ring-offset-2 md:hidden"
               aria-label="Toggle navigation menu"
               aria-controls="mobile-primary-navigation"
               aria-expanded={mobileMenuOpen}
@@ -315,12 +317,11 @@ const AppShell = () => {
                   </NavLink>
                 ))}
               </nav>
-              <NavLink
-                to="/app/analyzer?mode=job-match"
+              <NewJobLink
                 className="mt-7 block rounded-lg bg-teal-800 p-3 text-center text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2"
               >
                 New job review
-              </NavLink>
+              </NewJobLink>
             </aside>
           )}
           <main id="main-content" className="min-w-0 flex-1 py-8">

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import NewJobLink from '../NewJobLink'
 import SeoMetadata, { type SeoMetadataProps } from './SeoMetadata'
 
 export type SeoAction = {
@@ -29,18 +30,18 @@ const actionClass = (variant: SeoAction['variant'] = 'primary') => {
     'inline-flex items-center justify-center rounded-md px-5 py-3 text-base font-semibold focus:outline-none focus:ring-2 focus:ring-offset-2'
 
   if (variant === 'secondary') {
-    return `${base} border border-gray-300 bg-white text-gray-900 hover:bg-gray-50 focus:ring-blue-700`
+    return `${base} border border-gray-300 bg-white text-gray-900 hover:bg-gray-50 focus:ring-teal-700`
   }
 
   if (variant === 'light') {
-    return `${base} bg-white text-gray-950 hover:bg-gray-100 focus:ring-white focus:ring-offset-gray-950`
+    return `${base} bg-white text-gray-950 hover:bg-stone-50 focus:ring-white focus:ring-offset-gray-950`
   }
 
   if (variant === 'outlineDark') {
     return `${base} border border-gray-500 text-white hover:bg-gray-900 focus:ring-white focus:ring-offset-gray-950`
   }
 
-  return `${base} bg-blue-700 text-white hover:bg-blue-800 focus:ring-blue-700`
+  return `${base} bg-teal-700 text-white hover:bg-teal-800 focus:ring-teal-700`
 }
 
 export const SeoActionLink = ({ action, className = '' }: { action: SeoAction; className?: string }) => {
@@ -53,6 +54,9 @@ export const SeoActionLink = ({ action, className = '' }: { action: SeoAction; c
       </a>
     )
   }
+
+  if (action.to === '/app/analyzer?mode=ats') return <NewJobLink mode="ATS" className={classes}>{action.label}</NewJobLink>
+  if (action.to === '/app/analyzer?mode=job-match') return <NewJobLink className={classes}>{action.label}</NewJobLink>
 
   return (
     <Link to={action.to ?? '/app/analyzer'} className={classes}>
@@ -79,7 +83,7 @@ export const SeoHero = ({
   const eyebrowClass =
     eyebrowTone === 'emerald'
       ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-      : 'border-blue-200 bg-blue-50 text-blue-800'
+      : 'border-teal-200 bg-teal-50 text-teal-800'
 
   return (
     <section className="grid gap-8 py-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-center lg:py-14">
