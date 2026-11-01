@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { createPaymentOrder, fetchPaymentConfig, verifyPayment } from '../../api/endpoints'
-import type { PaymentPrice } from '../../api/types'
+import { createPaymentOrder, fetchPaymentConfig, recoverPaymentPurchase, verifyPayment } from '../../api/endpoints'
+import type { PaymentPurchase } from '../../api/endpoints'
+import type { PaymentOrder, PaymentPrice } from '../../api/types'
 import { LEGAL } from '../../constants/legal'
 import { ui } from '../../app/uiTokens'
 import { CheckoutDismissedError, defaultCurrency, formatPrice, openCheckout } from '../../payments/razorpay'
@@ -36,6 +37,8 @@ export const UnlockCardView = ({
   error,
   paymentPending = false,
   onCheckStatus,
+  resumeCheckout = false,
+  notice,
 }: {
   lockedSections: string[]
   loggedIn: boolean
@@ -48,6 +51,8 @@ export const UnlockCardView = ({
   error?: string
   paymentPending?: boolean
   onCheckStatus?: () => void
+  resumeCheckout?: boolean
+  notice?: string
 }) => {
   const selected = prices.find((price) => price.currency === currency) ?? prices[0]
   const labels = lockedSections.map((key) => SECTION_LABELS[key]).filter(Boolean)
@@ -99,7 +104,7 @@ export const UnlockCardView = ({
               : busy
                 ? 'Opening payment…'
                 : selected
-                  ? `Unlock for ${formatPrice(selected)}`
+                  ? `${resumeCheckout ? 'Resume checkout for' : 'Unlock for'} ${formatPrice(selected)}`
                   : 'Unlock'}
           </button>
         ) : (
@@ -126,6 +131,9 @@ export const UnlockCardView = ({
           </p>
         </div>
       ) : null}
+      {notice ? (
+        <p className="text-sm text-gray-700" role="status">{notice}</p>
+      ) : null}
       {error ? (
         <p className="text-sm text-red-700" role="alert">
           {error}
@@ -139,39 +147,95 @@ const UnlockCard = ({ analysisId, lockedSections, loggedIn, onSignIn, onUnlocked
   const [prices, setPrices] = useState<PaymentPrice[]>([])
   const [currency, setCurrency] = useState<PaymentPrice['currency']>(() => defaultCurrency())
   const [busy, setBusy] = useState(false)
+  const [checkingPurchase, setCheckingPurchase] = useState(loggedIn)
   const [error, setError] = useState<string | undefined>()
+  const [notice, setNotice] = useState<string | undefined>()
+  const [savedOrder, setSavedOrder] = useState<PaymentOrder | undefined>()
   const marker = `payment-confirmation:${analysisId}`
-  const [paymentPending, setPaymentPending] = useState(() => {
-    try {
-      return sessionStorage.getItem(marker) === 'pending'
-    } catch {
-      return false
-    }
-  })
+  const [paymentPending, setPaymentPending] = useState(false)
   const proof = useRef<Parameters<typeof verifyPayment>[0] | null>(null)
   const operation = useRef(false)
-  function markPending(value: boolean) {
+  const onUnlockedRef = useRef(onUnlocked)
+  useEffect(() => {
+    onUnlockedRef.current = onUnlocked
+  }, [onUnlocked])
+
+  const markPending = useCallback((value: boolean) => {
     setPaymentPending(value)
     try {
       if (value) sessionStorage.setItem(marker, 'pending')
       else sessionStorage.removeItem(marker)
     } catch {
-      /* In-memory recovery still works. */
+      /* The server remains the source of purchase recovery. */
     }
-  }
+  }, [marker])
+
+  const applyRecovery = useCallback(async (purchase: PaymentPurchase) => {
+    if (purchase.state === 'paid') {
+      await onUnlockedRef.current()
+      markPending(false)
+      proof.current = null
+      setSavedOrder(undefined)
+      setNotice(undefined)
+    } else if (purchase.state === 'ready' && purchase.order) {
+      setSavedOrder(purchase.order)
+      setCurrency(purchase.order.currency)
+      markPending(false)
+      setNotice('Your existing checkout is ready to resume at its saved price. No completed payment was found.')
+    } else if (purchase.state === 'none') {
+      setSavedOrder(undefined)
+      markPending(false)
+      setNotice(undefined)
+    } else {
+      markPending(true)
+      setNotice(purchase.state === 'refunded'
+        ? 'This purchase was refunded. Contact support before purchasing this review again.'
+        : 'Your existing purchase is still being confirmed. Check its status before another payment.')
+    }
+  }, [markPending])
+
+  useEffect(() => {
+    let cancelled = false
+    proof.current = null
+    setSavedOrder(undefined)
+    setError(undefined)
+    setNotice(undefined)
+    setCheckingPurchase(loggedIn)
+    try {
+      setPaymentPending(sessionStorage.getItem(marker) === 'pending')
+    } catch {
+      setPaymentPending(false)
+    }
+    const config = fetchPaymentConfig().then((result) => {
+      if (cancelled) return
+      setPrices(result.paywallEnabled ? result.prices ?? [] : [])
+      if (!result.paywallEnabled || !result.prices?.length) setError('Paid unlock pricing is unavailable. Reload the review or check the Pricing page.')
+    }).catch(() => {
+      if (!cancelled) setError('Pricing is unavailable right now. Please try again later.')
+    })
+    const recovery = loggedIn ? recoverPaymentPurchase(analysisId).then(async (result) => {
+      if (!cancelled) await applyRecovery(result)
+    }).catch(() => {
+      if (!cancelled) {
+        markPending(true)
+        setError('We could not check your existing purchase. Check its status before another payment.')
+      }
+    }) : Promise.resolve()
+    void Promise.all([config, recovery]).finally(() => {
+      if (!cancelled) setCheckingPurchase(false)
+    })
+    return () => { cancelled = true }
+  }, [analysisId, loggedIn, marker, applyRecovery, markPending])
+
   async function confirmExisting() {
     if (proof.current) {
       try {
-        const result = await verifyPayment(proof.current)
-        if (!result.unlocked || result.analysisId !== analysisId) throw Error('Confirmation is not ready.')
+        await verifyPayment(proof.current)
       } catch {
-        // A server-side payment update may already have unlocked the review.
-        // The owner-scoped refetch below must confirm access before recovery succeeds.
+        /* Read authoritative purchase/access state below. */
       }
     }
-    await onUnlocked()
-    markPending(false)
-    proof.current = null
+    await applyRecovery(await recoverPaymentPurchase(analysisId))
   }
   async function checkStatus() {
     if (operation.current) return
@@ -181,6 +245,7 @@ const UnlockCard = ({ analysisId, lockedSections, loggedIn, onSignIn, onUnlocked
     try {
       await confirmExisting()
     } catch {
+      markPending(true)
       setError('Confirmation is still unavailable. Check your receipt or contact support before another payment.')
     } finally {
       operation.current = false
@@ -188,39 +253,31 @@ const UnlockCard = ({ analysisId, lockedSections, loggedIn, onSignIn, onUnlocked
     }
   }
 
-  useEffect(() => {
-    let cancelled = false
-    fetchPaymentConfig()
-      .then((config) => {
-        if (!cancelled) {
-          setPrices(config.paywallEnabled ? config.prices ?? [] : [])
-          if (!config.paywallEnabled || !config.prices?.length) setError('Paid unlock pricing is unavailable. Reload the review or check the Pricing page.')
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setError('Pricing is unavailable right now. Please try again later.')
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
   const handleUnlock = async () => {
-    if (operation.current || paymentPending) return
+    if (operation.current || paymentPending || checkingPurchase) return
     operation.current = true
     setBusy(true)
     setError(undefined)
     try {
       const order = await createPaymentOrder(analysisId, currency)
+      setSavedOrder(order)
       markPending(true)
       proof.current = await openCheckout(order)
       await confirmExisting()
     } catch (err) {
-      if (err instanceof CheckoutDismissedError) markPending(false)
-      else
-        setError(
-          'Payment could not be completed or confirmed. If checkout opened, check its status before another payment.',
-        )
+      if (err instanceof CheckoutDismissedError) {
+        markPending(false)
+        setNotice('Checkout was closed. You can resume the same purchase when ready.')
+      } else {
+        // The order request may have reached the provider even if its response was lost.
+        // Recovery is read-only at the provider and never creates a second order.
+        markPending(true)
+        try {
+          await applyRecovery(await recoverPaymentPurchase(analysisId))
+        } catch {
+          setError('Payment could not be confirmed. Check its status before another payment.')
+        }
+      }
     } finally {
       operation.current = false
       setBusy(false)
@@ -231,13 +288,15 @@ const UnlockCard = ({ analysisId, lockedSections, loggedIn, onSignIn, onUnlocked
     <UnlockCardView
       lockedSections={lockedSections}
       loggedIn={loggedIn}
-      prices={prices}
+      prices={savedOrder ? [{ currency: savedOrder.currency, amount: savedOrder.amount }] : prices}
       currency={currency}
       onCurrencyChange={setCurrency}
       onSignIn={onSignIn}
       onUnlock={() => void handleUnlock()}
-      busy={busy}
+      busy={busy || checkingPurchase}
       error={error}
+      notice={checkingPurchase ? 'Checking for an existing purchase…' : notice}
+      resumeCheckout={Boolean(savedOrder)}
       paymentPending={paymentPending}
       onCheckStatus={() => void checkStatus()}
     />

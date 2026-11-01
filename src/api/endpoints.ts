@@ -630,3 +630,12 @@ export async function claimGuestAnalyses(): Promise<ClaimGuestResponse> {
     method: 'POST',
   })
 }
+
+export type PaymentPurchase = {
+  state: 'none' | 'pending' | 'ready' | 'paid' | 'refunded'
+  order?: PaymentOrder
+}
+
+export async function recoverPaymentPurchase(analysisId: string): Promise<PaymentPurchase> {
+  return apiRequest<PaymentPurchase>(`/payments/purchases/${encodeURIComponent(analysisId)}`, { method: 'GET' }, { suppressToast: true })
+}
