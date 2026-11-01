@@ -17,3 +17,6 @@ Checks cover:
 Set `PAGE_SCREENSHOT_DIR` to retain screenshots. These checks do not replace live sign-in, payment-provider, migration or downloaded-document acceptance.
 
 The guided-review regression runner remains available as `npm run test:review-browser`. Set `REVIEW_TEST_PORT` if 8818 is already serving a preview; for example use 8822. Runners wait for their own server to start and fail if their port is occupied rather than testing an unrelated running preview.
+
+
+Purchase recovery coverage now includes the owner-scoped recovery endpoint, recovery without tab storage, unknown/pending confirmation, temporary recovery failure, saved currency/price after pricing changes, an interrupted order response, checkout dismissal and resume, captured confirmation and refunded-purchase blocking. Provider checkout and every API response are simulated; no real payment is made. Deploy the companion API with migration 0026 before this UI.

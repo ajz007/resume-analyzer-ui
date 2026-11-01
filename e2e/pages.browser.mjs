@@ -62,6 +62,7 @@ try {
       }
       on() {}
       open() {
+        if (window.__dismissCheckout) { this.options.modal.ondismiss(); return }
         this.options.handler({
           razorpay_order_id: 'order-example',
           razorpay_payment_id: 'payment-example',
@@ -79,6 +80,11 @@ try {
   let noUploads = false
   let verifyError = true
   let orders = 0
+  let providerOrders = 0
+  let purchaseState = 'none'
+  let failRecovery = false
+  let loseNextOrderResponse = false
+  let savedOrder = { orderId: 'order-example', amount: 900, currency: 'USD', keyId: 'fictional-key' }
   let verifications = []
   let unlocked = false
   const pageErrors = []
@@ -106,9 +112,19 @@ try {
       body = []
     } else if (path === '/usage')
       body = { plan: 'free', used: 0, limit: 15, remaining: 15, resetsAt: '2026-12-01T00:00:00Z', authenticated: true }
-    else if (path === '/payments/orders') {
+    else if (path.startsWith('/payments/purchases/')) {
+      if (failRecovery) return route.fulfill({ status: 503, json: { message: 'Recovery interrupted' } })
+      body = { state: unlocked ? 'paid' : purchaseState, ...(purchaseState === 'ready' ? { order: savedOrder } : {}) }
+    } else if (path === '/payments/orders') {
       orders++
-      body = { orderId: 'order-example', amount: 900, currency: 'USD', keyId: 'fictional-key' }
+      if (purchaseState === 'none') providerOrders++
+      purchaseState = 'pending'
+      body = savedOrder
+      if (loseNextOrderResponse) {
+        loseNextOrderResponse = false
+        purchaseState = 'ready'
+        return route.fulfill({ status: 503, json: { message: 'Order response lost' } })
+      }
     } else if (path === '/payments/verify') {
       verifications.push(route.request().postDataJSON())
       if (verifyError) return route.fulfill({ status: 503, json: { message: 'Verification interrupted' } })
@@ -229,27 +245,67 @@ try {
   assert.equal(verifications.length, 2)
   assert.deepEqual(verifications[0], verifications[1])
 
-  // A lost checkout callback survives reload as a status-check-only state.
+  // Recovery works without a checkout proof or tab marker.
   unlocked = false
-  await page.evaluate(() => sessionStorage.setItem('payment-confirmation:example-0', 'pending'))
+  purchaseState = 'pending'
+  await page.evaluate(() => sessionStorage.clear())
   await visit('/app/results/example-0')
   await visible(button('Check review access'))
   await button('Check review access').click()
-  await visible(
-    page.getByText('Confirmation is still unavailable. Check your receipt or contact support before another payment.'),
-  )
+  await visible(page.getByText('Your existing purchase is still being confirmed. Check its status before another payment.'))
   assert.equal(orders, 1)
   unlocked = true
   await button('Check review access').click()
   await page.getByTestId('unlock-card').waitFor({ state: 'detached' })
 
+  // A server-side quote survives price changes and a failed recovery request.
   unlocked = false
-  verifyError = false
+  purchaseState = 'ready'
+  savedOrder = { ...savedOrder, amount: 29900, currency: 'INR' }
+  failRecovery = true
   await visit('/app/results/example-0')
-  await visible(button('Unlock for $9'))
-  await button('Unlock for $9').click()
+  await visible(button('Payment confirmation pending'))
+  assert.equal(await button('Payment confirmation pending').isDisabled(), true)
+  assert.equal(orders, 1)
+  failRecovery = false
+  await button('Check review access').click()
+  await visible(button('Resume checkout for ₹299'))
+  assert.equal(await button('USD').count(), 0)
+  assert.equal(orders, 1) // Status checks cannot open checkout or create a purchase.
+
+  // An interrupted order response is recovered without opening checkout again automatically.
+  loseNextOrderResponse = true
+  await Promise.all([
+    page.waitForResponse((response) => response.url().includes('/payments/purchases/')),
+    button('Resume checkout for ₹299').click(),
+  ])
+  await visible(button('Resume checkout for ₹299'))
+  assert.equal(orders, 2)
+  assert.equal(providerOrders, 1)
+
+  // Closing checkout keeps the same saved order available to resume.
+  await page.evaluate(() => { window.__dismissCheckout = true })
+  await button('Resume checkout for ₹299').click()
+  await visible(page.getByText('Checkout was closed. You can resume the same purchase when ready.'))
+  assert.equal(orders, 3)
+  assert.equal(providerOrders, 1)
+  purchaseState = 'ready'
+  await page.reload()
+  await visible(button('Resume checkout for ₹299'))
+  verifyError = false
+  await page.evaluate(() => { window.__dismissCheckout = false })
+  await button('Resume checkout for ₹299').click()
   await page.getByTestId('unlock-card').waitFor({ state: 'detached' })
-  assert.equal(orders, 2) // A separate successful checkout, not a recovery order.
+  assert.equal(orders, 4)
+  assert.equal(providerOrders, 1) // All resumed checkout requests reuse the original provider order.
+
+  unlocked = false
+  purchaseState = 'refunded'
+  await visit('/app/results/example-0')
+  await visible(page.getByText('This purchase was refunded. Contact support before purchasing this review again.'))
+  assert.equal(await button('Payment confirmation pending').isDisabled(), true)
+  assert.equal(orders, 4)
+  unlocked = true
 
   if (screenshots) await mkdir(screenshots, { recursive: true })
   for (const width of [1440, 390, 320]) {
@@ -325,7 +381,7 @@ try {
   await guest.close()
   assert.deepEqual(pageErrors, [])
   console.log(
-    'Page consistency checks passed: new-job/draft boundaries, pricing states, independent workspace failures, draft recovery, simulated payment confirmation/reload without duplicate orders, and 36 responsive route checks and guest mobile navigation.',
+    'Page consistency checks passed: new-job/draft boundaries, pricing states, independent workspace failures, draft recovery, simulated payment confirmation, recovery without tab state, saved quotes, dismissal/resume and provider order reuse, and 36 responsive route checks and guest mobile navigation.',
   )
 } finally {
   await browser?.close()
