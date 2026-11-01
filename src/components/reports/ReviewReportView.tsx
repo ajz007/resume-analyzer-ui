@@ -165,6 +165,7 @@ function GuidedReview({
     setAllQuestions(true)
     setFocusTarget('review-focused-questions')
   }
+  const selectedEditCount = edits.filter(edit => !excluded.has(edit.id)).length
   const exportBlocked = busy || review.busy
   const hasQuestionsPanel = hasDiagnosis || questions.length > 0 || !!(transport && eligible)
   return (
@@ -630,7 +631,7 @@ function GuidedReview({
               <div className="space-y-3">
                 <h2 className={ui.results.section.title}>Use your reviewed edits</h2>
                 <p>
-                  {edits.filter((edit) => !excluded.has(edit.id)).length} proposed passages selected · {excluded.size}{' '}
+                  {selectedEditCount} proposed {selectedEditCount === 1 ? 'passage' : 'passages'} selected · {excluded.size}{' '}
                   originals kept.
                 </p>
                 <p>Check names, dates and factual accuracy before sending your resume.</p>

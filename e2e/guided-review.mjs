@@ -119,7 +119,7 @@ try {
     .getByRole("button", { name: "Use your resume", exact: true })
     .click();
   await visible(
-    page.getByText("1 proposed passages selected · 1 originals kept."),
+    page.getByText("1 proposed passage selected · 1 originals kept."),
   );
   assert.equal(await button("Download reviewed resume").isEnabled(), true);
   await button("Toggle shared view").click();
