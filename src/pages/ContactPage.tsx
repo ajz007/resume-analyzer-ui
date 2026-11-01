@@ -5,7 +5,7 @@ const ContactPage = () => (
     <h1 className="text-2xl font-bold">Contact</h1>
     <p className="text-gray-700">
       Questions about your account, a payment, or a refund? Email{' '}
-      <a className="text-blue-700 underline" href={`mailto:${LEGAL.supportEmail}`}>
+      <a className="text-teal-700 underline" href={`mailto:${LEGAL.supportEmail}`}>
         {LEGAL.supportEmail}
       </a>
       . We reply within {LEGAL.responseTime}.

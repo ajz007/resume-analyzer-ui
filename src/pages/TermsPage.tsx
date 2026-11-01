@@ -16,7 +16,7 @@ const TermsPage = () => {
       <p className="text-gray-700">
         Paid report unlocks are one-time purchases processed by Razorpay. Prices are shown before
         checkout. Refunds follow our{' '}
-        <Link className="text-blue-700 underline" to="/refund">
+        <Link className="text-teal-700 underline" to="/refund">
           refund policy
         </Link>
         .
@@ -27,7 +27,7 @@ const TermsPage = () => {
       </p>
       <button
         onClick={() => navigate('/app/analyzer')}
-        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        className="bg-teal-600 text-white px-4 py-2 rounded hover:bg-teal-700"
       >
         Start analyzing
       </button>

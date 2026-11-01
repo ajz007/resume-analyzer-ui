@@ -1,18 +1,18 @@
 export const ui = {
   layout: {
     page: 'min-h-screen bg-stone-50',
-    container: 'max-w-7xl mx-auto px-4',
+    container: 'w-full max-w-7xl mx-auto px-4',
     stack: 'space-y-4',
-    header: 'flex items-start justify-between gap-4',
+    header: 'flex flex-col items-start justify-between gap-4 sm:flex-row',
     gridMain: 'grid grid-cols-1 lg:grid-cols-3 gap-6',
   },
   card: {
-    base: 'bg-white border rounded-lg',
-    elevated: 'bg-white border rounded-xl shadow-sm',
-    padded: 'bg-white border rounded-lg p-4',
-    paddedLg: 'bg-white border rounded-xl p-6 shadow-sm space-y-4',
-    form: 'w-full bg-white border rounded-lg p-5 shadow-md space-y-4',
-    list: 'bg-white border rounded-lg',
+    base: 'bg-white border border-slate-200 rounded-lg',
+    elevated: 'bg-white border border-slate-200 rounded-xl shadow-sm',
+    padded: 'bg-white border border-slate-200 rounded-lg p-4',
+    paddedLg: 'bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-4',
+    form: 'w-full bg-white border border-slate-200 rounded-lg p-5 shadow-md space-y-4',
+    list: 'bg-white border border-slate-200 rounded-lg',
   },
   text: {
     h1: 'text-4xl font-bold',
@@ -75,7 +75,7 @@ export const ui = {
       metaStrong: 'text-[14px] leading-snug text-gray-700',
       label: 'text-[13px] leading-snug font-semibold text-gray-600',
     },
-    link: 'text-blue-600 underline underline-offset-2 hover:text-blue-700',
+    link: 'text-teal-800 underline decoration-teal-300 underline-offset-4 hover:text-teal-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800',
     button: {
       primary:
         'inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-white font-medium hover:bg-blue-700',

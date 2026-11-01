@@ -43,7 +43,7 @@ export const SeoSection = ({
   titleClassName = 'text-3xl font-bold text-gray-950',
 }: SeoSectionProps) => (
   <section id={id} className={`space-y-5 py-12 ${className}`.trim()}>
-    {eyebrow ? <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">{eyebrow}</p> : null}
+    {eyebrow ? <p className="text-sm font-semibold uppercase tracking-wide text-teal-700">{eyebrow}</p> : null}
     {title ? <h2 className={titleClassName}>{title}</h2> : null}
     {children}
   </section>
@@ -91,7 +91,7 @@ export const SeoSteps = ({ items }: { items: SeoCardItem[] }) => (
     <div className="grid gap-6 md:grid-cols-3">
       {items.map((item, index) => (
         <div key={item.title}>
-          <div className="text-3xl font-bold text-blue-700">{index + 1}</div>
+          <div className="text-3xl font-bold text-teal-700">{index + 1}</div>
           <h2 className="mt-2 text-xl font-semibold text-gray-950">{item.title}</h2>
           <div className="mt-2 text-base leading-7 text-gray-700">{item.body}</div>
         </div>
@@ -107,7 +107,7 @@ export const SeoRelatedLinks = ({ title = 'Related resume tools', links }: { tit
         <Link
           key={link.to}
           to={link.to}
-          className="rounded-lg border border-gray-200 bg-white p-5 hover:border-blue-300 hover:bg-blue-50"
+          className="rounded-lg border border-gray-200 bg-white p-5 hover:border-teal-300 hover:bg-teal-50"
         >
           <h3 className="text-xl font-semibold text-gray-950">{link.title}</h3>
           <p className="mt-2 text-base leading-7 text-gray-700">{link.body}</p>

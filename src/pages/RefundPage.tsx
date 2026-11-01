@@ -12,7 +12,7 @@ const RefundPage = () => {
       </p>
       <p className="text-gray-700">
         If a paid report fails to generate, is incomplete, or you are not satisfied with it, email{' '}
-        <a className="text-blue-700 underline" href={`mailto:${LEGAL.supportEmail}`}>
+        <a className="text-teal-700 underline" href={`mailto:${LEGAL.supportEmail}`}>
           {LEGAL.supportEmail}
         </a>{' '}
         within {LEGAL.refundWindowDays} days of purchase with the email you signed in with. We will
@@ -29,7 +29,7 @@ const RefundPage = () => {
       </p>
       <button
         onClick={() => navigate('/app/analyzer')}
-        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        className="bg-teal-600 text-white px-4 py-2 rounded hover:bg-teal-700"
       >
         Start analyzing
       </button>

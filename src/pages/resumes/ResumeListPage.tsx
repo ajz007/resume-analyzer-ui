@@ -1,5 +1,5 @@
+import NewJobLink from '../../components/NewJobLink'
 import SavedUploads from '../../components/SavedUploads'
-import { Link } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ui } from '../../app/uiTokens'
@@ -18,7 +18,11 @@ export const ResumeListView = ({
   onNew,
   onOpen,
   onDownload,
+  error,
+  onRetry,
 }: {
+  error?: string
+  onRetry?: () => void
   resumes: ResumeListItem[]
   loading: boolean
   downloadingId?: string
@@ -26,32 +30,30 @@ export const ResumeListView = ({
   onOpen: (id: string) => void
   onDownload: (resume: ResumeListItem) => void
 }) => (
-  <div className="space-y-5 p-6">
+  <div className="mt-10 min-w-0 space-y-5 border-t border-slate-200 py-6">
     <div className={ui.layout.header}>
       <div className="space-y-1">
-        <p className="text-sm font-semibold text-blue-700">Resume Workspace</p>
-        <h2 className={ui.text.h2}>Editable resume workspaces</h2>
+        <p className="text-sm font-semibold text-teal-800">Optional drafting tools</p>
+        <h2 className="text-2xl font-semibold text-slate-950">Editable drafts</h2>
         <p className={ui.text.subtitle}>
-          View structured resumes, open a workspace, or download DOCX.
+          Maintain a separate structured draft. Saved uploads above are the sources used for job reviews.
         </p>
       </div>
-      <button type="button" className={ui.button.primary} onClick={onNew}>
-        New resume
-      </button>
+      {resumes.length ? <button type="button" className={ui.button.secondary} onClick={onNew}>New resume</button> : null}
     </div>
 
-    {loading ? (
+    {error ? <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-5"><p>{error}</p><button type="button" className={ui.button.secondary} onClick={onRetry}>Try loading drafts again</button></div> : loading ? (
       <div className={`${ui.card.base} p-8 text-center text-gray-700`}>
         Loading resumes...
       </div>
     ) : resumes.length === 0 ? (
       <div className={`${ui.card.base} p-8 text-center space-y-3`}>
-        <h2 className="text-xl font-bold text-gray-900">No resumes yet</h2>
+        <h2 className="text-xl font-bold text-gray-900">No editable drafts yet</h2>
         <p className={ui.text.subtitle}>
           Start with your own experience, or maintain an existing structured
           draft.
         </p>
-        <button type="button" className={ui.button.primary} onClick={onNew}>
+        <button type="button" className={ui.button.secondary} onClick={onNew}>
           Create a factual draft
         </button>
       </div>
@@ -110,7 +112,9 @@ const ResumeListPage = () => {
   const navigate = useNavigate()
   const showToast = useToastStore((state) => state.showToast)
   const [resumes, setResumes] = useState<ResumeListItem[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [retry, setRetry] = useState(0)
   const [downloadingId, setDownloadingId] = useState<string | undefined>(
     undefined,
   )
@@ -119,14 +123,14 @@ const ResumeListPage = () => {
     let cancelled = false
     const load = async () => {
       setLoading(true)
+      setError('')
       try {
         const items = await fetchResumes()
         if (!cancelled) setResumes(items)
       } catch (err) {
         const message =
           err instanceof Error ? err.message : 'Failed to load resumes.'
-        if (!cancelled)
-          showToast({ type: 'error', title: 'Could not load resumes', message })
+        if (!cancelled) setError(message)
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -135,7 +139,7 @@ const ResumeListPage = () => {
     return () => {
       cancelled = true
     }
-  }, [showToast])
+  }, [retry])
 
   const sorted = useMemo(
     () =>
@@ -174,11 +178,13 @@ const ResumeListPage = () => {
           </p>
         </header>
         <SavedUploads />
-        <Link className={ui.button.primary} to="/app/analyzer?mode=job-match">
-          Upload a resume for a new review
-        </Link>
+        <NewJobLink className={ui.button.primary} >
+          Review a new job
+        </NewJobLink>
       </section>
       <ResumeListView
+        error={error}
+        onRetry={() => setRetry(n => n + 1)}
         resumes={sorted}
         loading={loading}
         downloadingId={downloadingId}

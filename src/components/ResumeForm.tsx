@@ -54,7 +54,7 @@ export const ResumeQuotaNotice = ({
       className={`rounded-lg border px-3 py-3 text-sm ${
         limitReached
           ? 'border-red-200 bg-red-50 text-red-900'
-          : 'border-blue-100 bg-blue-50/60 text-gray-700'
+          : 'border-teal-100 bg-teal-50/60 text-gray-700'
       }`}
     >
       {limitReached ? (
@@ -458,7 +458,7 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
         <div
           {...getRootProps({
             className: `w-full border-2 border-dashed rounded p-4 text-center cursor-pointer ${
-              isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
+              isDragActive ? 'border-teal-500 bg-teal-50' : 'border-gray-300'
             }`,
           })}
         >
@@ -513,7 +513,7 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
       {analysisMode === 'JOB_MATCH' ? (
         <div className="space-y-5">
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="space-y-1">
+            <label className="min-w-0 space-y-1">
               <span>Company (optional)</span>
               <input
                 className="w-full rounded-lg border border-slate-300 p-3"
@@ -528,7 +528,7 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
                 }
               />
             </label>
-            <label className="space-y-1">
+            <label className="min-w-0 space-y-1">
               <span>Target position (optional)</span>
               <input
                 className="w-full rounded-lg border border-slate-300 p-3"
@@ -672,7 +672,7 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
         onSignIn={() => window.open(authStartUrl, '_self')}
       />
 
-      <div className="flex gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:items-center">
         <button
           type="submit"
           className={ui.button.primary}
@@ -699,7 +699,7 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
           onClick={() =>
             setAnalysisMode(analysisMode === 'ATS' ? 'JOB_MATCH' : 'ATS')
           }
-          className="text-blue-700 underline text-sm"
+          className="text-teal-700 underline text-sm"
           disabled={loading}
         >
           {analysisMode === 'ATS'

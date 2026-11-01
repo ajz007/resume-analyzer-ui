@@ -6,7 +6,7 @@ import UnlockCard from '../components/reports/UnlockCard'
 import ResultsLayout from '../components/results/ResultsLayout'
 import { useAnalysisStore } from '../store/useAnalysisStore'
 import { createAnalysisShare, fetchAnalysisResult } from '../api/endpoints'
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import type { AnalysisResponse } from '../api/types'
 import { ui } from '../app/uiTokens'
 import { normalizeAnalysisResponse } from '../analysis/normalizeAnalysisResponse'
@@ -108,12 +108,19 @@ const ResultsPage = () => {
 
   const hasMatchingResult = result && analysisId && latestId === analysisId
   const toRender =
-    unlockedResult ?? (hasMatchingResult && result ? result : cachedResult)
+    (unlockedResult?.analysisId === analysisId ? unlockedResult : null) ??
+    (hasMatchingResult && result ? result : cachedResult?.analysisId === analysisId ? cachedResult : null)
   const isLocked = toRender?.locked === true
   const signIn = () => window.open(authStartUrl, '_self')
 
+  const paymentScope = useRef(analysisId)
+  paymentScope.current = analysisId
+  useEffect(() => {
+    paymentScope.current = analysisId
+    return () => { if (paymentScope.current === analysisId) paymentScope.current = undefined }
+  }, [analysisId])
   const handleUnlocked = async () => {
-    if (!analysisId) return
+    if (!analysisId || paymentScope.current !== analysisId) throw new Error('The active review changed.')
     const storageKey = `analysis:${analysisId}`
     try {
       localStorage.removeItem(storageKey)
@@ -121,7 +128,8 @@ const ResultsPage = () => {
       // Storage may be unavailable; the refetch below still shows the full report.
     }
     const fetched = await fetchAnalysisResult(analysisId)
-    if (!fetched) return
+    if (paymentScope.current !== analysisId) throw new Error('The active review changed.')
+    if (!fetched || fetched.locked !== false) throw new Error('The review is not confirmed as unlocked yet.')
     setUnlockedResult(normalizeCachedResult(fetched))
     try {
       localStorage.setItem(storageKey, JSON.stringify(fetched))
@@ -360,7 +368,7 @@ const ResultsPage = () => {
       {normalized ? (
         <>
           {isLocked && analysisId ? (
-            <UnlockCard
+            <UnlockCard key={analysisId}
               analysisId={analysisId}
               lockedSections={toRender?.lockedSections ?? []}
               loggedIn={loggedIn}

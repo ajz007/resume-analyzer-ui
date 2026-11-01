@@ -82,7 +82,7 @@ export const openCheckout = async (
       name: 'Rethink Resume',
       description: 'Full resume report unlock',
       prefill,
-      theme: { color: '#1d4ed8' },
+      theme: { color: '#115e59' },
       handler: (response) =>
         resolve({
           orderId: response.razorpay_order_id,
@@ -92,7 +92,7 @@ export const openCheckout = async (
       modal: { ondismiss: () => reject(new CheckoutDismissedError()) },
     })
     instance.on('payment.failed', (response) => {
-      reject(new Error(response.error?.description || 'Payment failed. You have not been charged.'))
+      reject(new Error(response.error?.description || 'Payment status could not be confirmed. Check your receipt and review status before paying again.'))
     })
     instance.open()
   })
