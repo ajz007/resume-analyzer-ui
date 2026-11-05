@@ -132,6 +132,8 @@ try {
       body = { analysisId: 'example-0', unlocked: true }
     } else if (/^\/analyses\/[^/]+\/review-session$/.test(path))
       body = { session: { version: 0, excludedIds: [], answers: [], attempts: 0 }, report: example.report }
+    else if (path === '/analyses/ai-budget-blocked')
+      body = { id: 'ai-budget-blocked', status: 'failed', errorCode: 'AI_DAILY_BUDGET' }
     else if (path.startsWith('/analyses/'))
       body = {
         id: path.split('/')[2],
@@ -229,6 +231,10 @@ try {
   failDrafts = false
   await button('Try loading drafts again').click()
   await visible(page.getByRole('heading', { name: 'No editable drafts yet' }))
+
+  await visit('/app/results/ai-budget-blocked')
+  await visible(page.getByText('AI processing is temporarily unavailable. Your saved work is available. Please try again later.', { exact: true }))
+  assert.equal(orders, 0)
 
   // Checkout is simulated. The same proof is retried, with no second order.
   await visit('/app/results/example-0')

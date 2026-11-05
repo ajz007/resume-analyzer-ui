@@ -1,3 +1,4 @@
+import { aiLimitMessage } from '../analysis/aiLimits'
 import { saveApplicationLabels } from '../api/workspace'
 import { create } from 'zustand'
 import {
@@ -280,12 +281,12 @@ export const useAnalysisStore = create<AnalysisState>((set, get) => ({
         apiErr?.status === 404 ||
         (typeof technicalDetail === 'string' &&
           technicalDetail.toLowerCase().includes('not found'))
-      const message =
+      const message = aiLimitMessage(errorCode) ?? (
         errorCode === 'retry_required' || apiErr?.status === 429
           ? COPY.errors.retrying
           : isNotFound
             ? COPY.errors.noResume
-            : COPY.errors.generic
+            : COPY.errors.generic)
       const statusMessage =
         err instanceof Error ? err.message.toLowerCase() : ''
       const nextStatus: AnalysisRunStatus =
@@ -297,7 +298,7 @@ export const useAnalysisStore = create<AnalysisState>((set, get) => ({
       set({
         status: 'error',
         error: message,
-        errorDetail: technicalDetail,
+        errorDetail: aiLimitMessage(errorCode) ? undefined : technicalDetail,
         lastErrorCode: errorCode,
         lastStatus: nextStatus,
       })

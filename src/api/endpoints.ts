@@ -1,3 +1,4 @@
+import { analysisFailure, aiLimitMessage } from '../analysis/aiLimits'
 import { env } from '../app/env'
 import { apiRequest } from './client'
 import type {
@@ -53,6 +54,7 @@ export class ResumeParseError extends Error {
 
 type AnalyzeStartResponse = { analysisId?: string; status: string; pollAfterMs?: number } & ParseFailurePayload
 type AnalyzeStatusResponse = {
+ errorCode?: string
   id: string
   status: string
   pollAfterMs?: number
@@ -364,7 +366,7 @@ const pollAnalysisResult = async (
       }
 
       if (statusBody.status === 'failed') {
-        throw new Error('Analysis failed')
+        throw analysisFailure(statusBody)
       }
 
       backoffMs = DEFAULT_POLL_MS
@@ -548,6 +550,7 @@ export async function fetchAnalysisResult(analysisId: string): Promise<AnalysisR
   const statusBody = await apiRequest<AnalyzeStatusResponse>(`/analyses/${analysisId}`, {
     method: 'GET',
   })
+  if (statusBody.status === 'failed' && aiLimitMessage(statusBody.errorCode)) throw analysisFailure(statusBody)
   const resultWithId = withResultAnalysisId(statusBody, analysisId)
   if (resultWithId) {
     const adapted = fromBackendResult(resultWithId)
