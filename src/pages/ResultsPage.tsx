@@ -1,3 +1,4 @@
+import { aiLimitMessage } from '../analysis/aiLimits'
 import { useNavigate, useParams } from 'react-router-dom'
 import ApplicationContext from '../components/ApplicationContext'
 import AtsReport from '../components/reports/AtsReport'
@@ -58,6 +59,8 @@ const ResultsPage = () => {
   const [unlockedResult, setUnlockedResult] = useState<AnalysisResponse | null>(
     null,
   )
+  const [limitFailure, setLimitFailure] = useState<{ analysisId: string; message: string }>()
+  const limitMessage = limitFailure && limitFailure.analysisId === analysisId ? limitFailure.message : undefined
   const [applicationStatus, setApplicationStatus] = useState('loading')
   const [refresh, setRefresh] = useState(0)
   const applicationSaveError = useAnalysisStore((s) =>
@@ -88,14 +91,19 @@ const ResultsPage = () => {
 
     let cancelled = false
 
+    setLimitFailure(undefined)
     const load = async () => {
       try {
         // Always verify the current owner with the server. Legacy browser caches are not account-scoped.
         const fetched = await fetchAnalysisResult(analysisId)
         if (cancelled) return
         setCachedResult(fetched ? normalizeCachedResult(fetched) : null)
-      } catch {
-        if (!cancelled) setCachedResult(null)
+      } catch (err) {
+        if (!cancelled) {
+          setCachedResult(null)
+          const message = aiLimitMessage((err as { code?: string })?.code)
+          setLimitFailure(message ? { analysisId, message } : undefined)
+        }
       }
     }
 
@@ -388,8 +396,10 @@ const ResultsPage = () => {
       ) : (
         <div className={`${ui.card.padded} space-y-3`}>
           <p className="text-gray-700 font-semibold">
-            {applicationStatus === 'loading'
-              ? 'Loading your review…'
+            {limitMessage
+              ? 'This review could not be completed.'
+              : applicationStatus === 'loading'
+                ? 'Loading your review…'
               : applicationStatus === 'queued'
                 ? 'Your review is in the queue.'
                 : applicationStatus === 'processing'
@@ -399,11 +409,11 @@ const ResultsPage = () => {
                     : 'Result not found.'}
           </p>
           <p className={ui.text.subtitle}>
-            {['queued', 'processing'].includes(applicationStatus)
+            {limitMessage ?? (['queued', 'processing'].includes(applicationStatus)
               ? 'You can return later through Applications. You do not need to submit this request again.'
               : applicationStatus === 'failed'
                 ? 'Review your saved source and job description before explicitly retrying.'
-                : 'Open Applications to find a saved review, or check again.'}
+                : 'Open Applications to find a saved review, or check again.')}
           </p>
           <button
             onClick={() => navigate('/app/analyzer')}

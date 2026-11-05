@@ -229,4 +229,13 @@ describe('useAnalysisStore validation', () => {
     expect(useAnalysisStore.getState().status).toBe('idle')
   })
 
+  it('shows the safeguard explanation and refreshes allowance after a blocked review', async () => {
+    mockedAnalyze.mockRejectedValue(Object.assign(new Error('raw internal detail'), { code: 'AI_DAILY_BUDGET' }))
+    useAnalysisStore.setState({ uploadedDoc: source, analysisMode: 'ATS' })
+    await useAnalysisStore.getState().submitAnalysis()
+    expect(useAnalysisStore.getState().error).toContain('Your saved work is available')
+    expect(useAnalysisStore.getState().errorDetail).toBeUndefined()
+    expect(refreshUsage).toHaveBeenCalledWith({ force: true })
+  })
+
 })
