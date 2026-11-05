@@ -15,6 +15,7 @@ export type ReviewReport = {
   schemaVersion: '3'
   scope: 'SELECTED_PASSAGES'
   priorities: { title: string; reason: string; editIds: string[] }[]
+  previewNextStep?: string
   // Paid fields are absent in server-redacted previews, not guessed by the UI.
   edits?: ReviewEdit[]
   sections?: { heading: string; editIds: string[]; retained: { text: string; sourceQuote: string }[]; items?: { editId: string; retainedIndex: number; sourceStart: number; sourceEnd: number }[] }[]

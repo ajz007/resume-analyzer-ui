@@ -140,7 +140,15 @@ try {
         status: 'completed',
         locked: !unlocked,
         lockedSections: unlocked ? [] : ['report'],
-        result: example,
+        result: unlocked ? example : {
+          ...example,
+          report: {
+            schemaVersion: '3',
+            scope: 'SELECTED_PASSAGES',
+            priorities: [],
+            previewNextStep: 'When did you start leading a software team?',
+          },
+        },
       }
     else return route.fulfill({ status: 404, json: { message: 'Fictional test route only' } })
     return route.fulfill({ json: body })
@@ -207,6 +215,14 @@ try {
   await button('Reload pricing').click()
   await visible(page.getByText('$9 per review'))
 
+  paymentConfig = { paywallEnabled: true, prices: [{ currency: 'INR', amount: 24900 }, { currency: 'USD', amount: 900 }] }
+  await visit('/')
+  await visible(page.getByText(/Full review ₹249 per job/))
+  await visit('/app/analyzer?mode=job-match')
+  await visible(page.getByText(/Full review ₹249 per job/))
+  await visible(button('Run free preview'))
+  paymentConfig = { paywallEnabled: true, prices: [{ currency: 'USD', amount: 900 }] }
+
   failApps = true
   await visit('/app/home')
   await visible(page.getByText('Your recent applications could not be loaded. You can still start a review above.'))
@@ -239,6 +255,12 @@ try {
   // Checkout is simulated. The same proof is retried, with no second order.
   await visit('/app/results/example-0')
   await visible(page.getByRole('heading', { name: 'Unlock the full job match report' }))
+  const nextStep = page.getByText('When did you start leading a software team?', { exact: true })
+  await visible(nextStep)
+  assert.equal(await nextStep.evaluate((element) =>
+    Boolean(element.compareDocumentPosition(document.querySelector('[data-testid="unlock-card"]')) & Node.DOCUMENT_POSITION_FOLLOWING)
+  ), true)
+
   await visible(button('Unlock for $9'))
   await button('Unlock for $9').click()
   await visible(button('Check review access'))

@@ -247,7 +247,7 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
     lastStatus === 'timed_out' ||
     lastErrorCode === 'retry_required'
   const baseAnalyzeLabel =
-    analysisMode === 'ATS' ? COPY.form.ats.cta : COPY.form.jobMatch.cta
+    analysisMode === 'ATS' ? COPY.form.ats.cta : 'Run free preview'
   const analyzeLabel = loading
     ? 'Analyzing...'
     : shouldRetry

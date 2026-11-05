@@ -1,3 +1,4 @@
+import JobMatchOffer from '../components/JobMatchOffer'
 import ResumeForm from '../components/ResumeForm'
 import { useAnalysisStore } from '../store/useAnalysisStore'
 import { useUsageStore } from '../store/useUsageStore'
@@ -43,10 +44,12 @@ const AnalyzerPage = () => {
       void runFetch()
     }
     window.addEventListener('auth-updated', handleAuthUpdate)
+    window.addEventListener('guest-claim-complete', handleAuthUpdate)
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility)
       window.removeEventListener('auth-updated', handleAuthUpdate)
+      window.removeEventListener('guest-claim-complete', handleAuthUpdate)
     }
   }, [fetchUsage, resetUsage])
 
@@ -70,6 +73,7 @@ const AnalyzerPage = () => {
           supported by your experience.
         </p>
       </header>
+      {analysisMode === 'JOB_MATCH' ? <JobMatchOffer /> : null}
       <ResumeForm analysisMode={analysisMode} />
     </div>
   )

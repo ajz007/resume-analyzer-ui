@@ -14,6 +14,8 @@ type UsageState = {
   reset: () => void
 }
 
+let requestVersion = 0
+
 export const useUsageStore = create<UsageState>((set, get) => ({
   usage: null,
   loading: false,
@@ -32,11 +34,14 @@ export const useUsageStore = create<UsageState>((set, get) => ({
       return
     }
     if (state.loading) return
+    const version = ++requestVersion
     set({ loading: true, error: undefined, errorStatus: undefined })
     try {
       const data = await fetchUsage({ silent })
+      if (version !== requestVersion) return
       set({ usage: data, loading: false, fetchedAt: Date.now(), errorStatus: undefined })
     } catch (err) {
+      if (version !== requestVersion) return
       const apiErr = err as ApiError
       const status = apiErr?.status
       let nextAllowedFetchAt: number | undefined
@@ -53,7 +58,8 @@ export const useUsageStore = create<UsageState>((set, get) => ({
       })
     }
   },
-  reset: () =>
+  reset: () => {
+    requestVersion++
     set({
       usage: null,
       loading: false,
@@ -61,5 +67,6 @@ export const useUsageStore = create<UsageState>((set, get) => ({
       errorStatus: undefined,
       fetchedAt: undefined,
       nextAllowedFetchAt: undefined,
-    }),
+    })
+  },
 }))

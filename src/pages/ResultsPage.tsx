@@ -22,7 +22,7 @@ export const GuestResultsCta = ({ onSignIn }: { onSignIn: () => void }) => (
   <div className="rounded-lg border border-blue-200 bg-blue-50 p-5">
     <div className="space-y-2">
       <h2 className="text-lg font-semibold text-gray-950">
-        Save this analysis and get 15 free analyses/month by signing in.
+        Sign in to save this review and reuse your resume.
       </h2>
       <p className="text-sm text-gray-700">
         Your history, resume workspace, and tailored resumes stay available
@@ -375,6 +375,11 @@ const ResultsPage = () => {
 
       {normalized ? (
         <>
+          {reportMode === 'JOB_MATCH' ? (
+            <JobMatchReport result={normalized} />
+          ) : (
+            <AtsReport result={normalized} />
+          )}
           {isLocked && analysisId ? (
             <UnlockCard key={analysisId}
               analysisId={analysisId}
@@ -385,11 +390,6 @@ const ResultsPage = () => {
               onUnlocked={handleUnlocked}
             />
           ) : null}
-          {reportMode === 'JOB_MATCH' ? (
-            <JobMatchReport result={normalized} />
-          ) : (
-            <AtsReport result={normalized} />
-          )}
           {!loggedIn && !isLocked ? (
             <GuestResultsCta onSignIn={signIn} />
           ) : null}

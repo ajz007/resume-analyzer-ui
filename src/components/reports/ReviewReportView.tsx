@@ -95,6 +95,9 @@ function GuidedReview({
   const displayedEdits = view === 'new' ? edits.filter((edit) => answerEditIds.has(edit.id)) : edits
   const locked = result.locked === true || !report.edits
   const verdict = result.aiScreening?.aiRecruiterVerdict
+  const previewAction = locked && result.analysisMode !== 'resume_only'
+    ? report.previewNextStep || result.fixThisFirst?.find((item) => item.action?.trim())?.action
+    : undefined
   const scores = [
     ...(result.analysisMode === 'resume_only' ? [] : [{ label: 'Job match', value: getJobMatchScore(result) }]),
     { label: 'ATS readiness', value: getATSScore(result) },
@@ -189,6 +192,12 @@ function GuidedReview({
               </div>
             ) : null}
           </div>
+          {previewAction ? (
+            <div className="border-l-2 border-teal-600 pl-4">
+              <p className="text-sm font-semibold text-teal-900">One thing to check before applying</p>
+              <p>{previewAction}</p>
+            </div>
+          ) : null}
           {!locked ? (
             <div className="flex flex-wrap items-center gap-3">
               <button

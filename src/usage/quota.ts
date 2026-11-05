@@ -1,7 +1,7 @@
 import type { UsageResponse } from '../api/types'
 
-export const GUEST_ANALYSIS_LIMIT = 3
-export const ACCOUNT_ANALYSIS_LIMIT = 15
+export const GUEST_ANALYSIS_LIMIT = 1
+export const ACCOUNT_ANALYSIS_LIMIT = 3
 
 export type ResolvedUsage = {
   authenticated: boolean
@@ -41,16 +41,16 @@ export const getAnalyzerQuotaMessage = (
   const resolved = resolveUsage(usage, authenticated)
   if (resolved.authenticated) {
     if (typeof resolved.remaining === 'number') {
-      return `${resolved.remaining} of ${resolved.limit} analyses remaining this month.`
+      return `${resolved.remaining} of ${resolved.limit} free previews left this month.`
     }
-    return `${ACCOUNT_ANALYSIS_LIMIT} free analyses/month included with your account.`
+    return `${ACCOUNT_ANALYSIS_LIMIT} free previews per month, including your guest preview.`
   }
 
   if (typeof resolved.remaining === 'number') {
-    return `${resolved.remaining} of ${resolved.limit} guest analyses remaining. Sign in for ${ACCOUNT_ANALYSIS_LIMIT}/month.`
+    return `${resolved.remaining} of ${resolved.limit} free guest previews left this month.`
   }
 
-  return `${GUEST_ANALYSIS_LIMIT} free guest analyses this month. Sign in to get ${ACCOUNT_ANALYSIS_LIMIT}/month and save your history.`
+  return `One free guest preview this month. Sign in to save your review and reuse your resume.`
 }
 
 export const getLimitReachedCopy = (
@@ -60,16 +60,16 @@ export const getLimitReachedCopy = (
   const resolved = resolveUsage(usage, authenticated)
   if (resolved.authenticated) {
     return {
-      title: `You've used your ${resolved.limit} free analyses this month.`,
-      description: 'Your free account quota will reset next month.',
+      title: `You've used your ${resolved.limit} free previews this month.`,
+      description: 'Your preview allowance resets next month. You can still open or unlock a saved review.',
       showSignIn: false,
     }
   }
 
   return {
-    title: `You've used your ${resolved.limit} free guest analyses this month.`,
+    title: `You've used your free guest preview this month.`,
     description:
-      `Sign in with Google to continue with ${ACCOUNT_ANALYSIS_LIMIT} free analyses/month, save your history, and create tailored resumes.`,
+      `Sign in to save this review and reuse your resume. Your guest preview counts toward your ${ACCOUNT_ANALYSIS_LIMIT} free previews this month.`,
     showSignIn: true,
   }
 }
