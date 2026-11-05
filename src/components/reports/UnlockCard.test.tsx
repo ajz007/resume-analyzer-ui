@@ -7,6 +7,7 @@ const render = (loggedIn: boolean) =>
   renderToStaticMarkup(
     <MemoryRouter>
       <UnlockCardView
+        jobMatch
         lockedSections={['jobRequirements', 'bulletRewrites']}
         loggedIn={loggedIn}
         prices={[
@@ -25,8 +26,9 @@ const render = (loggedIn: boolean) =>
 describe('UnlockCardView', () => {
   it('shows the selected price and locked sections for signed-in users', () => {
     const html = render(true)
+    expect(html).toContain('Unlock the full job match report')
     expect(html).toContain('Unlock for $9')
-    expect(html).toContain('Weighted per-requirement match for this job')
+    expect(html).toContain('How your resume matches each job requirement')
     expect(html).toContain('Refund policy')
   })
 

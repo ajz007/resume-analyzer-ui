@@ -8,8 +8,8 @@ import { ui } from '../../app/uiTokens'
 import { CheckoutDismissedError, defaultCurrency, formatPrice, openCheckout } from '../../payments/razorpay'
 
 const SECTION_LABELS: Record<string, string> = {
-  report: 'Finished edits, revised passages, evidence and focused follow-up questions',
-  jobRequirements: 'Weighted per-requirement match for this job',
+  report: 'Supporting evidence, suggested resume changes and focused follow-up questions',
+  jobRequirements: 'How your resume matches each job requirement',
   bulletRewrites: 'Bullet rewrites tied to your actual resume content',
   issues: 'Every issue found, not just the top 3',
   recommendations: 'Detailed recommendations',
@@ -19,6 +19,7 @@ const SECTION_LABELS: Record<string, string> = {
 
 type UnlockCardProps = {
   analysisId: string
+  jobMatch?: boolean
   lockedSections: string[]
   loggedIn: boolean
   onSignIn: () => void
@@ -26,6 +27,7 @@ type UnlockCardProps = {
 }
 
 export const UnlockCardView = ({
+  jobMatch = false,
   lockedSections,
   loggedIn,
   prices,
@@ -40,6 +42,7 @@ export const UnlockCardView = ({
   resumeCheckout = false,
   notice,
 }: {
+  jobMatch?: boolean
   lockedSections: string[]
   loggedIn: boolean
   prices: PaymentPrice[]
@@ -59,10 +62,11 @@ export const UnlockCardView = ({
   return (
     <div className="rounded-lg border border-teal-200 bg-teal-50 p-5 space-y-3" data-testid="unlock-card">
       <div className="space-y-1">
-        <h2 className="text-lg font-semibold text-gray-950">Unlock the full report</h2>
+        <h2 className="text-lg font-semibold text-gray-950">{jobMatch ? 'Unlock the full job match report' : 'Unlock the full report'}</h2>
         <p className="text-sm text-gray-700">
-          Your scores and top fixes are free. A one-time payment unlocks the rest of this report. There's no
-          subscription.
+          {jobMatch
+            ? 'Your summary and scores are free. A one-time payment unlocks the detailed match by requirement and suggested resume changes.'
+            : "Your scores and top fixes are free. A one-time payment unlocks the rest of this report. There's no subscription."}
         </p>
       </div>
       {labels.length ? (
@@ -143,7 +147,7 @@ export const UnlockCardView = ({
   )
 }
 
-const UnlockCard = ({ analysisId, lockedSections, loggedIn, onSignIn, onUnlocked }: UnlockCardProps) => {
+const UnlockCard = ({ analysisId, jobMatch, lockedSections, loggedIn, onSignIn, onUnlocked }: UnlockCardProps) => {
   const [prices, setPrices] = useState<PaymentPrice[]>([])
   const [currency, setCurrency] = useState<PaymentPrice['currency']>(() => defaultCurrency())
   const [busy, setBusy] = useState(false)
@@ -286,6 +290,7 @@ const UnlockCard = ({ analysisId, lockedSections, loggedIn, onSignIn, onUnlocked
 
   return (
     <UnlockCardView
+      jobMatch={jobMatch}
       lockedSections={lockedSections}
       loggedIn={loggedIn}
       prices={savedOrder ? [{ currency: savedOrder.currency, amount: savedOrder.amount }] : prices}

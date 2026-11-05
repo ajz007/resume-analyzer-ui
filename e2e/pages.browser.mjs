@@ -238,6 +238,7 @@ try {
 
   // Checkout is simulated. The same proof is retried, with no second order.
   await visit('/app/results/example-0')
+  await visible(page.getByRole('heading', { name: 'Unlock the full job match report' }))
   await visible(button('Unlock for $9'))
   await button('Unlock for $9').click()
   await visible(button('Check review access'))
@@ -250,6 +251,15 @@ try {
   assert.equal(orders, 1)
   assert.equal(verifications.length, 2)
   assert.deepEqual(verifications[0], verifications[1])
+
+  const assertMatchReportOpensFirst = async () => {
+    await visible(page.getByRole('heading', { name: 'Job requirements', exact: true }))
+    assert.equal(await button('Job match report').getAttribute('aria-pressed'), 'true')
+    assert.equal(await page.getByRole('heading', { name: 'Suggested resume changes', exact: true }).count(), 0)
+  }
+  await assertMatchReportOpensFirst()
+  await visit('/app/results/example-0')
+  await assertMatchReportOpensFirst()
 
   // Recovery works without a checkout proof or tab marker.
   unlocked = false
