@@ -378,6 +378,7 @@ const ResultsPage = () => {
           {isLocked && analysisId ? (
             <UnlockCard key={analysisId}
               analysisId={analysisId}
+              jobMatch={reportMode === 'JOB_MATCH'}
               lockedSections={toRender?.lockedSections ?? []}
               loggedIn={loggedIn}
               onSignIn={signIn}

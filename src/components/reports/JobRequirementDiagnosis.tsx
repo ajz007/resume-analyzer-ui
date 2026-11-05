@@ -95,12 +95,12 @@ export default function JobRequirementDiagnosis({
               {edits.length ? (
                 <div className="space-y-2">
                   <p>
-                    <strong>Related resume edits</strong> · Wording changes do not establish missing experience.
+                    <strong>Related resume changes</strong> · Wording changes do not establish missing experience.
                   </p>
                   <div className="flex flex-wrap gap-3">
                     {edits.map((edit) => (
                       <button type="button" key={edit.id} className={reviewLink} onClick={() => onReviewEdit(edit.id)}>
-                        Review edit: {edit.section}
+                        Review suggested change: {edit.section}
                         {edit.confirmedAnswerId ? ' (from your answer)' : ''}
                       </button>
                     ))}
@@ -113,7 +113,7 @@ export default function JobRequirementDiagnosis({
                   className={reviewLink}
                   onClick={() => onClarifyRequirement(requirement.requirementId)}
                 >
-                  Clarify this requirement
+                  Add relevant experience
                 </button>
               ) : hasQuestions && requirement.matchStatus.toUpperCase() !== 'STRONG' ? (
                 <button type="button" className={reviewLink} onClick={onReviewQuestions}>
@@ -137,8 +137,7 @@ export default function JobRequirementDiagnosis({
               <details>
                 <summary className={reviewLink}>Scoring detail</summary>
                 <p className="mt-2">
-                  Submitted resume: {requirement.score}/100 · Weight {requirement.weight}%. This is not a score for the
-                  proposed edits.
+                  Submitted resume: {requirement.score}/100 · Rethink Resume scoring weight: {requirement.weight}%.
                 </p>
                 {priority?.evidenceExpected ? <p>Evidence expected: {priority.evidenceExpected}</p> : null}
               </details>

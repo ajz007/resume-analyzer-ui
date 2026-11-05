@@ -81,7 +81,8 @@ function GuidedReview({
   const [busy, setBusy] = useState(false)
   const [allQuestions, setAllQuestions] = useState(false)
   const [allEdits, setAllEdits] = useState(false)
-  const [panel, setPanel] = useState<'edits' | 'requirements' | 'answers' | 'use'>('edits')
+  const hasDiagnosis = result.analysisMode !== 'resume_only' && !!result.jobMatchScoring?.requirementScores?.length
+  const [panel, setPanel] = useState<'edits' | 'requirements' | 'answers' | 'use'>(hasDiagnosis && !result.locked && initialReport.edits ? 'requirements' : 'edits')
   const [focusTarget, setFocusTarget] = useState('')
   useEffect(() => {
     if (!focusTarget) return
@@ -90,11 +91,8 @@ function GuidedReview({
     element?.scrollIntoView({ block: 'start' })
     setFocusTarget('')
   }, [focusTarget])
-  const hasDiagnosis = result.analysisMode !== 'resume_only' && !!result.jobMatchScoring?.requirementScores?.length
   const edits = report.edits ?? []
-  const initialEdits = edits.filter((edit) => !answerEditIds.has(edit.id))
   const displayedEdits = view === 'new' ? edits.filter((edit) => answerEditIds.has(edit.id)) : edits
-  const editMap = new Map(edits.map((edit) => [edit.id, edit]))
   const locked = result.locked === true || !report.edits
   const verdict = result.aiScreening?.aiRecruiterVerdict
   const scores = [
@@ -126,7 +124,7 @@ function GuidedReview({
       triggerBrowserDownload(await response.blob(), 'reviewed-resume.docx')
       setNotice('Downloaded using your chosen edits and the remaining extracted resume text.')
     } catch {
-      setNotice('The download could not be completed. Your choices remain available in Ready edits.')
+      setNotice('The download could not be completed. Your choices remain available under Suggested resume changes.')
     } finally {
       setBusy(false)
     }
@@ -195,7 +193,7 @@ function GuidedReview({
             <div className="flex flex-wrap items-center gap-3">
               <button
                 type="button"
-                className={ui.button.primary}
+                className={hasDiagnosis ? ui.button.secondary : ui.button.primary}
                 onClick={() => {
                   if (edits.length) {
                     openEdits()
@@ -205,27 +203,28 @@ function GuidedReview({
                 }}
               >
                 {edits.length
-                  ? `Review ${edits.length} ready ${edits.length === 1 ? 'edit' : 'edits'}`
+                  ? 'See suggested resume changes'
                   : hasQuestionsPanel
                     ? 'Review job evidence'
-                    : 'Use your resume'}
+                    : 'Copy or download'}
               </button>
-              {hasDiagnosis ? (
+              {hasDiagnosis && panel !== 'requirements' ? (
                 <button
                   type="button"
-                  className={reviewLink}
-                  aria-controls="job-requirement-diagnosis"
-                  onClick={() => setPanel('requirements')}
+                  className={ui.button.primary}
+                  onClick={() => {
+                    setPanel('requirements')
+                    setFocusTarget('job-requirement-diagnosis')
+                  }}
                 >
-                  See how you match this job
+                  View job match report
                 </button>
               ) : null}
             </div>
           ) : null}
           <details className="border-t border-slate-200 pt-4">
             <summary className={reviewLink}>
-              Submitted resume scores
-              {scores[0] ? ` · ${scores[0].label} ${scores[0].value}/100` : ''}
+              {scores[0] ? `${scores[0].label} ${scores[0].value}/100 · submitted resume` : 'Submitted resume scores'}
             </summary>
             <div className="mt-3 flex flex-wrap gap-5">
               {scores.map((score) => (
@@ -242,18 +241,48 @@ function GuidedReview({
             </p>
             <ScoreDisclaimer />
           </details>
+          {result.jobRequirementProfile?.hiddenExpectations?.length ||
+          result.jobRequirementProfile?.niceToHaveSignals?.length ||
+          result.scoreExplanation?.components?.length ||
+          result.aiScreening?.scoreBreakdown?.length ? (
+            <details className="border-t border-slate-200 pt-4">
+              <summary className={reviewLink}>Scoring and reviewer context</summary>
+              <div className="mt-3 space-y-4">
+                <Lines
+                  items={(result.jobRequirementProfile?.hiddenExpectations ?? []).map(
+                    (item) => `Reviewer inference: ${item.expectation}`,
+                  )}
+                />
+                <Lines
+                  items={(result.jobRequirementProfile?.niceToHaveSignals ?? []).map(
+                    (item) => `Preferred signal: ${item.signal}`,
+                  )}
+                />
+                {result.scoreExplanation?.components?.map((component, index) => (
+                  <p key={index}>
+                    {component.label ?? component.title ?? component.key}: {component.score}/100 — {component.explanation}
+                  </p>
+                ))}
+                {(result.aiScreening?.scoreBreakdown ?? []).map((component) => (
+                  <p key={component.id}>
+                    {component.label}: {component.score}/100 — {component.explanation}
+                  </p>
+                ))}
+              </div>
+            </details>
+          ) : null}
         </div>
       </ReportCard>
 
       <nav className="flex flex-wrap gap-2 border-b border-slate-200 pb-3" aria-label="Review sections">
         {(
           [
-            ['edits', `Ready edits${locked ? '' : ` (${edits.length})`}`],
-            ...(hasQuestionsPanel ? [['requirements', 'Requirements & questions']] : []),
+            ...(hasQuestionsPanel ? [['requirements', hasDiagnosis ? 'Job match report' : 'Requirements & questions']] : []),
+            ['edits', `Suggested resume changes${locked ? '' : ` (${edits.length})`}`],
             ...(!readOnly && review.session.answers.length
               ? [['answers', `Answer updates (${review.session.answers.length})`]]
               : []),
-            ...(!locked ? [['use', 'Use your resume']] : []),
+            ...(!locked ? [['use', 'Copy or download']] : []),
           ] as [typeof panel, string][]
         ).map(([id, label]) => (
           <button
@@ -269,7 +298,7 @@ function GuidedReview({
       </nav>
       {panel === 'requirements' && hasDiagnosis ? (
         <ReportCard>
-          <section id="job-requirement-diagnosis">
+          <section id="job-requirement-diagnosis" tabIndex={-1} className="scroll-mt-6">
             <h2 className={ui.results.section.title}>Job requirements</h2>
             <div className="mt-4">
               <JobRequirementDiagnosis
@@ -306,11 +335,11 @@ function GuidedReview({
       {locked ? (
         <ReportCard>
           <h2 className={ui.results.section.title}>Your full review is locked</h2>
-          <p>Unlock this report to see finished edits, revised passages, supporting evidence, and focused questions.</p>
+          <p>Unlock this report to see the detailed analysis, suggested resume changes and relevant follow-up questions.</p>
         </ReportCard>
       ) : (
         <>
-          {transport ? (
+          {transport && (panel !== 'requirements' || review.error || review.session.lastError || review.session.pending || (!review.loading && !review.ready)) ? (
             <div className="rounded-lg border-l-2 border-teal-600 bg-teal-50/50 px-4 py-3 text-sm">
               <div className="space-y-2" role="status" aria-live="polite">
                 {review.loading ? (
@@ -322,10 +351,7 @@ function GuidedReview({
                 ) : review.error || review.session.lastError ? (
                   <p>Your earlier saved choices remain in use.</p>
                 ) : (
-                  <p>
-                    {initialEdits.length} initial {initialEdits.length === 1 ? 'edit' : 'edits'} available · Your review
-                    is saved.
-                  </p>
+                  <p>Your review is saved.</p>
                 )}
                 {review.error || review.session.lastError ? (
                   <p className="text-rose-800">{review.error || review.session.lastError}</p>
@@ -356,14 +382,16 @@ function GuidedReview({
                     Review the previous answer
                   </button>
                 ) : null}
-                <button
-                  type="button"
-                  className={reviewLink}
-                  disabled={review.loading || review.working}
-                  onClick={() => void review.reload()}
-                >
-                  Reload saved review
-                </button>
+                {(!review.ready || review.error || review.session.lastError) && !review.loading ? (
+                  <button
+                    type="button"
+                    className={reviewLink}
+                    disabled={review.working}
+                    onClick={() => void review.reload()}
+                  >
+                    Reload saved review
+                  </button>
+                ) : null}
               </div>
             </div>
           ) : null}
@@ -448,10 +476,9 @@ function GuidedReview({
           {panel === 'edits' ? (
             <section id="review-edit-list" tabIndex={-1} className="space-y-5 scroll-mt-6">
               <div>
-                <h2 className={ui.results.section.title}>Ready edits</h2>
+                <h2 className={ui.results.section.title}>Suggested resume changes</h2>
                 <p className="mt-2">
-                  Start with wording supported by your resume. Keep any original you prefer; your choices carry through
-                  to the download.
+                  Compare suggested wording with your original resume. Keep the changes that accurately reflect your experience.
                 </p>
               </div>
               <div className="flex flex-wrap gap-3" role="group" aria-label="Passage view">
@@ -527,7 +554,7 @@ function GuidedReview({
                           </p>
                         </details>
                         <p>
-                          <strong>Why:</strong> {edit.reason}
+                          <strong>Why this helps:</strong> {edit.reason}
                         </p>
                         {edit.insertAfter ? (
                           <details>
@@ -620,7 +647,7 @@ function GuidedReview({
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-5">
                 <p>Happy with these passages?</p>
                 <button type="button" className={ui.button.primary} onClick={() => setPanel('use')}>
-                  Use your resume
+                  Copy or download
                 </button>
               </div>
             </section>
@@ -694,42 +721,10 @@ function GuidedReview({
             </ReportCard>
           ) : null}
 
-          {panel === 'edits' && report.priorities.length ? (
-            <ReportCard>
-              <details>
-                <summary className={reviewLink}>Why these edits matter</summary>
-                <ol className="list-decimal space-y-3 pl-5">
-                  {report.priorities.map((priority, index) => (
-                    <li key={index}>
-                      <strong>{priority.title}</strong>
-                      <p>{priority.reason}</p>
-                      {!locked ? (
-                        <div className="flex flex-wrap gap-3">
-                          {priority.editIds.map((id) => (
-                            <a
-                              key={id}
-                              className={reviewLink}
-                              href={`#review-edit-${id}`}
-                              onClick={() => {
-                                openEdits()
-                              }}
-                            >
-                              Review {editMap.get(id)?.section ?? 'edit'}
-                            </a>
-                          ))}
-                        </div>
-                      ) : null}
-                    </li>
-                  ))}
-                </ol>
-              </details>
-            </ReportCard>
-          ) : null}
-
           {panel === 'edits' && report.outcomes ? (
             <ReportCard>
               <details>
-                <summary className={reviewLink}>What wording can and cannot improve</summary>
+                <summary className={reviewLink}>What these changes can improve</summary>
                 <div className="space-y-3">
                   <p>
                     These outcomes describe the initial proposed edits. See the answer updates for new evidence and
@@ -848,50 +843,16 @@ function GuidedReview({
       <p role="status" aria-live="polite" className="text-sm text-teal-900">
         {notice}
       </p>
-      {result.jobRequirementProfile?.recruiterIntentSummary ||
-      result.jobRequirementProfile?.hiddenExpectations?.length ||
-      result.jobRequirementProfile?.niceToHaveSignals?.length ||
-      result.scoreExplanation?.components?.length ||
-      result.aiScreening?.scoreBreakdown?.length ? (
-        <ReportCard>
-          <details>
-            <summary className={reviewLink}>Score explanations and reviewer context</summary>
-            <div className="mt-3 space-y-4">
-              {result.jobRequirementProfile?.recruiterIntentSummary ? (
-                <p>{result.jobRequirementProfile.recruiterIntentSummary}</p>
-              ) : null}
-              <Lines
-                items={(result.jobRequirementProfile?.hiddenExpectations ?? []).map(
-                  (item) => `Reviewer inference: ${item.expectation}`,
-                )}
-              />
-              <Lines
-                items={(result.jobRequirementProfile?.niceToHaveSignals ?? []).map(
-                  (item) => `Preferred signal: ${item.signal}`,
-                )}
-              />
-              {result.scoreExplanation?.components?.map((component, index) => (
-                <p key={index}>
-                  {component.label ?? component.title ?? component.key}: {component.score}/100 — {component.explanation}
-                </p>
-              ))}
-              {(result.aiScreening?.scoreBreakdown ?? []).map((component) => (
-                <p key={component.id}>
-                  {component.label}: {component.score}/100 — {component.explanation}
-                </p>
-              ))}
-            </div>
-          </details>
-        </ReportCard>
+      {panel === 'edits' ? (
+        <details className="space-y-3">
+          <summary className={ui.button.secondary}>Resume checks</summary>
+          <AtsChecksSection
+            result={result}
+            defaultExpanded
+            title={referencePreview ? 'Checks from your previous analysis' : 'Resume checks and terminology'}
+          />
+        </details>
       ) : null}
-      <details className="space-y-3">
-        <summary className={ui.button.secondary}>Resume checks and terminology</summary>
-        <AtsChecksSection
-          result={result}
-          defaultExpanded={false}
-          title={referencePreview ? 'Checks from your previous analysis' : 'Resume checks and terminology'}
-        />
-      </details>
 
       {!locked && panel === 'edits' ? (
         <>
