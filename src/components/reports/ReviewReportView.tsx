@@ -513,7 +513,9 @@ function GuidedReview({
               {view !== 'full' ? (
                 <div className="space-y-4">
                   <p className="text-sm text-slate-600">
-                    Highlighting marks new wording. Edits from confirmed answers are labeled separately.
+                    {readOnly
+                      ? 'This shared view shows suggested wording. Original comparisons and source excerpts are private.'
+                      : 'Highlighting marks new wording. Edits from confirmed answers are labeled separately.'}
                   </p>
                   {!displayedEdits.length ? (
                     <ReportCard>
@@ -534,8 +536,10 @@ function GuidedReview({
                         </p>
                         <p>
                           {edit.operation === 'remove' && !excluded.has(edit.id)
-                            ? 'Remove this passage; the original is available below.'
-                            : addedWords(edit.before, chosenEditText(edit, excluded)).map((token, i) =>
+                            ? (readOnly ? 'A passage is recommended for removal.' : 'Remove this passage; the original is available below.')
+                            : readOnly
+                              ? edit.after
+                              : addedWords(edit.before, chosenEditText(edit, excluded)).map((token, i) =>
                                 token.changed ? (
                                   <mark key={i} className="bg-emerald-100 text-emerald-950">
                                     {token.text}
@@ -545,32 +549,36 @@ function GuidedReview({
                                 ),
                               )}
                         </p>
-                        <details>
-                          <summary className={reviewLink}>
-                            {edit.before ? 'Compare with original' : 'New passage'}
-                          </summary>
-                          <p className="mt-2 whitespace-pre-wrap">
-                            {edit.before || 'No original passage is replaced.'}
-                          </p>
-                        </details>
+                        {!readOnly ? (
+                          <details>
+                            <summary className={reviewLink}>
+                              {edit.before ? 'Compare with original' : 'New passage'}
+                            </summary>
+                            <p className="mt-2 whitespace-pre-wrap">
+                              {edit.before || 'No original passage is replaced.'}
+                            </p>
+                          </details>
+                        ) : null}
                         <p>
                           <strong>Why this helps:</strong> {edit.reason}
                         </p>
-                        {edit.insertAfter ? (
+                        {!readOnly && edit.insertAfter ? (
                           <details>
                             <summary className={reviewLink}>Placement</summary>
                             <p>Insert after: {edit.insertAfter}</p>
                           </details>
                         ) : null}
-                        <details>
-                          <summary className={reviewLink}>Source evidence</summary>
-                          <Lines items={edit.sourceQuotes} />
-                          <p>
-                            {answerEditIds.has(edit.id)
-                              ? 'Uses original resume context and your confirmed answer; not independently verified.'
-                              : 'Supported by the supplied resume; not independently verified.'}
-                          </p>
-                        </details>
+                        {!readOnly ? (
+                          <details>
+                            <summary className={reviewLink}>Source evidence</summary>
+                            <Lines items={edit.sourceQuotes} />
+                            <p>
+                              {answerEditIds.has(edit.id)
+                                ? 'Uses original resume context and your confirmed answer; not independently verified.'
+                                : 'Supported by the supplied resume; not independently verified.'}
+                            </p>
+                          </details>
+                        ) : null}
                         {answerEditIds.has(edit.id) ? (
                           <details>
                             <summary className={reviewLink}>Your supporting answer</summary>

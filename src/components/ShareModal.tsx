@@ -29,7 +29,7 @@ const ShareModal = ({ open, shareUrl, isCopying, errorMessage, onClose, onCopy }
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Share report preview</h2>
             <p className={ui.results.text.meta}>
-              Anyone with this link can view the ATS Readiness and Job Match report.
+              Anyone with this link can view the analysis, including resume evidence and any visible suggestions. Preview it before sharing.
             </p>
           </div>
 
@@ -46,7 +46,12 @@ const ShareModal = ({ open, shareUrl, isCopying, errorMessage, onClose, onCopy }
             {errorMessage ? <p className="text-sm text-red-700">{errorMessage}</p> : null}
           </div>
 
-          <div className="flex items-center justify-end gap-3">
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            {shareUrl ? (
+              <a href={shareUrl} target="_blank" rel="noopener noreferrer" className={ui.button.secondary}>
+                Preview shared report
+              </a>
+            ) : null}
             <button type="button" onClick={onClose} className={ui.button.secondary}>
               Close
             </button>
