@@ -10,7 +10,7 @@ export const buildFaqs = (paywallEnabled: boolean | null) => [
   {
     question: 'What uses a free preview?',
     answer:
-      'A new job match or resume readability check uses one preview. Reopening or unlocking a saved review uses none. Your guest preview counts toward the signed-in allowance.',
+      'Running a free job match preview or resume readability check uses one preview. A paid review credit can start a new job match or unlock a saved preview without using the free allowance. Your guest preview counts toward the signed-in allowance.',
   },
   {
     question: 'Do I need a credit card?',

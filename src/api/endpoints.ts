@@ -400,7 +400,7 @@ export async function analyzeDocument(
   documentId: string,
   jobDescription: string,
   mode: 'ATS' | 'JOB_MATCH',
-  options: { retry?: boolean; onStarted?: (id: string) => Promise<void>; onStatus?: (status: string) => void } = {},
+  options: { retry?: boolean; useReviewCredit?: boolean; onStarted?: (id: string) => Promise<void>; onStatus?: (status: string) => void } = {},
 ): Promise<AnalysisResponse> {
   if (env.useMockApi) {
     return analyzeMock(documentId, jobDescription, mode)
@@ -414,7 +414,7 @@ export async function analyzeDocument(
         'Content-Type': 'application/json',
         ...(options.retry ? { 'X-Retry-Analysis': 'true' } : {}),
       },
-      body: JSON.stringify({ mode, jobDescription: jobDescription ?? '' }),
+      body: JSON.stringify({ mode, jobDescription: jobDescription ?? '', useReviewCredit: options.useReviewCredit }),
     },
     { suppressToastOnStatus: [400, 409, 422] },
   )

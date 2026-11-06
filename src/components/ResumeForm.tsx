@@ -1,3 +1,4 @@
+import ReviewCreditAction from './ReviewCreditAction'
 import type { FormEvent, Ref } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -219,9 +220,9 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
   }, [setUploadedDoc])
 
   // wire store to push to history on successful analyze
-  const submitWithHistory = async () => {
+  const submitWithHistory = async (useCredit = false) => {
     useAnalysisStore.setState({ addToHistory: addItem })
-    const pending = submitAnalysis()
+    const pending = submitAnalysis(useCredit || undefined)
     const submittedAt = useAnalysisStore.getState().lastSubmitAt
     await pending
     const current = useAnalysisStore.getState()
@@ -671,6 +672,21 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
         loggedIn={loggedIn}
         onSignIn={() => window.open(authStartUrl, '_self')}
       />
+
+      {loggedIn && analysisMode === 'JOB_MATCH' ? (
+        <ReviewCreditAction
+          allowBuy={limitReached}
+          disabled={analysisActive || !uploadedDoc || jdTooShort}
+          onUse={async () => {
+            const current = useAnalysisStore.getState()
+            if (current.jdText !== jdText || current.uploadedDoc?.documentId !== uploadedDoc?.documentId ||
+                current.analysisMode !== 'JOB_MATCH') {
+              throw new Error('The job or resume changed. Choose Use 1 review credit when you are ready.')
+            }
+            await submitWithHistory(true)
+          }}
+        />
+      ) : null}
 
       <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:items-center">
         <button
