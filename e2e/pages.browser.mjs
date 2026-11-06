@@ -215,11 +215,11 @@ try {
   await button('Reload pricing').click()
   await visible(page.getByText('$9 per review'))
 
-  paymentConfig = { paywallEnabled: true, prices: [{ currency: 'INR', amount: 24900 }, { currency: 'USD', amount: 900 }] }
+  paymentConfig = { paywallEnabled: true, prices: [{ currency: 'INR', amount: 16900 }, { currency: 'USD', amount: 900 }] }
   await visit('/')
-  await visible(page.getByText(/Full review ₹249 per job/))
+  await visible(page.getByText(/Full review ₹169 per job/))
   await visit('/app/analyzer?mode=job-match')
-  await visible(page.getByText(/Full review ₹249 per job/))
+  await visible(page.getByText(/Full review ₹169 per job/))
   await visible(button('Run free preview'))
   paymentConfig = { paywallEnabled: true, prices: [{ currency: 'USD', amount: 900 }] }
 
