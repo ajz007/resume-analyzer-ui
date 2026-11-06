@@ -58,6 +58,7 @@ type AnalyzeStatusResponse = {
  errorCode?: string
   id: string
   status: string
+  paidReviewCredit?: 'reserved' | 'returned'
   pollAfterMs?: number
   retryAfterMs?: number
   result?: BackendAnalysisResult
@@ -539,7 +540,10 @@ export async function fetchAnalyses(params: ListParams = {}): Promise<AnalysisLi
   return items.map((item, idx) => normalizeAnalysisListItem(item, idx))
 }
 
-export async function fetchAnalysisResult(analysisId: string): Promise<AnalysisResponse | null> {
+export async function fetchAnalysisResult(
+  analysisId: string,
+  onStatus?: (status: Pick<AnalyzeStatusResponse, 'status' | 'paidReviewCredit'>) => void,
+): Promise<AnalysisResponse | null> {
   if (env.useMockApi) {
     return {
       ...mockAnalysis,
@@ -551,6 +555,7 @@ export async function fetchAnalysisResult(analysisId: string): Promise<AnalysisR
   const statusBody = await apiRequest<AnalyzeStatusResponse>(`/analyses/${analysisId}`, {
     method: 'GET',
   })
+  onStatus?.(statusBody)
   if (statusBody.status === 'failed' && aiLimitMessage(statusBody.errorCode)) throw analysisFailure(statusBody)
   const resultWithId = withResultAnalysisId(statusBody, analysisId)
   if (resultWithId) {
