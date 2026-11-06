@@ -87,6 +87,10 @@ try {
   let savedOrder = { orderId: 'order-example', amount: 900, currency: 'USD', keyId: 'fictional-key' }
   let verifications = []
   let unlocked = false
+  let creditScenario = false
+  let creditPaid = false
+  let creditUses = 0
+  let creditOrders = 0
   const pageErrors = []
   const intercept = async (route) => {
     const url = new URL(route.request().url())
@@ -110,7 +114,21 @@ try {
     else if (path === '/api/v1/resumes') {
       if (failDrafts) return route.fulfill({ status: 503, json: { message: 'Drafts unavailable' } })
       body = []
-    } else if (path === '/usage')
+    } else if (creditScenario && path === '/payments/review-credits')
+      body = { available: creditPaid && creditUses === 0 ? 1 : 0, price: 16900, currency: 'INR' }
+    else if (creditScenario && path.startsWith('/payments/review-credits/')) {
+      if (route.request().method() === 'POST') creditOrders++
+      body = creditPaid
+        ? { state: 'paid', receipt: { transactionId: 'credit-receipt', amountMinor: 16900, currency: 'INR' } }
+        : { state: 'ready', order: { ...savedOrder, amount: 16900, currency: 'INR' } }
+    } else if (creditScenario && /^\/documents\/[^/]+\/analyze$/.test(path)) {
+      assert.equal(route.request().postDataJSON().useReviewCredit, true)
+      assert.equal(creditPaid, true)
+      creditUses++
+      body = { analysisId: 'credit-review', status: 'completed' }
+    } else if (creditScenario && path === '/usage')
+      body = { plan: 'free', used: 3, limit: 3, remaining: 0, resetsAt: '2026-12-01T00:00:00Z', authenticated: true }
+    else if (path === '/usage')
       body = { plan: 'free', used: 0, limit: 15, remaining: 15, resetsAt: '2026-12-01T00:00:00Z', authenticated: true }
     else if (path.startsWith('/payments/purchases/')) {
       if (failRecovery) return route.fulfill({ status: 503, json: { message: 'Recovery interrupted' } })
@@ -126,6 +144,7 @@ try {
         return route.fulfill({ status: 503, json: { message: 'Order response lost' } })
       }
     } else if (path === '/payments/verify') {
+      if (creditScenario) { creditPaid = true; return route.fulfill({ json: { unlocked: true } }) }
       verifications.push(route.request().postDataJSON())
       if (verifyError) return route.fulfill({ status: 503, json: { message: 'Verification interrupted' } })
       unlocked = true
@@ -344,6 +363,18 @@ try {
   assert.equal(await button('Payment confirmation pending').isDisabled(), true)
   assert.equal(orders, 4)
   unlocked = true
+
+  creditScenario = true
+  await visit('/app/analyzer?mode=job-match')
+  await visible(sourceSelected())
+  await page.locator('#jd').fill('Build and maintain a dependable backend service. '.repeat(10))
+  await visible(button('Buy 1 full review · ₹169'))
+  assert.equal(await button('Run free preview').isDisabled(), true)
+  await button('Buy 1 full review · ₹169').click()
+  await page.waitForURL('**/app/results/credit-review')
+  assert.equal(creditOrders, 1)
+  assert.equal(creditUses, 1)
+  creditScenario = false
 
   if (screenshots) await mkdir(screenshots, { recursive: true })
   for (const width of [1440, 390, 320]) {

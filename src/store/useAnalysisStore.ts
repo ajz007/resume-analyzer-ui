@@ -54,7 +54,7 @@ type AnalysisState = {
   setResumeFile: (file: File | null) => void
   setJdText: (text: string) => void
   setAnalysisMode: (mode: AnalysisMode) => void
-  submitAnalysis: () => Promise<void>
+  submitAnalysis: (useReviewCredit?: boolean) => Promise<void>
   setError: (message?: string) => void
   reset: () => void
   addToHistory?: (item: {
@@ -126,7 +126,7 @@ export const useAnalysisStore = create<AnalysisState>((set, get) => ({
     set({ ...initialState })
   },
 
-  submitAnalysis: async () => {
+  submitAnalysis: async (useReviewCredit = false) => {
     const {
       uploadedDoc,
       companyName,
@@ -198,7 +198,8 @@ export const useAnalysisStore = create<AnalysisState>((set, get) => ({
         jdText,
         analysisMode,
         {
-          retry: shouldRetry,
+          retry: shouldRetry || useReviewCredit,
+          useReviewCredit,
           onStarted: async (id) => {
             if (generation !== submissionGeneration) return
             set({ analysisId: id, applicationSaveError: undefined })

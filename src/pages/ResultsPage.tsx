@@ -1,3 +1,5 @@
+import ReviewCreditAction from '../components/ReviewCreditAction'
+import { unlockWithReviewCredit } from '../api/reviewCredits'
 import { aiLimitMessage } from '../analysis/aiLimits'
 import { useNavigate, useParams } from 'react-router-dom'
 import ApplicationContext from '../components/ApplicationContext'
@@ -380,6 +382,12 @@ const ResultsPage = () => {
           ) : (
             <AtsReport result={normalized} />
           )}
+          {isLocked && analysisId && loggedIn && reportMode === 'JOB_MATCH' ? (
+            <ReviewCreditAction allowBuy={false} onUse={async () => {
+              await unlockWithReviewCredit(analysisId)
+              await handleUnlocked()
+            }} />
+          ) : null}
           {isLocked && analysisId ? (
             <UnlockCard key={analysisId}
               analysisId={analysisId}
