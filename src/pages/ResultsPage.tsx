@@ -1,7 +1,8 @@
 import ReviewCreditAction from '../components/ReviewCreditAction'
 import { unlockWithReviewCredit } from '../api/reviewCredits'
 import { aiLimitMessage } from '../analysis/aiLimits'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { fetchRechecks } from '../api/rechecks'
 import ApplicationContext from '../components/ApplicationContext'
 import AtsReport from '../components/reports/AtsReport'
 import JobMatchReport from '../components/reports/JobMatchReport'
@@ -72,6 +73,16 @@ const ResultsPage = () => {
     s.analysisId === analysisId ? s.applicationSaveError : undefined,
   )
   const loggedIn = isLoggedIn()
+  const [parentReview, setParentReview] = useState<{ id: string; parentId: string }>()
+  const originalAnalysisId = parentReview?.id === analysisId ? parentReview?.parentId : undefined
+  useEffect(() => {
+    if (!loggedIn || !analysisId) return
+    let active = true
+    void fetchRechecks(analysisId).then((data) => {
+      if (active) setParentReview({ id: analysisId, parentId: data.originalAnalysisId })
+    }).catch(() => { /* Ordinary reviews remain available if recheck metadata cannot load. */ })
+    return () => { active = false }
+  }, [analysisId, loggedIn])
   const authStartUrl = useMemo(() => {
     const base = (env.apiBaseUrl || '').replace(/\/$/, '')
     return base ? `${base}/auth/google/start` : '/auth/google/start'
@@ -305,6 +316,14 @@ const ResultsPage = () => {
           refreshKey={refresh}
         />
       )}
+      {originalAnalysisId ? (
+        <div className="space-y-2 rounded-lg border border-teal-200 bg-teal-50 p-4">
+          <p className="font-semibold text-teal-900">Recheck of a saved resume</p>
+          <Link className={ui.results.link} to={`/app/results/${encodeURIComponent(originalAnalysisId)}`}>
+            Back to original job match report
+          </Link>
+        </div>
+      ) : null}
       <div className="flex items-start justify-between gap-4">
         <div>
           {!normalized?.report && (
