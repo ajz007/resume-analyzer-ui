@@ -344,7 +344,7 @@ const pollAnalysisResult = async (
 
   while (true) {
     if (Date.now() - start > 360_000) {
-      throw new Error('Your report is still processing. Open History to check its status; you do not need to submit it again.')
+      throw Object.assign(new Error('The browser stopped waiting for this review.'), { code: 'REVIEW_WAIT_TIMEOUT' })
     }
 
     try {

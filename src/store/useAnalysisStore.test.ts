@@ -208,6 +208,22 @@ describe('useAnalysisStore validation', () => {
       'without analyzing again',
     )
   })
+  it('keeps a submitted review addressable when only browser waiting times out', async () => {
+    mockedAnalyze.mockImplementation(async (_doc, _jd, _mode, options) => {
+      await options?.onStarted?.('queued-review')
+      throw Object.assign(new Error('Browser stopped waiting'), { code: 'REVIEW_WAIT_TIMEOUT' })
+    })
+    useAnalysisStore.setState({ uploadedDoc: source, analysisMode: 'ATS' })
+    await useAnalysisStore.getState().submitAnalysis()
+    expect(useAnalysisStore.getState()).toMatchObject({
+      analysisId: 'queued-review',
+      lastStatus: 'timed_out',
+      lastErrorCode: 'REVIEW_WAIT_TIMEOUT',
+      error: undefined,
+      errorDetail: undefined,
+    })
+  })
+
   it('refreshes server usage after a technical failure', async () => {
     mockedAnalyze.mockRejectedValue(new Error('Review failed'))
     useAnalysisStore.setState({ uploadedDoc: source, analysisMode: 'ATS' })

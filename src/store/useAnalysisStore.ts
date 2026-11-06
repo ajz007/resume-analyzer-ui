@@ -277,6 +277,10 @@ export const useAnalysisStore = create<AnalysisState>((set, get) => ({
 
       const errorCode =
         typeof apiErr?.code === 'string' ? apiErr.code : undefined
+      if (errorCode === 'REVIEW_WAIT_TIMEOUT') {
+        set({ status: 'error', error: undefined, errorDetail: undefined, lastErrorCode: errorCode, lastStatus: 'timed_out' })
+        return
+      }
       const technicalDetail = err instanceof Error ? err.message : undefined
       const isNotFound =
         errorCode === 'document_not_found' ||
