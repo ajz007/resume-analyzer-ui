@@ -1,3 +1,4 @@
+import AnalyticsSettings from '../../analytics/AnalyticsSettings'
 import NewJobLink from '../NewJobLink'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useEffect, useMemo, useState, useRef } from 'react'
@@ -329,6 +330,7 @@ const AppShell = () => {
             </aside>
           )}
           <main id="main-content" className="min-w-0 flex-1 py-8">
+            <AnalyticsSettings />
             <Outlet key={`${getAuthToken() ?? 'guest'}-${accountVersion}`} />
           </main>
         </div>

@@ -1,3 +1,4 @@
+import type { PurchaseReceipt } from '../analytics/google'
 import { analysisFailure, aiLimitMessage } from '../analysis/aiLimits'
 import { env } from '../app/env'
 import { apiRequest } from './client'
@@ -637,6 +638,7 @@ export async function claimGuestAnalyses(): Promise<ClaimGuestResponse> {
 export type PaymentPurchase = {
   state: 'none' | 'pending' | 'ready' | 'paid' | 'refunded'
   order?: PaymentOrder
+  receipt?: PurchaseReceipt
 }
 
 export async function recoverPaymentPurchase(analysisId: string): Promise<PaymentPurchase> {

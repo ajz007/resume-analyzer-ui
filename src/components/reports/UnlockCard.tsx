@@ -1,3 +1,4 @@
+import { recordConfirmedPurchase } from '../../analytics/google'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { createPaymentOrder, fetchPaymentConfig, recoverPaymentPurchase, verifyPayment } from '../../api/endpoints'
@@ -176,6 +177,7 @@ const UnlockCard = ({ analysisId, jobMatch, lockedSections, loggedIn, onSignIn, 
 
   const applyRecovery = useCallback(async (purchase: PaymentPurchase) => {
     if (purchase.state === 'paid') {
+      if (jobMatch) recordConfirmedPurchase(purchase.receipt)
       await onUnlockedRef.current()
       markPending(false)
       proof.current = null
@@ -196,7 +198,7 @@ const UnlockCard = ({ analysisId, jobMatch, lockedSections, loggedIn, onSignIn, 
         ? 'This purchase was refunded. Contact support before purchasing this review again.'
         : 'Your existing purchase is still being confirmed. Check its status before another payment.')
     }
-  }, [markPending])
+  }, [jobMatch, markPending])
 
   useEffect(() => {
     let cancelled = false
