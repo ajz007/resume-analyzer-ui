@@ -18,9 +18,13 @@ export function saveTailoredResume(analysisId: string, choices: ExportChoices) {
   return apiRequest<UploadedDoc>(path(analysisId), exportRequest(choices))
 }
 
-export async function previewTailoredResume(analysisId: string, choices: ExportChoices) {
-  const result = await apiRequest<{ text: string }>(`${path(analysisId)}/preview`, exportRequest(choices))
-  return result.text
+export type ResumePreview = {
+  text: string
+  blocks?: { kind: 'title' | 'heading' | 'bullet' | 'paragraph'; text: string }[]
+}
+
+export function previewTailoredResume(analysisId: string, choices: ExportChoices) {
+  return apiRequest<ResumePreview>(`${path(analysisId)}/preview`, exportRequest(choices))
 }
 
 export async function downloadTailoredResume(version: UploadedDoc) {

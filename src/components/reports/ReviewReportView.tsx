@@ -12,9 +12,10 @@ import {
 import { Link } from 'react-router-dom'
 import { useWorkspaceIdentity } from '../../auth/useWorkspaceIdentity'
 import type { UploadedDoc } from '../../api/documents'
-import { downloadTailoredResume, listTailoredResumes, previewTailoredResume, saveTailoredResume } from '../../api/tailoredResumes'
+import { downloadTailoredResume, listTailoredResumes, previewTailoredResume, saveTailoredResume, type ResumePreview } from '../../api/tailoredResumes'
 import { fetchRechecks, type ApplicationRechecks } from '../../api/rechecks'
 import RecheckVersionAction from './RecheckVersionAction'
+import TailoredResumePreview from './TailoredResumePreview'
 import { apiDownload } from '../../api/client'
 import { triggerBrowserDownload } from '../../api/resumes'
 import { ui } from '../../app/uiTokens'
@@ -86,7 +87,7 @@ function GuidedReview({
   const [versions, setVersions] = useState<UploadedDoc[]>([])
   const [versionAction, setVersionAction] = useState('')
   const [versionError, setVersionError] = useState('')
-  const [fullPreview, setFullPreview] = useState<{ key: string; text: string } | null>(null)
+  const [fullPreview, setFullPreview] = useState<{ key: string; preview: ResumePreview } | null>(null)
   useEffect(() => {
     let active = true
     if (canSave) {
@@ -110,6 +111,14 @@ function GuidedReview({
   const excluded = new Set(review.session.excludedIds)
   const answerEditIds = new Set(review.session.answers.flatMap((answer) => (answer.edit ? [answer.edit.id] : [])))
   const [notice, setNotice] = useState('')
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'manual'>('idle')
+  const copyField = useRef<HTMLTextAreaElement>(null)
+  useEffect(() => {
+    if (copyStatus === 'manual') {
+      copyField.current?.focus()
+      copyField.current?.select()
+    }
+  }, [copyStatus])
   const [busy, setBusy] = useState(false)
   const [skippedQuestionId, setSkippedQuestionId] = useState('')
   const [allQuestions, setAllQuestions] = useState(false)
@@ -137,12 +146,16 @@ function GuidedReview({
     { label: 'AI screening readiness', value: getAIScreeningScore(result) },
   ].filter((item) => typeof item.value === 'number')
 
+  const selectedPassages = revisedPassages(report, excluded)
+
   async function copyPassages() {
     try {
-      await navigator.clipboard.writeText(revisedPassages(report, excluded))
-      setNotice('Selected revised passages copied. Keep the rest of your resume.')
+      await navigator.clipboard.writeText(selectedPassages)
+      setCopyStatus('copied')
     } catch {
-      setNotice('Copy was unavailable. Open Preview selected passages to select and copy the text.')
+      setCopyStatus('manual')
+      copyField.current?.focus()
+      copyField.current?.select()
     }
   }
   const exportChoices = {
@@ -155,8 +168,8 @@ function GuidedReview({
     setVersionAction('preview')
     setVersionError('')
     try {
-      const text = await previewTailoredResume(result.analysisId, exportChoices)
-      setFullPreview({ key: previewKey, text })
+      const preview = await previewTailoredResume(result.analysisId, exportChoices)
+      setFullPreview({ key: previewKey, preview })
     } catch {
       setVersionError('The resume preview could not be prepared. Please try again.')
     } finally {
@@ -358,7 +371,7 @@ function GuidedReview({
       </ReportCard>
 
       {showJourney ? (
-        <ol aria-label="Application review progress" className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-600">
+        <ol aria-label="Application review progress" className="grid gap-3 rounded-xl border border-teal-200 bg-teal-50/60 p-3 sm:grid-cols-3 sm:gap-6 sm:p-4">
           {([
             ['requirements', 'Understand your fit'],
             ['edits', 'Tailor your resume'],
@@ -366,8 +379,14 @@ function GuidedReview({
           ] as const).map(([step, label], index) => {
             const current = step === panel || (step === 'edits' && panel === 'answers')
             return (
-              <li key={step} aria-current={current ? 'step' : undefined} className={current ? 'font-semibold text-teal-900' : undefined}>
-                {index + 1}. {label}
+              <li key={step} aria-current={current ? 'step' : undefined} className="relative">
+                <div className={`flex min-h-14 items-center gap-3 rounded-lg border px-3 py-2 font-semibold ${current ? 'border-teal-800 bg-teal-800 text-white' : 'border-teal-200 bg-white text-slate-800'}`}>
+                  <span className={`flex size-7 shrink-0 items-center justify-center rounded-full text-sm ${current ? 'bg-white text-teal-900' : 'bg-teal-100 text-teal-900'}`}>{index + 1}</span>
+                  <span>{label}</span>
+                </div>
+                {index < 2 ? (
+                  <span aria-hidden="true" className="absolute -bottom-3.5 left-6 rotate-90 text-teal-700 sm:bottom-auto sm:left-auto sm:-right-5 sm:top-1/2 sm:-translate-y-1/2 sm:rotate-0">→</span>
+                ) : null}
               </li>
             )
           })}
@@ -818,13 +837,13 @@ function GuidedReview({
                 <details>
                   <summary className={reviewLink}>Preview selected passages</summary>
                   <p className="mt-2 whitespace-pre-wrap">
-                    {revisedPassages(report, excluded) || 'No revised passages selected.'}
+                    {selectedPassages || 'No revised passages selected.'}
                   </p>
                 </details>
                 {fullPreview?.key === previewKey ? (
                   <details open className="rounded-lg border border-slate-200 p-4">
                     <summary className={reviewLink}>Full resume preview</summary>
-                    <p className="mt-3 max-h-96 overflow-auto whitespace-pre-wrap">{fullPreview.text}</p>
+                    <TailoredResumePreview preview={fullPreview.preview} />
                   </details>
                 ) : null}
                 <div className="flex flex-wrap gap-3">
@@ -838,7 +857,7 @@ function GuidedReview({
                       </button>
                     </>
                   ) : null}
-                  <button type="button" className={ui.button.secondary} disabled={exportBlocked} onClick={copyPassages}>
+                  <button type="button" className={ui.button.secondary} disabled={review.busy || !selectedPassages} onClick={copyPassages}>
                     Copy selected passages
                   </button>
                   <button
@@ -858,6 +877,16 @@ function GuidedReview({
                             : 'Download reviewed resume'}
                   </button>
                 </div>
+                {copyStatus === 'copied' ? (
+                  <p role="status" className="text-sm text-teal-900">Selected passages copied.</p>
+                ) : copyStatus === 'manual' && selectedPassages ? (
+                  <label className="block space-y-2 text-sm">
+                    <span>Automatic copying was unavailable. Copy the selected text below.</span>
+                    <textarea ref={copyField} value={selectedPassages} readOnly rows={4} className="w-full rounded border border-slate-300 p-2" />
+                  </label>
+                ) : !selectedPassages ? (
+                  <p className={ui.results.text.meta}>Choose suggested wording to copy a passage.</p>
+                ) : null}
                 {versionError ? <p role="alert" className="text-sm text-red-800">{versionError}</p> : null}
                 {canSave && versions.length ? (
                   <section className="space-y-3 border-t border-slate-200 pt-3">

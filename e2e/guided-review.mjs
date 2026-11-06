@@ -72,12 +72,12 @@ try {
   }
   await start()
   const progress = page.getByRole('list', { name: 'Application review progress' })
-  await visible(progress.locator('[aria-current="step"]').getByText('2. Tailor your resume'))
+  await visible(progress.locator('[aria-current="step"]').getByText('Tailor your resume', { exact: true }))
   await button('Job match report').click()
   const requirement = page.getByRole('listitem').filter({ has: page.getByRole('heading', { name: /Terraform/ }) })
   await visible(requirement.getByRole('button', { name: 'Add relevant experience', exact: true }))
   await requirement.getByRole('button', { name: 'Skip for now', exact: true }).click()
-  await visible(progress.locator('[aria-current="step"]').getByText('2. Tailor your resume'))
+  await visible(progress.locator('[aria-current="step"]').getByText('Tailor your resume', { exact: true }))
   await start()
   await absent(button('Download reviewed resume'))
   await button('Keep original').click()
@@ -109,7 +109,7 @@ try {
     .click()
   await visible(page.getByText('1 proposed passage selected · 1 originals kept.'))
   await page.getByText('Preview selected passages', { exact: true }).click()
-  await visible(progress.locator('[aria-current="step"]').getByText('3. Preview and download'))
+  await visible(progress.locator('[aria-current="step"]').getByText('Preview and download', { exact: true }))
   assert.equal(await button('Download reviewed resume').isEnabled(), true)
   await button('Toggle shared view').click()
   await absent(button('Answer updates (1)'))
@@ -187,7 +187,13 @@ try {
     if (request.method() === 'GET') return route.fulfill({ json: savedVersions })
     assert.equal(request.postDataJSON().editIds.length, 1)
     if (request.url().endsWith('/preview')) {
-      return route.fulfill({ json: { text: 'Complete tailored resume preview' } })
+      return route.fulfill({ json: {
+        text: 'Complete tailored resume preview',
+        blocks: [
+          { kind: 'heading', text: 'Complete tailored resume preview' },
+          { kind: 'bullet', text: 'Example achievement' },
+        ],
+      } })
     }
     const version = {
       documentId: 'snapshot-1',
@@ -214,7 +220,13 @@ try {
   const finish = page.getByRole('navigation', { name: 'Review sections' }).getByRole('button', { name: 'Save for this job', exact: true })
   await finish.click()
   await button('Preview full resume').click()
-  await visible(page.getByText('Complete tailored resume preview'))
+  await visible(page.getByRole('heading', { name: 'Complete tailored resume preview' }))
+  await visible(page.getByRole('listitem').getByText('Example achievement'))
+  await page.evaluate(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {
+    writeText: async () => { throw new Error('Clipboard access denied') },
+  } }))
+  await button('Copy selected passages').click()
+  await visible(page.getByRole('textbox', { name: /Automatic copying was unavailable/ }))
   await page.locator('#review-export').getByRole('button', { name: 'Save for this job', exact: true }).click()
   await visible(page.getByText('Saved versions for this job'))
   await start()
