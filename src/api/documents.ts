@@ -2,6 +2,7 @@ import { env } from '../app/env'
 import { apiRequest, type ApiError } from './client'
 
 export type UploadedDoc = {
+  tailoredAnalysisId?: string
   documentId: string
   fileName: string
   mimeType: string

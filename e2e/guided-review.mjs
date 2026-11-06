@@ -8,7 +8,7 @@ const url = `http://127.0.0.1:${port}/e2e/guided-review.html`
 const server = spawn(
   process.execPath,
   ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', String(port), '--strictPort'],
-  { stdio: 'pipe' },
+  { stdio: 'pipe', env: { ...process.env, VITE_API_BASE_URL: `http://127.0.0.1:${port}/api/v1` } },
 )
 const errors = []
 server.stderr.on('data', (data) => process.stderr.write(data))
@@ -181,6 +181,33 @@ try {
   await page.keyboard.press('Enter')
   assert.equal(await button('Suggested resume changes (1)').getAttribute('aria-pressed'), 'true')
   await visible(page.getByRole('heading', { name: 'Suggested resume changes', exact: true }))
+  const savedVersions = []
+  await page.route('**/api/v1/analyses/example-a/tailored-resumes**', async (route) => {
+    const request = route.request()
+    if (request.method() === 'GET') return route.fulfill({ json: savedVersions })
+    assert.equal(request.postDataJSON().editIds.length, 1)
+    if (request.url().endsWith('/preview')) {
+      return route.fulfill({ json: { text: 'Complete tailored resume preview' } })
+    }
+    const version = {
+      documentId: 'snapshot-1',
+      fileName: 'Example · Engineer.docx',
+      uploadedAt: '2026-11-06T00:00:00Z',
+    }
+    if (!savedVersions.length) savedVersions.push(version)
+    return route.fulfill({ json: version })
+  })
+  await page.evaluate(() => localStorage.setItem('auth_token', 'fictional-test-token'))
+  await start()
+  const finish = page.getByRole('navigation', { name: 'Review sections' }).getByRole('button', { name: 'Save for this job', exact: true })
+  await finish.click()
+  await button('Preview full resume').click()
+  await visible(page.getByText('Complete tailored resume preview'))
+  await page.locator('#review-export').getByRole('button', { name: 'Save for this job', exact: true }).click()
+  await visible(page.getByText('Saved versions for this job'))
+  await start()
+  await finish.click()
+  await visible(page.getByText(/Example · Engineer.docx/))
   assert.deepEqual(errors, [])
   console.log(
     'Guided review browser checks passed: edits, confirmations, draft preservation, answer/no-change/clarification, choice recovery, analysis/access isolation, locked views, export guards, 1280/390/320px layouts.',
