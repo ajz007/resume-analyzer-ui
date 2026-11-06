@@ -48,9 +48,9 @@ try {
   async function start(query = '') {
     await page.goto(url + query)
     await visible(page.getByRole('heading', { name: 'Job requirements', exact: true }))
-    assert.equal(await button('Job match report').getAttribute('aria-pressed'), 'true')
+    assert.equal(await button('Understand your fit').getAttribute('aria-current'), 'step')
     await absent(page.getByRole('heading', { name: 'Suggested resume changes', exact: true }))
-    await button('Suggested resume changes (1)').click()
+    await button('Tailor your resume').click()
     await visible(page.getByRole('heading', { name: 'Suggested resume changes', exact: true }))
     if (!query.includes('load-error'))
       await visible(
@@ -60,7 +60,7 @@ try {
       )
   }
   async function openQuestion() {
-    await button('Job match report').click()
+    await button('Understand your fit').click()
     await button('Add relevant experience').click()
   }
   async function submitKind(label) {
@@ -73,7 +73,7 @@ try {
   await start()
   const progress = page.getByRole('list', { name: 'Application review progress' })
   await visible(progress.locator('[aria-current="step"]').getByText('Tailor your resume', { exact: true }))
-  await button('Job match report').click()
+  await button('Understand your fit').click()
   const requirement = page.getByRole('listitem').filter({ has: page.getByRole('heading', { name: /Terraform/ }) })
   await visible(requirement.getByRole('button', { name: 'Add relevant experience', exact: true }))
   await requirement.getByRole('button', { name: 'Skip for now', exact: true }).click()
@@ -88,8 +88,8 @@ try {
   await page.getByLabel('Your experience', { exact: true }).fill('I implemented Terraform for my own personal project.')
   assert.equal(await page.getByRole('checkbox').isChecked(), false, 'Editing facts requires renewed confirmation')
   // Draft survives reviewing another section before submission.
-  await button('Suggested resume changes (1)').click()
-  await button('Job match report').click()
+  await button('Tailor your resume').click()
+  await button('Understand your fit').click()
   assert.equal(
     await page.getByLabel('Your experience', { exact: true }).inputValue(),
     'I implemented Terraform for my own personal project.',
@@ -98,9 +98,11 @@ try {
   await button('Use my answer').click()
   await visible(page.getByRole('heading', { name: 'What your answers changed' }))
   assert.equal(await page.locator('#review-answer-updates').evaluate((el) => el === document.activeElement), true)
+  await button('Tailor your resume').click()
+  await button('Answer updates (1)').click()
   await button('Review new edit').click()
   await visible(page.getByText('New from your confirmed answer', { exact: false }))
-  await button('Suggested resume changes (2)').click()
+  await button('Tailor your resume').click()
   await button('Review changes').click()
   await visible(button('Use proposed edit'))
   await page
@@ -119,11 +121,11 @@ try {
   await button('Preview and download').click()
   assert.equal(await button('Download available to report owner').isDisabled(), true)
   await button('Toggle shared view').click()
-  await visible(button('Suggested resume changes (2)'))
+  await visible(button('Tailor your resume'))
   await button('Switch analysis').click()
-  await visible(button('Suggested resume changes (1)'))
+  await visible(button('Tailor your resume'))
   await absent(button('Answer updates (1)'))
-  await button('Suggested resume changes (1)').click()
+  await button('Tailor your resume').click()
   await visible(button('Keep original'))
   await button('Toggle locked view').click()
   await visible(page.getByRole('heading', { name: 'Your full review is locked' }))
@@ -159,7 +161,7 @@ try {
   for (const width of [1280, 390, 320]) {
     await page.setViewportSize({ width, height: 900 })
     await start()
-    for (const section of ['Suggested resume changes (1)', 'Job match report', 'Preview and download']) {
+    for (const section of ['Tailor your resume', 'Understand your fit', 'Preview and download']) {
       await page
         .getByRole('navigation', { name: 'Review sections' })
         .getByRole('button', { name: section, exact: true })
@@ -171,15 +173,15 @@ try {
       )
       if (screenshots)
         await page.screenshot({
-          path: `${screenshots}/${width}-${section.startsWith('Suggested') ? 'edits' : section.startsWith('Job match') ? 'requirements' : 'export'}.png`,
+          path: `${screenshots}/${width}-${section.startsWith('Tailor') ? 'edits' : section.startsWith('Understand') ? 'requirements' : 'export'}.png`,
           fullPage: true,
         })
     }
   }
   // Native buttons remain keyboard accessible and expose the active section.
-  await button('Suggested resume changes (1)').focus()
+  await button('Tailor your resume').focus()
   await page.keyboard.press('Enter')
-  assert.equal(await button('Suggested resume changes (1)').getAttribute('aria-pressed'), 'true')
+  assert.equal(await button('Tailor your resume').getAttribute('aria-current'), 'step')
   await visible(page.getByRole('heading', { name: 'Suggested resume changes', exact: true }))
   const savedVersions = []
   await page.route('**/api/v1/analyses/example-a/tailored-resumes**', async (route) => {

@@ -91,7 +91,7 @@ describe('job requirement diagnosis', () => {
   })
   it('opens the requirement breakdown first for job matches and preserves unknown evidence states', () => {
     const html = renderToStaticMarkup(<JobMatchReport result={result} />)
-    expect(html).toMatch(/aria-pressed="true"[^>]*>Job match report<\/button>/)
+    expect(html).toMatch(/<button[^>]*aria-current="step"[^>]*>.*?Understand your fit<\/span><\/button>/)
     expect(html).toContain('Duration unconfirmed.')
     expect(html).toContain('Rethink Resume scoring weight: 80%')
     expect(html).not.toContain('>Suggested resume changes</h2>')

@@ -251,6 +251,7 @@ function GuidedReview({
     setAllQuestions(true)
     setFocusTarget('review-focused-questions')
   }
+  const answerCount = readOnly ? 0 : review.session.answers.length
   const showJourney = hasDiagnosis && !locked && !readOnly
   const evidenceGaps = (result.jobMatchScoring?.requirementScores ?? [])
     .filter((item) => item.matchStatus.toUpperCase() !== 'STRONG')
@@ -380,49 +381,77 @@ function GuidedReview({
       </ReportCard>
 
       {showJourney ? (
-        <ol aria-label="Application review progress" className="grid gap-3 rounded-xl border border-teal-200 bg-teal-50/60 p-3 sm:grid-cols-3 sm:gap-6 sm:p-4">
-          {([
-            ['requirements', 'Understand your fit'],
-            ['edits', 'Tailor your resume'],
-            ['use', finishLabel],
-          ] as const).map(([step, label], index) => {
-            const current = step === panel || (step === 'edits' && panel === 'answers')
-            return (
-              <li key={step} aria-current={current ? 'step' : undefined} className="relative">
-                <div className={`flex min-h-14 items-center gap-3 rounded-lg border px-3 py-2 font-semibold ${current ? 'border-teal-800 bg-teal-800 text-white' : 'border-teal-200 bg-white text-slate-800'}`}>
-                  <span className={`flex size-7 shrink-0 items-center justify-center rounded-full text-sm ${current ? 'bg-white text-teal-900' : 'bg-teal-100 text-teal-900'}`}>{index + 1}</span>
-                  <span>{label}</span>
-                </div>
-                {index < 2 ? (
-                  <span aria-hidden="true" className="absolute -bottom-3.5 left-6 rotate-90 text-teal-700 sm:bottom-auto sm:left-auto sm:-right-5 sm:top-1/2 sm:-translate-y-1/2 sm:rotate-0">→</span>
-                ) : null}
-              </li>
-            )
-          })}
-        </ol>
-      ) : null}
-      <nav className="flex flex-wrap gap-2 border-b border-slate-200 pb-3" aria-label="Review sections">
-        {(
-          [
-            ...(hasQuestionsPanel ? [['requirements', hasDiagnosis ? 'Job match report' : 'Requirements & questions']] : []),
-            ['edits', `Suggested resume changes${locked ? '' : ` (${edits.length})`}`],
-            ...(!readOnly && review.session.answers.length
-              ? [['answers', `Answer updates (${review.session.answers.length})`]]
-              : []),
-            ...(!locked ? [['use', finishLabel]] : []),
-          ] as [typeof panel, string][]
-        ).map(([id, label]) => (
+        <nav aria-label="Review sections">
+          <ol aria-label="Application review progress" className="grid gap-3 rounded-xl border border-teal-200 bg-teal-50/60 p-3 sm:grid-cols-3 sm:gap-6 sm:p-4">
+            {([
+              ['requirements', 'Understand your fit'],
+              ['edits', 'Tailor your resume'],
+              ['use', finishLabel],
+            ] as const).map(([step, label], index) => {
+              const current = step === panel || (step === 'edits' && panel === 'answers')
+              return (
+                <li key={step} className="relative">
+                  <button
+                    type="button"
+                    aria-current={current ? 'step' : undefined}
+                    onClick={() => setPanel(step)}
+                    className={`flex min-h-14 w-full items-center gap-3 rounded-lg border px-3 py-2 text-left font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 ${current ? 'border-teal-800 bg-teal-800 text-white' : 'border-teal-200 bg-white text-slate-800 hover:border-teal-600 hover:bg-teal-50'}`}
+                  >
+                    <span aria-hidden="true" className={`flex size-7 shrink-0 items-center justify-center rounded-full text-sm ${current ? 'bg-white text-teal-900' : 'bg-teal-100 text-teal-900'}`}>{index + 1}</span>
+                    <span>{label}</span>
+                  </button>
+                  {index < 2 ? (
+                    <span aria-hidden="true" className="absolute -bottom-3.5 left-6 rotate-90 text-teal-700 sm:bottom-auto sm:left-auto sm:-right-5 sm:top-1/2 sm:-translate-y-1/2 sm:rotate-0">→</span>
+                  ) : null}
+                </li>
+              )
+            })}
+          </ol>
+        </nav>
+      ) : (
+        <nav className="flex flex-wrap gap-2 border-b border-slate-200 pb-3" aria-label="Review sections">
+          {(
+            [
+              ...(hasQuestionsPanel ? [['requirements', hasDiagnosis ? 'Job match report' : 'Requirements & questions']] : []),
+              ['edits', `Suggested resume changes${locked ? '' : ` (${edits.length})`}`],
+              ...(answerCount
+                ? [['answers', `Answer updates (${answerCount})`]]
+                : []),
+              ...(!locked ? [['use', finishLabel]] : []),
+            ] as [typeof panel, string][]
+          ).map(([id, label]) => (
+            <button
+              type="button"
+              key={id}
+              aria-pressed={panel === id}
+              className={`rounded-full px-3 py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 ${panel === id ? 'bg-teal-800 text-white' : 'bg-white text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50'}`}
+              onClick={() => setPanel(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
+      )}
+      {showJourney && answerCount > 0 && (panel === 'edits' || panel === 'answers') ? (
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Tailor your resume sections">
           <button
             type="button"
-            key={id}
-            aria-pressed={panel === id}
-            className={`rounded-full px-3 py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 ${panel === id ? 'bg-teal-800 text-white' : 'bg-white text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50'}`}
-            onClick={() => setPanel(id)}
+            className={ui.button.secondary}
+            aria-pressed={panel === 'edits'}
+            onClick={() => openEdits()}
           >
-            {label}
+            Suggested resume changes ({edits.length})
           </button>
-        ))}
-      </nav>
+          <button
+            type="button"
+            className={ui.button.secondary}
+            aria-pressed={panel === 'answers'}
+            onClick={() => setPanel('answers')}
+          >
+            Answer updates ({answerCount})
+          </button>
+        </div>
+      ) : null}
       {panel === 'requirements' && hasDiagnosis ? (
         <ReportCard>
           <section id="job-requirement-diagnosis" tabIndex={-1} className="scroll-mt-6">
