@@ -40,7 +40,7 @@ try {
     new URL(route.request().url()).hostname === '127.0.0.1' ? route.continue() : route.abort(),
   )
   const button = (name) =>
-    name === 'Copy or download'
+    name === 'Preview and download'
       ? page.getByRole('navigation', { name: 'Review sections' }).getByRole('button', { name, exact: true })
       : page.getByRole('button', { name, exact: true })
   const visible = (locator) => locator.waitFor({ state: 'visible' })
@@ -71,6 +71,14 @@ try {
     await visible(page.getByRole('heading', { name: 'What your answers changed' }))
   }
   await start()
+  const progress = page.getByRole('list', { name: 'Application review progress' })
+  await visible(progress.locator('[aria-current="step"]').getByText('2. Tailor your resume'))
+  await button('Job match report').click()
+  const requirement = page.getByRole('listitem').filter({ has: page.getByRole('heading', { name: /Terraform/ }) })
+  await visible(requirement.getByRole('button', { name: 'Add relevant experience', exact: true }))
+  await requirement.getByRole('button', { name: 'Skip for now', exact: true }).click()
+  await visible(progress.locator('[aria-current="step"]').getByText('2. Tailor your resume'))
+  await start()
   await absent(button('Download reviewed resume'))
   await button('Keep original').click()
   await visible(button('Use proposed edit'))
@@ -97,16 +105,18 @@ try {
   await visible(button('Use proposed edit'))
   await page
     .getByRole('navigation', { name: 'Review sections' })
-    .getByRole('button', { name: 'Copy or download', exact: true })
+    .getByRole('button', { name: 'Preview and download', exact: true })
     .click()
   await visible(page.getByText('1 proposed passage selected · 1 originals kept.'))
+  await page.getByText('Preview selected passages', { exact: true }).click()
+  await visible(progress.locator('[aria-current="step"]').getByText('3. Preview and download'))
   assert.equal(await button('Download reviewed resume').isEnabled(), true)
   await button('Toggle shared view').click()
   await absent(button('Answer updates (1)'))
   await button('See suggested resume changes').click()
   await visible(page.getByText('This shared view shows suggested wording. Original comparisons and source excerpts are private.', { exact: true }))
   assert.equal(await page.locator('summary').filter({ hasText: /Compare with original|Source evidence/ }).count(), 0)
-  await button('Copy or download').click()
+  await button('Preview and download').click()
   assert.equal(await button('Download available to report owner').isDisabled(), true)
   await button('Toggle shared view').click()
   await visible(button('Suggested resume changes (2)'))
@@ -118,7 +128,7 @@ try {
   await button('Toggle locked view').click()
   await visible(page.getByRole('heading', { name: 'Your full review is locked' }))
   await absent(button('Keep original'))
-  await absent(button('Copy or download'))
+  await absent(button('Preview and download'))
 
   await start()
   await submitKind('I have no relevant experience to add')
@@ -135,12 +145,12 @@ try {
   await visible(button('Keep original'))
   await start('?load-error')
   await visible(page.getByText('Your saved review is unavailable.'))
-  await button('Copy or download').click()
+  await button('Preview and download').click()
   assert.equal(await button('Download reviewed resume').isDisabled(), true)
   assert.equal(await button('Copy selected passages').isDisabled(), true)
 
   await start('?pending')
-  await button('Copy or download').click()
+  await button('Preview and download').click()
   assert.equal(await button('Download reviewed resume').isDisabled(), true)
   assert.equal(await button('Copy selected passages').isDisabled(), true)
 
@@ -149,7 +159,7 @@ try {
   for (const width of [1280, 390, 320]) {
     await page.setViewportSize({ width, height: 900 })
     await start()
-    for (const section of ['Suggested resume changes (1)', 'Job match report', 'Copy or download']) {
+    for (const section of ['Suggested resume changes (1)', 'Job match report', 'Preview and download']) {
       await page
         .getByRole('navigation', { name: 'Review sections' })
         .getByRole('button', { name: section, exact: true })

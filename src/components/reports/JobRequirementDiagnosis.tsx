@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { NormalizedAnalysis } from '../../analysis/normalizeAnalysisResponse'
 import type { ReviewAnswer } from '../../api/reviewSession'
 import { ui } from '../../app/uiTokens'
@@ -23,6 +24,7 @@ export default function JobRequirementDiagnosis({
   onReviewEdit,
   onReviewQuestions,
   onClarifyRequirement,
+  featuredQuestion,
   answers = [],
 }: {
   result: NormalizedAnalysis
@@ -30,6 +32,7 @@ export default function JobRequirementDiagnosis({
   onReviewEdit: (id: string) => void
   onReviewQuestions: () => void
   onClarifyRequirement?: (id: string) => void
+  featuredQuestion?: { requirementId: string; content: ReactNode }
   answers?: ReviewAnswer[]
 }) {
   const requirements = result.jobMatchScoring?.requirementScores ?? []
@@ -112,7 +115,9 @@ export default function JobRequirementDiagnosis({
                   </div>
                 </div>
               ) : null}
-              {!locked && onClarifyRequirement ? (
+              {featuredQuestion?.requirementId === requirement.requirementId ? (
+                featuredQuestion.content
+              ) : !locked && onClarifyRequirement ? (
                 <button
                   type="button"
                   className={reviewLink}

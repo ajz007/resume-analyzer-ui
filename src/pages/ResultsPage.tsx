@@ -45,7 +45,6 @@ const ResultsPage = () => {
   const {
     result,
     analysisId: latestId,
-    reset,
     resetJdOnly,
     analysisMode,
   } = useAnalysisStore()
@@ -447,15 +446,6 @@ const ResultsPage = () => {
       <div className="space-y-3">
         <div className="flex flex-wrap gap-3">
           <button
-            onClick={() => {
-              reset()
-              navigate('/app/analyzer')
-            }}
-            className={ui.results.button.primary}
-          >
-            Start a new review
-          </button>
-          <button
             onClick={() => navigate('/app/history')}
             className={ui.button.secondary}
           >
@@ -466,7 +456,7 @@ const ResultsPage = () => {
               resetJdOnly()
               navigate('/app/analyzer')
             }}
-            className="border border-blue-300 text-blue-700 px-4 py-2 rounded hover:bg-blue-50"
+            className={ui.button.secondary}
           >
             Review another job
           </button>
