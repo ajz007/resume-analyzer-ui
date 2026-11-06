@@ -1,7 +1,7 @@
 import ReviewCreditAction from './ReviewCreditAction'
 import type { FormEvent, Ref } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useDropzone } from 'react-dropzone'
 import { uploadDocument, getCurrentDocument } from '../api/documents'
 import { useAnalysisStore } from '../store/useAnalysisStore'
@@ -159,6 +159,7 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
     targetRole,
     setApplicationLabels,
     applicationSaveError,
+    analysisId,
     status,
     error,
     errorDetail,
@@ -238,6 +239,7 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
 
   const loading = status === 'analyzing'
   const analysisActive = loading || lastStatus === 'processing'
+  const checkSavedReview = lastErrorCode === 'REVIEW_WAIT_TIMEOUT' && !!analysisId
   const analysisComplete = status === 'success'
   const trimmedLength = jdText.trim().length
   const requiresJd = analysisMode === 'JOB_MATCH'
@@ -402,6 +404,7 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault()
+    if (checkSavedReview) return
     if (!uploadedDoc) {
       setError(COPY.form.errors.resumeMissing)
       return
@@ -584,6 +587,12 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
           {applicationSaveError}
         </p>
       )}
+      {checkSavedReview ? (
+        <div role="status" className="space-y-2 rounded-lg border border-teal-200 bg-teal-50 p-3 text-sm">
+          <p>The browser stopped waiting. Open the saved review to see its current status. You do not need to submit it again.</p>
+          <Link to={`/app/results/${analysisId}`} className={ui.results.link}>Check review status</Link>
+        </div>
+      ) : null}
       {error && (
         <div className="text-red-600 text-sm space-y-2">
           <p>{error}</p>
@@ -676,7 +685,7 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
       {loggedIn && analysisMode === 'JOB_MATCH' ? (
         <ReviewCreditAction
           allowBuy={limitReached}
-          disabled={analysisActive || !uploadedDoc || jdTooShort}
+          disabled={analysisActive || checkSavedReview || !uploadedDoc || jdTooShort}
           onUse={async () => {
             const current = useAnalysisStore.getState()
             if (current.jdText !== jdText || current.uploadedDoc?.documentId !== uploadedDoc?.documentId ||
@@ -694,13 +703,14 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
           className={ui.button.primary}
           disabled={
             loading ||
+            checkSavedReview ||
             lastStatus === 'processing' ||
             !uploadedDoc ||
             jdTooShort ||
             limitReached
           }
         >
-          {analyzeLabel}
+          {checkSavedReview ? 'Review already submitted' : analyzeLabel}
         </button>
         <button
           type="button"
