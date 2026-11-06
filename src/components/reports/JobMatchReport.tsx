@@ -1,3 +1,4 @@
+import type { ApplicationRechecks } from '../../api/rechecks'
 import ReviewReportView from './ReviewReportView'
 import { useMemo, useState } from 'react'
 import type { NormalizedAnalysis } from '../../analysis/normalizeAnalysisResponse'
@@ -12,7 +13,7 @@ import { SectionHeader } from '../results/SectionHeader'
 import { SeverityChip } from '../results/SeverityChip'
 import { getAIScreeningScore, getATSScore, getJobMatchScore } from '../../analysis/reportScores'
 
-export type Props = { result: NormalizedAnalysis; readOnly?: boolean }
+export type Props = { result: NormalizedAnalysis; readOnly?: boolean; recheckData?: ApplicationRechecks | null }
 
 const Chip = ({ children }: { children: React.ReactNode }) => (
   <span className={`${ui.results.chip.base} ${ui.results.chip.info}`}>{children}</span>
@@ -587,8 +588,8 @@ const LegacyJobMatchReport = ({ result }: Props) => {
   )
 }
 
-const JobMatchReport = ({ result, readOnly = false }: Props) => result.report?.schemaVersion === "3"
-  ? <ReviewReportView key={result.analysisId} result={result} readOnly={readOnly} />
+const JobMatchReport = ({ result, readOnly = false, recheckData }: Props) => result.report?.schemaVersion === "3"
+  ? <ReviewReportView key={result.analysisId} result={result} readOnly={readOnly} recheckData={recheckData} />
   : <LegacyJobMatchReport result={result} />
 
 export default JobMatchReport

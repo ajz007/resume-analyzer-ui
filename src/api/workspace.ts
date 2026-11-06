@@ -11,6 +11,7 @@ export type Application = ApplicationLabels & {
   jobExcerpt: string
   mode: string
   status: string
+  recheckStatus?: string
   createdAt: string
 }
 export type PrimaryResume = UploadedDoc & { isPrimary: boolean }

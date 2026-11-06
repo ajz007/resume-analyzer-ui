@@ -1,6 +1,6 @@
 import { apiRequest } from './client'
 
-export type Recheck = { analysisId: string; documentId: string; status: string; score?: number }
+export type Recheck = { analysisId: string; documentId: string; status: string; score?: number; paidReviewCredit?: 'returned' }
 export type ApplicationRechecks = { originalAnalysisId: string; rechecks: Recheck[] }
 
 const path = (id: string) => `/analyses/${encodeURIComponent(id)}/rechecks`
