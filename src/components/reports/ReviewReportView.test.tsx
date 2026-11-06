@@ -48,7 +48,7 @@ describe('versioned report integration', () => {
     const html = renderToStaticMarkup(<AtsReport result={result} />)
     expect(html).not.toContain('Review remaining questions')
     expect(html).not.toContain('Review job evidence')
-    expect(html).toContain('Copy or download')
+    expect(html).toContain('Preview and download')
   })
   it('keeps the existing renderer for saved legacy reports', () => {
     const result = normalizeAnalysisResponse(fromBackendResult({ meta: { jobDescriptionProvided: true }, matchScore: 73 }))
@@ -84,7 +84,7 @@ describe('job requirement diagnosis', () => {
   })
   it('keeps shared reports read-only without owner session controls', () => {
     const html = renderToStaticMarkup(<JobMatchReport result={result} readOnly />)
-    expect(html).toContain('Copy or download')
+    expect(html).toContain('Preview and download')
     expect(html).not.toContain('Reload saved review')
     expect(html).not.toContain('Add relevant experience')
     expect(html).not.toContain('>Keep original</button>')

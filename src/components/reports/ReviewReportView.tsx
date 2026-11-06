@@ -79,6 +79,7 @@ function GuidedReview({
   const answerEditIds = new Set(review.session.answers.flatMap((answer) => (answer.edit ? [answer.edit.id] : [])))
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
+  const [skippedQuestionId, setSkippedQuestionId] = useState('')
   const [allQuestions, setAllQuestions] = useState(false)
   const [allEdits, setAllEdits] = useState(false)
   const hasDiagnosis = result.analysisMode !== 'resume_only' && !!result.jobMatchScoring?.requirementScores?.length
@@ -109,7 +110,7 @@ function GuidedReview({
       await navigator.clipboard.writeText(revisedPassages(report, excluded))
       setNotice('Selected revised passages copied. Keep the rest of your resume.')
     } catch {
-      setNotice('Copy was unavailable. Open Selected passages to select and copy the text.')
+      setNotice('Copy was unavailable. Open Preview selected passages to select and copy the text.')
     }
   }
   async function download() {
@@ -166,6 +167,16 @@ function GuidedReview({
     setAllQuestions(true)
     setFocusTarget('review-focused-questions')
   }
+  const showJourney = hasDiagnosis && !locked && !readOnly
+  const evidenceGaps = (result.jobMatchScoring?.requirementScores ?? [])
+    .filter((item) => item.matchStatus.toUpperCase() !== 'STRONG')
+    .sort((first, second) => second.weight - first.weight)
+  const featuredGap = evidenceGaps.find((gap) =>
+    questions.some((question) => question.requirementIds?.includes(gap.requirementId)),
+  )
+  const featuredQuestion = featuredGap && questions.find((question) =>
+    question.requirementIds?.includes(featuredGap.requirementId),
+  )
   const selectedEditCount = edits.filter(edit => !excluded.has(edit.id)).length
   const exportBlocked = busy || review.busy
   const hasQuestionsPanel = hasDiagnosis || questions.length > 0 || !!(transport && eligible)
@@ -215,7 +226,7 @@ function GuidedReview({
                   ? 'See suggested resume changes'
                   : hasQuestionsPanel
                     ? 'Review job evidence'
-                    : 'Copy or download'}
+                    : 'Preview and download'}
               </button>
               {hasDiagnosis && panel !== 'requirements' ? (
                 <button
@@ -233,7 +244,7 @@ function GuidedReview({
           ) : null}
           <details className="border-t border-slate-200 pt-4">
             <summary className={reviewLink}>
-              {scores[0] ? `${scores[0].label} ${scores[0].value}/100 · submitted resume` : 'Submitted resume scores'}
+              {scores[0] ? `${scores[0].label} ${scores[0].value}/100 · based on your submitted resume` : 'Submitted resume scores'}
             </summary>
             <div className="mt-3 flex flex-wrap gap-5">
               {scores.map((score) => (
@@ -283,6 +294,22 @@ function GuidedReview({
         </div>
       </ReportCard>
 
+      {showJourney ? (
+        <ol aria-label="Application review progress" className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-600">
+          {([
+            ['requirements', 'Understand your fit'],
+            ['edits', 'Tailor your resume'],
+            ['use', 'Preview and download'],
+          ] as const).map(([step, label], index) => {
+            const current = step === panel || (step === 'edits' && panel === 'answers')
+            return (
+              <li key={step} aria-current={current ? 'step' : undefined} className={current ? 'font-semibold text-teal-900' : undefined}>
+                {index + 1}. {label}
+              </li>
+            )
+          })}
+        </ol>
+      ) : null}
       <nav className="flex flex-wrap gap-2 border-b border-slate-200 pb-3" aria-label="Review sections">
         {(
           [
@@ -291,7 +318,7 @@ function GuidedReview({
             ...(!readOnly && review.session.answers.length
               ? [['answers', `Answer updates (${review.session.answers.length})`]]
               : []),
-            ...(!locked ? [['use', 'Copy or download']] : []),
+            ...(!locked ? [['use', 'Preview and download']] : []),
           ] as [typeof panel, string][]
         ).map(([id, label]) => (
           <button
@@ -314,6 +341,49 @@ function GuidedReview({
                 result={{ ...result, report }}
                 locked={locked}
                 answers={review.session.answers}
+                featuredQuestion={
+                  transport && review.ready && review.session.attempts < 6 && featuredGap && featuredQuestion &&
+                  skippedQuestionId !== featuredQuestion.id
+                    ? {
+                        requirementId: featuredGap.requirementId,
+                        content: (
+                          <div className="space-y-2 rounded-lg border border-teal-200 bg-teal-50 p-4">
+                            <p className="font-semibold">Make your experience clearer for this requirement</p>
+                            <p>{featuredQuestion.question}</p>
+                            {featuredQuestion.why ? <p className={ui.results.text.secondary}>{featuredQuestion.why}</p> : null}
+                            <div className="flex flex-wrap gap-3">
+                              <button
+                                type="button"
+                                className={reviewLink}
+                                disabled={review.busy}
+                                onClick={() => {
+                                  setActiveQuestion({
+                                    questionId: featuredQuestion.id,
+                                    requirementId: featuredQuestion.requirementIds?.length === 1 ? featuredGap.requirementId : '',
+                                    text: featuredQuestion.question,
+                                  })
+                                  setFocusTarget('review-focused-questions')
+                                }}
+                              >
+                                Add relevant experience
+                              </button>
+                              <button
+                                type="button"
+                                className={reviewLink}
+                                onClick={() => {
+                                  setSkippedQuestionId(featuredQuestion.id)
+                                  openEdits()
+                                  setFocusTarget('review-edit-list')
+                                }}
+                              >
+                                Skip for now
+                              </button>
+                            </div>
+                          </div>
+                        ),
+                      }
+                    : undefined
+                }
                 onClarifyRequirement={
                   transport && !review.busy && review.session.attempts < 6
                     ? (id) => {
@@ -663,8 +733,11 @@ function GuidedReview({
 
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-5">
                 <p>Happy with these passages?</p>
-                <button type="button" className={ui.button.primary} onClick={() => setPanel('use')}>
-                  Copy or download
+                <button type="button" className={ui.button.primary} onClick={() => {
+                  setPanel('use')
+                  setFocusTarget('review-export')
+                }}>
+                  Preview and download
                 </button>
               </div>
             </section>
@@ -672,13 +745,19 @@ function GuidedReview({
 
           {panel === 'use' ? (
             <ReportCard>
-              <div className="space-y-3">
-                <h2 className={ui.results.section.title}>Use your reviewed edits</h2>
+              <div id="review-export" tabIndex={-1} className="scroll-mt-6 space-y-3">
+                <h2 className={ui.results.section.title}>Prepare your resume for this job</h2>
                 <p>
                   {selectedEditCount} proposed {selectedEditCount === 1 ? 'passage' : 'passages'} selected · {excluded.size}{' '}
                   originals kept.
                 </p>
                 <p>Check names, dates and factual accuracy before sending your resume.</p>
+                <details>
+                  <summary className={reviewLink}>Preview selected passages</summary>
+                  <p className="mt-2 whitespace-pre-wrap">
+                    {revisedPassages(report, excluded) || 'No revised passages selected.'}
+                  </p>
+                </details>
                 <div className="flex flex-wrap gap-3">
                   <button type="button" className={ui.button.secondary} disabled={exportBlocked} onClick={copyPassages}>
                     Copy selected passages
@@ -724,16 +803,6 @@ function GuidedReview({
                       : 'Choices apply to this view and download.'}
                   </p>
                 )}
-                <button
-                  type="button"
-                  className={reviewLink}
-                  onClick={() => {
-                    setPanel('edits')
-                    setView('full')
-                  }}
-                >
-                  Preview selected passages
-                </button>
               </div>
             </ReportCard>
           ) : null}
