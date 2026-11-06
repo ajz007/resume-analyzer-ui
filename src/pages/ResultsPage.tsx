@@ -64,6 +64,10 @@ const ResultsPage = () => {
   const [limitFailure, setLimitFailure] = useState<{ analysisId: string; message: string }>()
   const limitMessage = limitFailure && limitFailure.analysisId === analysisId ? limitFailure.message : undefined
   const [applicationStatus, setApplicationStatus] = useState('loading')
+  const [reviewStatus, setReviewStatus] = useState<{ id: string; status: string; credit?: 'reserved' | 'returned' }>()
+  const currentReview = reviewStatus?.id === analysisId ? reviewStatus : undefined
+  const status = currentReview?.status ?? applicationStatus
+  const credit = currentReview?.credit
   const [refresh, setRefresh] = useState(0)
   const applicationSaveError = useAnalysisStore((s) =>
     s.analysisId === analysisId ? s.applicationSaveError : undefined,
@@ -97,7 +101,9 @@ const ResultsPage = () => {
     const load = async () => {
       try {
         // Always verify the current owner with the server. Legacy browser caches are not account-scoped.
-        const fetched = await fetchAnalysisResult(analysisId)
+        const fetched = await fetchAnalysisResult(analysisId, ({ status, paidReviewCredit }) => {
+          if (!cancelled) setReviewStatus({ id: analysisId, status, credit: paidReviewCredit })
+        })
         if (cancelled) return
         setCachedResult(fetched ? normalizeCachedResult(fetched) : null)
       } catch (err) {
@@ -155,11 +161,11 @@ const ResultsPage = () => {
   const normalized = toRender ? normalizeAnalysisResponse(toRender) : null
 
   useEffect(() => {
-    if (!normalized && ['queued', 'processing'].includes(applicationStatus)) {
+    if (!normalized && ['queued', 'processing'].includes(status)) {
       const timer = window.setInterval(() => setRefresh((n) => n + 1), 5000)
       return () => window.clearInterval(timer)
     }
-  }, [applicationStatus, !!normalized])
+  }, [status, !!normalized])
 
   const resolveMode = (mode?: string) => {
     if (!mode) return analysisMode
@@ -407,23 +413,28 @@ const ResultsPage = () => {
           <p className="text-gray-700 font-semibold">
             {limitMessage
               ? 'This review could not be completed.'
-              : applicationStatus === 'loading'
+              : status === 'loading'
                 ? 'Loading your review…'
-              : applicationStatus === 'queued'
+              : status === 'queued'
                 ? 'Your review is in the queue.'
-                : applicationStatus === 'processing'
+                : status === 'processing'
                   ? 'Your review is still processing.'
-                  : applicationStatus === 'failed'
+                  : status === 'failed'
                     ? 'This review could not be completed.'
                     : 'Result not found.'}
           </p>
           <p className={ui.text.subtitle}>
-            {limitMessage ?? (['queued', 'processing'].includes(applicationStatus)
+            {limitMessage ?? (['queued', 'processing'].includes(status)
               ? 'You can return later through Applications. You do not need to submit this request again.'
-              : applicationStatus === 'failed'
+              : status === 'failed'
                 ? 'Review your saved source and job description before explicitly retrying.'
                 : 'Open Applications to find a saved review, or check again.')}
           </p>
+          {credit === 'reserved' ? (
+            <p className={ui.text.subtitle}>One paid review credit is reserved for this review. If we can’t complete it, the credit will return to your balance.</p>
+          ) : credit === 'returned' ? (
+            <p className="font-medium text-teal-900">Your paid review credit was returned to your balance. Check your current balance in the Analyzer before retrying.</p>
+          ) : null}
           <button
             onClick={() => navigate('/app/analyzer')}
             className={`mt-2 ${ui.button.primary}`}

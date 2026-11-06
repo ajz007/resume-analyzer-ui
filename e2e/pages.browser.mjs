@@ -151,6 +151,10 @@ try {
       body = { analysisId: 'example-0', unlocked: true }
     } else if (/^\/analyses\/[^/]+\/review-session$/.test(path))
       body = { session: { version: 0, excludedIds: [], answers: [], attempts: 0 }, report: example.report }
+    else if (path === '/analyses/credit-queued')
+      body = { id: 'credit-queued', status: 'queued', paidReviewCredit: 'reserved' }
+    else if (path === '/analyses/credit-failed')
+      body = { id: 'credit-failed', status: 'failed', paidReviewCredit: 'returned', errorCode: 'AI_DAILY_BUDGET' }
     else if (path === '/analyses/ai-budget-blocked')
       body = { id: 'ai-budget-blocked', status: 'failed', errorCode: 'AI_DAILY_BUDGET' }
     else if (path.startsWith('/analyses/'))
@@ -267,6 +271,10 @@ try {
   await button('Try loading drafts again').click()
   await visible(page.getByRole('heading', { name: 'No editable drafts yet' }))
 
+  await visit('/app/results/credit-queued')
+  await visible(page.getByText(/One paid review credit is reserved/))
+  await visit('/app/results/credit-failed')
+  await visible(page.getByText(/Your paid review credit was returned/))
   await visit('/app/results/ai-budget-blocked')
   await visible(page.getByText('AI processing is temporarily unavailable. Your saved work is available. Please try again later.', { exact: true }))
   assert.equal(orders, 0)

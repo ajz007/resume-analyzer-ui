@@ -86,6 +86,7 @@ type AnalysisProgressCardProps = {
   elapsedSeconds: number
   runStatus?: string
   complete?: boolean
+  usingPaidCredit?: boolean
   rootRef?: Ref<HTMLDivElement>
 }
 export const AnalysisProgressCard = ({
@@ -93,6 +94,7 @@ export const AnalysisProgressCard = ({
   elapsedSeconds,
   runStatus,
   complete = false,
+  usingPaidCredit = false,
   rootRef,
 }: AnalysisProgressCardProps) => (
   <section
@@ -134,6 +136,9 @@ export const AnalysisProgressCard = ({
             available.
           </p>
         )}
+        {usingPaidCredit && (runStatus === 'queued' || runStatus === 'processing') ? (
+          <p className="mt-2 text-sm">If we can’t complete this review, your paid credit will return to your balance.</p>
+        ) : null}
         <p className="mt-2 text-sm">
           You can return to Applications while this request continues. You do
           not need to submit it again.
@@ -152,6 +157,7 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
     undefined,
   )
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  const [usingPaidCredit, setUsingPaidCredit] = useState(false)
 
   const {
     jdText,
@@ -222,6 +228,7 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
 
   // wire store to push to history on successful analyze
   const submitWithHistory = async (useCredit = false) => {
+    setUsingPaidCredit(useCredit)
     useAnalysisStore.setState({ addToHistory: addItem })
     const pending = submitAnalysis(useCredit || undefined)
     const submittedAt = useAnalysisStore.getState().lastSubmitAt
@@ -740,6 +747,7 @@ const ResumeForm = ({ analysisMode }: ResumeFormProps) => {
           elapsedSeconds={displayedElapsedSeconds}
           runStatus={lastStatus}
           complete={analysisComplete}
+          usingPaidCredit={usingPaidCredit}
           rootRef={progressRef}
         />
       )}
