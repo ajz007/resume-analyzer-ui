@@ -1,3 +1,4 @@
+import { recordPreviewCompleted } from '../analytics/google'
 import { aiLimitMessage } from '../analysis/aiLimits'
 import { saveApplicationLabels } from '../api/workspace'
 import { create } from 'zustand'
@@ -229,6 +230,7 @@ export const useAnalysisStore = create<AnalysisState>((set, get) => ({
         },
       )
       if (generation !== submissionGeneration) return
+      if (result.locked && get().analysisMode === 'JOB_MATCH') recordPreviewCompleted()
       set({
         status: 'success',
         lastStatus: 'completed',

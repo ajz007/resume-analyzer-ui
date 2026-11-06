@@ -15,6 +15,11 @@ const PrivacyPage = () => {
         We do not sell personal data. If you have questions about removal or retention, contact
         us through the Contact page. We can help with questions about stored information and removal.
       </p>
+      <p className="text-gray-700">
+        If you allow optional Google Analytics, we measure visits to public pages, completed previews and confirmed
+        purchases. Purchase events include a transaction reference, amount and currency. We exclude resume text, job
+        descriptions and private report links from these events. You can change your choice in Analytics settings.
+      </p>
       <button
         onClick={() => navigate('/app/analyzer')}
         className="bg-teal-600 text-white px-4 py-2 rounded hover:bg-teal-700"
