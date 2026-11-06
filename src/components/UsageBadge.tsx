@@ -19,7 +19,7 @@ export const UsageBadgeContent = ({
         {typeof resolved.remaining === 'number' ? `${resolved.remaining} left` : `${usage.used}/${resolved.limit}`}
       </span>
       <span className="text-gray-600">
-        {typeof resolved.remaining === 'number' ? `of ${resolved.limit} this month` : 'analyses used'}
+        {typeof resolved.remaining === 'number' ? `of ${resolved.limit} previews this month` : 'previews used'}
       </span>
       <span className="text-gray-500 text-xs">Resets: {new Date(usage.resetsAt).toLocaleDateString()}</span>
     </div>

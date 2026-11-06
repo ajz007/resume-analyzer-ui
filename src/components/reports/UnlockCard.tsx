@@ -65,7 +65,7 @@ export const UnlockCardView = ({
         <h2 className="text-lg font-semibold text-gray-950">{jobMatch ? 'Unlock the full job match report' : 'Unlock the full report'}</h2>
         <p className="text-sm text-gray-700">
           {jobMatch
-            ? 'Your summary and scores are free. A one-time payment unlocks the detailed match by requirement and suggested resume changes.'
+            ? 'Your free preview is above. The monthly preview allowance covers new previews. A one-time payment unlocks the detailed match and suggested resume changes for this job.'
             : "Your scores and top fixes are free. A one-time payment unlocks the rest of this report. There's no subscription."}
         </p>
       </div>

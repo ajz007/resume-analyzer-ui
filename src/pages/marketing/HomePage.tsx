@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import JobMatchOffer from '../../components/JobMatchOffer'
 import NewJobLink from '../../components/NewJobLink'
 import { SeoLandingPage } from '../../components/seo'
 import { ui } from '../../app/uiTokens'
@@ -46,18 +47,12 @@ export default function HomePage() {
             you may have left out.
           </p>
           <div className="flex flex-col gap-3 sm:flex-row">
-            <NewJobLink className={ui.button.primary}>Improve my resume for a job</NewJobLink>
+            <NewJobLink className={ui.button.primary}>Run a free job match preview</NewJobLink>
             <Link className={ui.button.secondary} to="/app/home">
               Open my workspace
             </Link>
           </div>
-          <p className="text-sm text-slate-600">
-            Try 3 analyses as a guest, or sign in for 15 analyses/month.{' '}
-            <Link className={ui.results.link} to="/pricing">
-              See current access and pricing
-            </Link>
-            .
-          </p>
+          <JobMatchOffer />
         </div>
         <aside
           className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7"
@@ -126,7 +121,7 @@ export default function HomePage() {
           Start with the experience you already have. Choose the improvements that represent it accurately.
         </p>
         <NewJobLink className="mt-6 inline-flex rounded-lg bg-white px-5 py-3 font-semibold text-teal-950 focus-visible:outline-2 focus-visible:outline-offset-2">
-          Improve my resume for a job
+          Run a free job match preview
         </NewJobLink>
       </section>
       <section className="py-12">

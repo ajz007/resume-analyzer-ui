@@ -110,7 +110,6 @@ const AppShell = () => {
     const claimKey = `guest_claimed_for_${token}`
     try {
       if (sessionStorage.getItem(claimKey)) return
-      sessionStorage.setItem(claimKey, '1')
     } catch {
       // ignore storage errors
     }
@@ -118,6 +117,12 @@ const AppShell = () => {
     const claim = async () => {
       try {
         const response = await claimGuestAnalyses()
+        try {
+          sessionStorage.setItem(claimKey, '1')
+        } catch {
+          // Claiming twice is safe when storage is unavailable.
+        }
+        window.dispatchEvent(new Event('guest-claim-complete'))
         if (
           typeof response.migratedCount === 'number' &&
           response.migratedCount > 0
@@ -136,7 +141,6 @@ const AppShell = () => {
             matchScore: item.matchScore ?? 0,
           })),
         )
-        window.dispatchEvent(new Event('guest-claim-complete'))
       } catch {
         // silent fail to avoid disrupting login flow
       }

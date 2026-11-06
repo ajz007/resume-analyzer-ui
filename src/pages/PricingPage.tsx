@@ -8,9 +8,9 @@ import { ui } from '../app/uiTokens'
 
 export const buildFaqs = (paywallEnabled: boolean | null) => [
   {
-    question: 'What counts as an analysis?',
+    question: 'What uses a free preview?',
     answer:
-      'Starting a new job review or readability check uses one analysis. Reopening a saved review does not start another analysis. A saved resume can be reused for a different target job.',
+      'A new job match or resume readability check uses one preview. Reopening or unlocking a saved review uses none. Your guest preview counts toward the signed-in allowance.',
   },
   {
     question: 'Do I need a credit card?',
@@ -18,7 +18,7 @@ export const buildFaqs = (paywallEnabled: boolean | null) => [
       paywallEnabled === null
         ? 'Current payment availability could not yet be confirmed. Check the access status above before starting.'
         : paywallEnabled
-          ? 'Not for free analyses. You only pay, through Razorpay, if you choose to unlock the full report for an analysis.'
+          ? 'Free previews require no payment. You only pay, through Razorpay, if you choose to unlock the full report for an analysis.'
           : 'No. Rethink Resume is currently available during early access with no credit card required.',
   },
   {
@@ -32,8 +32,8 @@ export const buildFaqs = (paywallEnabled: boolean | null) => [
       paywallEnabled === null
         ? 'Current pricing is unavailable. Reload the access information above; an unavailable configuration does not mean paid features are free.'
         : paywallEnabled
-          ? 'Free accounts include 15 analyses per month and guests can try 3. Full report unlocks are a one-time payment per report, with no subscription. We will announce any pricing changes before they apply.'
-          : 'The product may introduce paid plans later as more features launch. For now, free accounts include 15 analyses per month, and guests can try 3 analyses per month while we continue improving the platform.',
+          ? 'You can run one guest preview or up to three total per month with a free account. Full report unlocks are a one-time payment per report, with no subscription. We will announce any pricing changes before they apply.'
+          : 'The product may introduce paid plans later as more features launch. For now, free accounts include three previews per month, including one you ran as a guest while we continue improving the platform.',
   },
 ]
 
@@ -86,8 +86,8 @@ export default function PricingPage() {
           <>
             <h2 className="text-2xl font-semibold">Full review unlock</h2>
             <p>
-              Scores and top fixes are available in the free preview. A one-time payment unlocks the full review for
-              that analysis. There is no subscription.
+              The free preview shows your fit, key evidence, and a next step. A one-time payment unlocks the detailed
+              requirement breakdown, suggested resume changes, and follow-up questions for that job.
             </p>
             {prices.length ? (
               <p className="text-3xl font-semibold">
@@ -113,25 +113,25 @@ export default function PricingPage() {
         ) : (
           <>
             <h2 className="text-2xl font-semibold">Early access · no report-unlock payment required</h2>
-            <p>No credit card required. Current analysis allowances still apply.</p>
+            <p>No credit card required. The monthly preview allowance still applies.</p>
           </>
         )}
       </section>
-      <section className="grid gap-6 md:grid-cols-2" aria-label="Analysis allowances">
+      <section className="grid gap-6 md:grid-cols-2" aria-label="Preview allowances">
         <div className="rounded-xl border border-slate-200 bg-white p-6">
           <h2 className="text-xl font-semibold">Try as a guest</h2>
           <p className="mt-3 text-3xl font-semibold text-teal-900">
-            3 analyses<span className="text-base font-normal text-slate-600"> / month</span>
+            1 preview<span className="text-base font-normal text-slate-600"> / month</span>
           </p>
           <p className="mt-4 leading-7 text-slate-600">
             Explore a job-specific review or a resume readability check without signing in. Sign in to keep reviews
-            available across devices.
+            available across devices. Your guest preview counts toward the signed-in total.
           </p>
         </div>
         <div className="rounded-xl border border-teal-200 bg-teal-50 p-6">
           <h2 className="text-xl font-semibold">Free signed-in account</h2>
           <p className="mt-3 text-3xl font-semibold text-teal-900">
-            15 analyses<span className="text-base font-normal text-slate-600"> / month</span>
+            3 previews<span className="text-base font-normal text-slate-600"> / month</span>
           </p>
           <ul className="mt-4 list-disc space-y-2 pl-5 text-slate-700">
             <li>Reuse saved uploads and choose a primary source.</li>
@@ -164,7 +164,7 @@ export default function PricingPage() {
         </p>
       </section>
       <div>
-        <NewJobLink className={`${ui.button.primary} inline-flex`}>Start a job review</NewJobLink>
+        <NewJobLink className={`${ui.button.primary} inline-flex`}>Run a free preview</NewJobLink>
       </div>
       <section className="space-y-5">
         <h2 className="text-2xl font-semibold">Access questions</h2>

@@ -96,7 +96,7 @@ describe('ResumeForm rendering', () => {
     )
 
     expect(html).toContain(
-      '2 of 3 guest analyses remaining. Sign in for 15/month.',
+      '2 of 3 free guest previews left this month.',
     )
   })
 
@@ -116,7 +116,7 @@ describe('ResumeForm rendering', () => {
       />,
     )
 
-    expect(html).toContain('12 of 15 analyses remaining this month.')
+    expect(html).toContain('12 of 15 free previews left this month.')
   })
 
   it('shows guest limit reached conversion state', () => {
@@ -135,7 +135,7 @@ describe('ResumeForm rendering', () => {
       />,
     )
 
-    expect(html).toContain('used your 3 free guest analyses this month.')
+    expect(html).toContain('used your free guest preview this month.')
     expect(html).toContain('Sign in with Google')
   })
 
@@ -155,7 +155,7 @@ describe('ResumeForm rendering', () => {
       />,
     )
 
-    expect(html).toContain('used your 15 free analyses this month.')
+    expect(html).toContain('used your 15 free previews this month.')
     expect(html).not.toContain('Sign in with Google')
   })
 

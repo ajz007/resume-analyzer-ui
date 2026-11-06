@@ -19,6 +19,6 @@ describe('UsageBadge', () => {
     )
 
     expect(html).toContain('12 left')
-    expect(html).toContain('of 15 this month')
+    expect(html).toContain('of 15 previews this month')
   })
 })

@@ -631,7 +631,7 @@ describe('Resume Workspace UI', () => {
     expect(combined).not.toContain('Use `/app/analyzer`')
   })
 
-  it('updates pricing and public pages to the 3 guest / 15 account quota copy', () => {
+  it('explains the guest and signed-in preview allowance', () => {
     const pricingHtml = renderToStaticMarkup(withRouter(<PricingPage />))
     const publicFiles = [
       'src/pages/marketing/HomePage.tsx',
@@ -642,12 +642,12 @@ describe('Resume Workspace UI', () => {
     const combined = publicFiles.map((file) => readFileSync(join(process.cwd(), file), 'utf8')).join('\n')
 
     expect(pricingHtml).toContain('Free signed-in account')
-    expect(pricingHtml).toContain('15 analyses')
-    expect(pricingHtml).toContain('3 analyses')
+    expect(pricingHtml).toContain('1 preview')
+    expect(pricingHtml).toContain('3 previews')
     expect(pricingHtml).toContain('Loading current access and pricing')
     expect(pricingHtml).not.toContain('10 analyses')
-    expect(combined).toContain('Try 3 analyses as a guest, or sign in for 15 analyses/month.')
-    expect(combined).toContain('Save this analysis and get 15 free analyses/month by signing in.')
+    expect(pricingHtml).toContain('Your guest preview counts toward the signed-in total.')
+    expect(combined).toContain('Sign in to save this review and reuse your resume.')
     expect(combined).toMatch(/!loggedIn\s*&&\s*!isLocked\s*\?\s*\(?\s*<GuestResultsCta/)
     expect(combined).not.toContain('10 free analyses')
     expect(combined).not.toContain('10 analyses per month')
