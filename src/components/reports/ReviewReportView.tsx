@@ -45,6 +45,7 @@ type ReviewProps = {
   localPreview?: boolean
   readOnly?: boolean
   sessionTransport?: ReviewSessionTransport
+  recheckData?: ApplicationRechecks | null
 }
 
 // A new analysis or access mode must never inherit another review's answers or choices.
@@ -65,6 +66,7 @@ function GuidedReview({
   localPreview = false,
   readOnly = false,
   sessionTransport,
+  recheckData,
   signedIn,
 }: ReviewProps & { signedIn: boolean }) {
   const initialReport = result.report!
@@ -83,7 +85,9 @@ function GuidedReview({
   )
   const review = useReviewSession(initialReport, transport)
   const canSave = signedIn && !!transport && !readOnly && !localPreview && !referencePreview
-  const [rechecks, setRechecks] = useState<ApplicationRechecks>()
+  const [localRechecks, setLocalRechecks] = useState<ApplicationRechecks>()
+  const rechecks = recheckData === undefined ? localRechecks : recheckData
+  const loadLocalRechecks = recheckData === undefined
   const [versions, setVersions] = useState<UploadedDoc[]>([])
   const [versionAction, setVersionAction] = useState('')
   const [versionError, setVersionError] = useState('')
@@ -91,9 +95,6 @@ function GuidedReview({
   useEffect(() => {
     let active = true
     if (canSave) {
-      void fetchRechecks(result.analysisId).then((items) => {
-        if (active) setRechecks(items)
-      }).catch(() => { /* The recheck endpoint may be unavailable during rollout. */ })
       void listTailoredResumes(result.analysisId).then((items) => {
         if (active) setVersions((current) => [
           ...current.filter((saved) => !items.some((item) => item.documentId === saved.documentId)),
@@ -105,6 +106,14 @@ function GuidedReview({
     }
     return () => { active = false }
   }, [canSave, result.analysisId])
+  useEffect(() => {
+    if (!canSave || !loadLocalRechecks) return
+    let active = true
+    void fetchRechecks(result.analysisId).then((items) => {
+      if (active) setLocalRechecks(items)
+    }).catch(() => { /* The recheck endpoint may be unavailable during rollout. */ })
+    return () => { active = false }
+  }, [canSave, loadLocalRechecks, result.analysisId])
   const report = review.report
   const [activeQuestion, setActiveQuestion] = useState<ActiveReviewQuestion | null>(null)
   const [view, setView] = useState<'changes' | 'full' | 'new'>('changes')

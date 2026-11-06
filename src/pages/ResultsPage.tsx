@@ -2,7 +2,8 @@ import ReviewCreditAction from '../components/ReviewCreditAction'
 import { unlockWithReviewCredit } from '../api/reviewCredits'
 import { aiLimitMessage } from '../analysis/aiLimits'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { fetchRechecks } from '../api/rechecks'
+import RecheckStatus from '../components/RecheckStatus'
+import { fetchRechecks, type ApplicationRechecks } from '../api/rechecks'
 import ApplicationContext from '../components/ApplicationContext'
 import AtsReport from '../components/reports/AtsReport'
 import JobMatchReport from '../components/reports/JobMatchReport'
@@ -73,15 +74,41 @@ const ResultsPage = () => {
     s.analysisId === analysisId ? s.applicationSaveError : undefined,
   )
   const loggedIn = isLoggedIn()
-  const [parentReview, setParentReview] = useState<{ id: string; parentId: string }>()
-  const originalAnalysisId = parentReview?.id === analysisId ? parentReview?.parentId : undefined
+  const [reviewLinks, setReviewLinks] = useState<{ id: string; data: ApplicationRechecks }>()
+  const recheckData = loggedIn && reviewLinks?.id === analysisId ? reviewLinks?.data : undefined
+  const originalAnalysisId = recheckData?.originalAnalysisId
+  const latestRecheck = recheckData?.rechecks[0]
   useEffect(() => {
     if (!loggedIn || !analysisId) return
     let active = true
-    void fetchRechecks(analysisId).then((data) => {
-      if (active) setParentReview({ id: analysisId, parentId: data.originalAnalysisId })
-    }).catch(() => { /* Ordinary reviews remain available if recheck metadata cannot load. */ })
-    return () => { active = false }
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let loading = false
+    let pending = false
+    const load = async () => {
+      if (loading) return
+      loading = true
+      clearTimeout(timer)
+      try {
+        const data = await fetchRechecks(analysisId)
+        if (!active) return
+        setReviewLinks({ id: analysisId, data })
+        const status = data.rechecks[0]?.status
+        pending = status === 'queued' || status === 'processing'
+      } catch {
+        // The original report remains available if recheck status cannot load.
+      } finally {
+        loading = false
+        if (active && pending) timer = setTimeout(load, 10000)
+      }
+    }
+    const onFocus = () => void load()
+    void load()
+    window.addEventListener('focus', onFocus)
+    return () => {
+      active = false
+      clearTimeout(timer)
+      window.removeEventListener('focus', onFocus)
+    }
   }, [analysisId, loggedIn])
   const authStartUrl = useMemo(() => {
     const base = (env.apiBaseUrl || '').replace(/\/$/, '')
@@ -316,6 +343,9 @@ const ResultsPage = () => {
           refreshKey={refresh}
         />
       )}
+      {latestRecheck && !originalAnalysisId ? (
+        <RecheckStatus recheck={latestRecheck} originalScore={normalized ? getJobMatchScore(normalized) : undefined} />
+      ) : null}
       {originalAnalysisId ? (
         <div className="space-y-2 rounded-lg border border-teal-200 bg-teal-50 p-4">
           <p className="font-semibold text-teal-900">Recheck of a saved resume</p>
@@ -402,7 +432,7 @@ const ResultsPage = () => {
       {normalized ? (
         <>
           {reportMode === 'JOB_MATCH' ? (
-            <JobMatchReport result={normalized} />
+            <JobMatchReport result={normalized} recheckData={recheckData ?? null} />
           ) : (
             <AtsReport result={normalized} />
           )}

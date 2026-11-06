@@ -1,3 +1,4 @@
+import { recheckPresentation } from '../components/RecheckStatus'
 import NewJobLink from '../components/NewJobLink'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -123,43 +124,49 @@ export default function HistoryPage() {
             <p role="status">Loading applications…</p>
           ) : items.length ? (
             <ul className="divide-y divide-slate-200">
-              {items.map((a) => (
-                <li
-                  key={a.analysisId}
-                  className="flex flex-col items-start justify-between gap-4 py-6 sm:flex-row sm:items-center"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className={`text-sm font-semibold ${a.status === 'failed' ? 'text-red-800' : 'text-teal-800'}`}
+              {items.map((a) => {
+                const recheck = recheckPresentation(a.recheckStatus)
+                return (
+                  <li
+                    key={a.analysisId}
+                    className="flex flex-col items-start justify-between gap-4 py-6 sm:flex-row sm:items-center"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p
+                        className={`text-sm font-semibold ${a.status === 'failed' ? 'text-red-800' : 'text-teal-800'}`}
+                      >
+                        {a.status === 'completed'
+                          ? 'Ready to continue'
+                          : a.status === 'failed'
+                            ? 'Needs attention'
+                            : a.status === 'queued'
+                              ? 'In the queue'
+                              : 'Processing'}
+                      </p>
+                      {recheck ? (
+                        <p className={`mt-1 text-sm font-medium ${recheck.tone}`}>{recheck.label}</p>
+                      ) : null}
+                      <h2 className="mt-2 break-words text-xl font-semibold text-slate-950">
+                        {applicationHeading(a)}
+                      </h2>
+                      <p className="mt-2 break-words text-sm text-slate-600">
+                        {a.resumeFileName || 'Original submitted resume'} ·{' '}
+                        {new Date(a.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                    <Link
+                      className={ui.button.secondary}
+                      to={`/app/results/${a.analysisId}`}
                     >
                       {a.status === 'completed'
-                        ? 'Ready to continue'
+                        ? 'Continue review'
                         : a.status === 'failed'
-                          ? 'Needs attention'
-                          : a.status === 'queued'
-                            ? 'In the queue'
-                            : 'Processing'}
-                    </p>
-                    <h2 className="mt-2 break-words text-xl font-semibold text-slate-950">
-                      {applicationHeading(a)}
-                    </h2>
-                    <p className="mt-2 break-words text-sm text-slate-600">
-                      {a.resumeFileName || 'Original submitted resume'} ·{' '}
-                      {new Date(a.createdAt).toLocaleString()}
-                    </p>
-                  </div>
-                  <Link
-                    className={ui.button.secondary}
-                    to={`/app/results/${a.analysisId}`}
-                  >
-                    {a.status === 'completed'
-                      ? 'Continue review'
-                      : a.status === 'failed'
-                        ? 'View issue'
-                        : 'View progress'}
-                  </Link>
-                </li>
-              ))}
+                          ? 'View issue'
+                          : 'View progress'}
+                    </Link>
+                  </li>
+                )
+              })}
             </ul>
           ) : (
             <div className="py-8">
