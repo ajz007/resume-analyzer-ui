@@ -9,6 +9,10 @@ import {
   questionFocus,
   unresolvedOutcomes,
 } from '../../analysis/reviewEdits'
+import { Link } from 'react-router-dom'
+import { useWorkspaceIdentity } from '../../auth/useWorkspaceIdentity'
+import type { UploadedDoc } from '../../api/documents'
+import { downloadTailoredResume, listTailoredResumes, previewTailoredResume, saveTailoredResume } from '../../api/tailoredResumes'
 import { apiDownload } from '../../api/client'
 import { triggerBrowserDownload } from '../../api/resumes'
 import { ui } from '../../app/uiTokens'
@@ -42,10 +46,12 @@ type ReviewProps = {
 
 // A new analysis or access mode must never inherit another review's answers or choices.
 export default function ReviewReportView(props: ReviewProps) {
+  const identity = useWorkspaceIdentity()
   return (
     <GuidedReview
-      key={`${props.result.analysisId}:${!!props.result.locked}:${!props.result.report?.edits}:${!!props.readOnly}:${!!props.localPreview}:${!!props.referencePreview}`}
+      key={`${props.result.analysisId}:${!!props.result.locked}:${!props.result.report?.edits}:${!!props.readOnly}:${!!props.localPreview}:${!!props.referencePreview}:${identity ?? 'guest'}`}
       {...props}
+      signedIn={!!identity}
     />
   )
 }
@@ -56,7 +62,8 @@ function GuidedReview({
   localPreview = false,
   readOnly = false,
   sessionTransport,
-}: ReviewProps) {
+  signedIn,
+}: ReviewProps & { signedIn: boolean }) {
   const initialReport = result.report!
   const eligible =
     result.locked !== true &&
@@ -72,6 +79,25 @@ function GuidedReview({
     [readOnly, sessionTransport, eligible, localPreview, referencePreview, result.analysisId],
   )
   const review = useReviewSession(initialReport, transport)
+  const canSave = signedIn && !!transport && !readOnly && !localPreview && !referencePreview
+  const [versions, setVersions] = useState<UploadedDoc[]>([])
+  const [versionAction, setVersionAction] = useState('')
+  const [versionError, setVersionError] = useState('')
+  const [fullPreview, setFullPreview] = useState<{ key: string; text: string } | null>(null)
+  useEffect(() => {
+    let active = true
+    if (canSave) {
+      void listTailoredResumes(result.analysisId).then((items) => {
+        if (active) setVersions((current) => [
+          ...current.filter((saved) => !items.some((item) => item.documentId === saved.documentId)),
+          ...items,
+        ])
+      }).catch(() => {
+        if (active) setVersionError('Saved versions could not be loaded. Reopen this review to try again.')
+      })
+    }
+    return () => { active = false }
+  }, [canSave, result.analysisId])
   const report = review.report
   const [activeQuestion, setActiveQuestion] = useState<ActiveReviewQuestion | null>(null)
   const [view, setView] = useState<'changes' | 'full' | 'new'>('changes')
@@ -113,6 +139,39 @@ function GuidedReview({
       setNotice('Copy was unavailable. Open Preview selected passages to select and copy the text.')
     }
   }
+  const exportChoices = {
+    editIds: edits.filter((edit) => !excluded.has(edit.id)).map((edit) => edit.id),
+    reviewVersion: review.session.version,
+  }
+  const previewKey = JSON.stringify(exportChoices)
+
+  async function previewVersion() {
+    setVersionAction('preview')
+    setVersionError('')
+    try {
+      const text = await previewTailoredResume(result.analysisId, exportChoices)
+      setFullPreview({ key: previewKey, text })
+    } catch {
+      setVersionError('The resume preview could not be prepared. Please try again.')
+    } finally {
+      setVersionAction('')
+    }
+  }
+
+  async function saveVersion() {
+    setVersionAction('save')
+    setVersionError('')
+    try {
+      const saved = await saveTailoredResume(result.analysisId, exportChoices)
+      setVersions((items) => [saved, ...items.filter((item) => item.documentId !== saved.documentId)])
+      setNotice('Tailored resume saved for this job. You can also find it in My resumes.')
+    } catch {
+      setVersionError('This version could not be saved. Your edit choices are still here.')
+    } finally {
+      setVersionAction('')
+    }
+  }
+
   async function download() {
     setBusy(true)
     setNotice('')
@@ -120,10 +179,7 @@ function GuidedReview({
       const response = await apiDownload(`/analyses/${encodeURIComponent(result.analysisId)}/reviewed-resume`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          editIds: edits.filter((edit) => !excluded.has(edit.id)).map((edit) => edit.id),
-          reviewVersion: review.session.version,
-        }),
+        body: JSON.stringify(exportChoices),
       })
       triggerBrowserDownload(await response.blob(), 'reviewed-resume.docx')
       setNotice('Downloaded using your chosen edits and the remaining extracted resume text.')
@@ -178,7 +234,8 @@ function GuidedReview({
     question.requirementIds?.includes(featuredGap.requirementId),
   )
   const selectedEditCount = edits.filter(edit => !excluded.has(edit.id)).length
-  const exportBlocked = busy || review.busy
+  const exportBlocked = busy || review.busy || !!versionAction
+  const finishLabel = canSave ? 'Save for this job' : 'Preview and download'
   const hasQuestionsPanel = hasDiagnosis || questions.length > 0 || !!(transport && eligible)
   return (
     <div className="space-y-6 text-slate-800">
@@ -226,7 +283,7 @@ function GuidedReview({
                   ? 'See suggested resume changes'
                   : hasQuestionsPanel
                     ? 'Review job evidence'
-                    : 'Preview and download'}
+                    : finishLabel}
               </button>
               {hasDiagnosis && panel !== 'requirements' ? (
                 <button
@@ -299,7 +356,7 @@ function GuidedReview({
           {([
             ['requirements', 'Understand your fit'],
             ['edits', 'Tailor your resume'],
-            ['use', 'Preview and download'],
+            ['use', finishLabel],
           ] as const).map(([step, label], index) => {
             const current = step === panel || (step === 'edits' && panel === 'answers')
             return (
@@ -318,7 +375,7 @@ function GuidedReview({
             ...(!readOnly && review.session.answers.length
               ? [['answers', `Answer updates (${review.session.answers.length})`]]
               : []),
-            ...(!locked ? [['use', 'Preview and download']] : []),
+            ...(!locked ? [['use', finishLabel]] : []),
           ] as [typeof panel, string][]
         ).map(([id, label]) => (
           <button
@@ -594,7 +651,7 @@ function GuidedReview({
                   <p className="text-sm text-slate-600">
                     {readOnly
                       ? 'This shared view shows suggested wording. Original comparisons and source excerpts are private.'
-                      : 'Highlighting marks new wording. Edits from confirmed answers are labeled separately.'}
+                      : 'Highlighting marks new wording. Suggestions from confirmed answers start selected. Choose Keep original to leave one out.'}
                   </p>
                   {!displayedEdits.length ? (
                     <ReportCard>
@@ -737,7 +794,7 @@ function GuidedReview({
                   setPanel('use')
                   setFocusTarget('review-export')
                 }}>
-                  Preview and download
+                  {finishLabel}
                 </button>
               </div>
             </section>
@@ -758,13 +815,29 @@ function GuidedReview({
                     {revisedPassages(report, excluded) || 'No revised passages selected.'}
                   </p>
                 </details>
+                {fullPreview?.key === previewKey ? (
+                  <details open className="rounded-lg border border-slate-200 p-4">
+                    <summary className={reviewLink}>Full resume preview</summary>
+                    <p className="mt-3 max-h-96 overflow-auto whitespace-pre-wrap">{fullPreview.text}</p>
+                  </details>
+                ) : null}
                 <div className="flex flex-wrap gap-3">
+                  {canSave ? (
+                    <>
+                      <button type="button" className={ui.button.primary} disabled={exportBlocked || !review.ready} onClick={saveVersion}>
+                        {versionAction === 'save' ? 'Saving…' : 'Save for this job'}
+                      </button>
+                      <button type="button" className={ui.button.secondary} disabled={exportBlocked || !review.ready} onClick={previewVersion}>
+                        {versionAction === 'preview' ? 'Preparing preview…' : 'Preview full resume'}
+                      </button>
+                    </>
+                  ) : null}
                   <button type="button" className={ui.button.secondary} disabled={exportBlocked} onClick={copyPassages}>
                     Copy selected passages
                   </button>
                   <button
                     type="button"
-                    className={ui.button.primary}
+                    className={canSave ? ui.button.secondary : ui.button.primary}
                     disabled={exportBlocked || readOnly || referencePreview || localPreview}
                     onClick={download}
                   >
@@ -779,6 +852,33 @@ function GuidedReview({
                             : 'Download reviewed resume'}
                   </button>
                 </div>
+                {versionError ? <p role="alert" className="text-sm text-red-800">{versionError}</p> : null}
+                {canSave && versions.length ? (
+                  <section className="space-y-3 border-t border-slate-200 pt-3">
+                    <h3 className={ui.results.text.cardTitle}>Saved versions for this job</h3>
+                    <ul className="space-y-2">
+                      {versions.map((version) => (
+                        <li key={version.documentId} className="flex flex-wrap items-center gap-x-3">
+                          <span>{version.fileName} · {new Date(version.uploadedAt).toLocaleString()}</span>
+                          <button type="button" className={reviewLink} disabled={exportBlocked} onClick={async () => {
+                            setVersionAction(version.documentId)
+                            setVersionError('')
+                            try {
+                              await downloadTailoredResume(version)
+                            } catch {
+                              setVersionError('Could not download this saved version. Please try again.')
+                            } finally {
+                              setVersionAction('')
+                            }
+                          }}>
+                            {versionAction === version.documentId ? 'Preparing…' : 'Download Word file'}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                    <Link className={reviewLink} to="/app/resumes">Open My resumes</Link>
+                  </section>
+                ) : null}
                 {readOnly ? (
                   <p className={ui.results.text.meta}>
                     Shared report view. Answer history and saved edit choices are available only to the report owner.

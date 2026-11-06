@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { MemoryRouter } from "react-router-dom";
 import { createRoot } from "react-dom/client";
 import { fromBackendResult } from "../src/analysis/adapters/fromBackend";
 import { normalizeAnalysisResponse } from "../src/analysis/normalizeAnalysisResponse";
@@ -221,4 +222,4 @@ function Fixture() {
     </main>
   );
 }
-createRoot(document.getElementById("root")!).render(<Fixture />);
+createRoot(document.getElementById("root")!).render(<MemoryRouter><Fixture /></MemoryRouter>);

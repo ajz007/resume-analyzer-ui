@@ -36,7 +36,7 @@ export const ResumeListView = ({
         <p className="text-sm font-semibold text-teal-800">Optional drafting tools</p>
         <h2 className="text-2xl font-semibold text-slate-950">Editable drafts</h2>
         <p className={ui.text.subtitle}>
-          Maintain a separate structured draft. Saved uploads above are the sources used for job reviews.
+          Maintain a separate structured draft. Saved resumes above can be reused for job reviews.
         </p>
       </div>
       {resumes.length ? <button type="button" className={ui.button.secondary} onClick={onNew}>New resume</button> : null}

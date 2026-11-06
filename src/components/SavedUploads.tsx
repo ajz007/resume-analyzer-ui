@@ -3,8 +3,9 @@ import { fetchDocuments } from '../api/endpoints'
 import type { UploadedDoc } from '../api/documents'
 import { fetchPrimaryResume, setPrimaryResume } from '../api/workspace'
 import { useAnalysisStore } from '../store/useAnalysisStore'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useWorkspaceIdentity } from '../auth/useWorkspaceIdentity'
+import { downloadTailoredResume } from '../api/tailoredResumes'
 import { ui } from '../app/uiTokens'
 
 export default function SavedUploads({
@@ -20,6 +21,7 @@ export default function SavedUploads({
   const [offset, setOffset] = useState(0)
   const [more, setMore] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [downloadingId, setDownloadingId] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -93,7 +95,7 @@ export default function SavedUploads({
             Reusable source files
           </p>
           <h2 className="text-2xl font-semibold text-slate-950">
-            Saved uploads
+            Saved resumes
           </h2>
           <p className="mt-2 text-sm text-slate-600">
             Reuse a saved file or choose a primary for next time. Each review
@@ -134,7 +136,7 @@ export default function SavedUploads({
                 {d.fileName}
               </p>
               <p className="text-sm text-slate-600">
-                Uploaded {new Date(d.uploadedAt).toLocaleDateString()}
+                {d.tailoredAnalysisId ? 'Tailored for a job · Saved' : 'Uploaded'} {new Date(d.uploadedAt).toLocaleDateString()}
                 {primary === d.documentId ? ' · Primary resume' : ''}
                 {selected === d.documentId ? ' · Selected for this review' : ''}
               </p>
@@ -148,6 +150,25 @@ export default function SavedUploads({
               >
                 {picker ? 'Use this file' : 'Review a job with this file'}
               </button>
+              {!picker && d.tailoredAnalysisId ? (
+                <>
+                  <Link to={`/app/results/${encodeURIComponent(d.tailoredAnalysisId)}`} className={ui.results.link}>
+                    Open application
+                  </Link>
+                  <button type="button" className={ui.results.link} disabled={!!downloadingId} onClick={async () => {
+                    setDownloadingId(d.documentId)
+                    try {
+                      await downloadTailoredResume(d)
+                    } catch {
+                      setNotice('Could not download this version. Please try again.')
+                    } finally {
+                      setDownloadingId('')
+                    }
+                  }}>
+                    {downloadingId === d.documentId ? 'Preparing…' : 'Download Word file'}
+                  </button>
+                </>
+              ) : null}
               {primary !== d.documentId && (
                 <button
                   type="button"
