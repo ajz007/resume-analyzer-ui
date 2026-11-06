@@ -11,12 +11,50 @@ type TagWindow = Window & { gtag?: Gtag; dataLayer?: unknown[] }
 let configured = false
 let enabled = false
 
-export function analyticsChoice(): string | null {
-  try { return localStorage.getItem(consentKey) } catch { return null }
+function usesSharedChoice() {
+  const host = window.location.hostname
+  return window.location.protocol === 'https:' &&
+    (host === 'rethinkresume.com' || host === 'app.rethinkresume.com')
 }
 
-export function setAnalyticsChoice(allowed: boolean) {
-  try { localStorage.setItem(consentKey, allowed ? 'yes' : 'no') } catch { /* In-memory choice still applies. */ }
+function sharedChoice(): 'yes' | 'no' | null {
+  if (!usesSharedChoice()) return null
+  try {
+    for (const entry of document.cookie.split(';')) {
+      const [key, value] = entry.trim().split('=')
+      if (key === consentKey && (value === 'yes' || value === 'no')) return value
+    }
+  } catch { /* Fall back to the choice saved on this origin. */ }
+  return null
+}
+
+function saveSharedChoice(choice: 'yes' | 'no') {
+  if (!usesSharedChoice()) return
+  try {
+    document.cookie = `${consentKey}=${choice}; Domain=rethinkresume.com; Path=/; Max-Age=31536000; Secure; SameSite=Lax`
+  } catch { /* The local choice remains available. */ }
+}
+
+export function analyticsChoice(): 'yes' | 'no' | null {
+  if (typeof window === 'undefined') return null
+  const shared = sharedChoice()
+  if (shared !== null) return shared
+  try {
+    const local = localStorage.getItem(consentKey)
+    if (local === 'yes' || local === 'no') return local
+  } catch { /* No stored choice. */ }
+  return null
+}
+
+// Promote a pre-existing origin-specific choice once, without overriding a newer shared choice.
+export function restoreAnalyticsChoice() {
+  const choice = analyticsChoice()
+  if (choice !== null && sharedChoice() === null) saveSharedChoice(choice)
+  applyAnalyticsChoice(choice === 'yes')
+}
+
+function applyAnalyticsChoice(allowed: boolean) {
+  if (enabled === allowed) return
   enabled = allowed
   if (configured) {
     const tag = window as TagWindow
@@ -24,8 +62,18 @@ export function setAnalyticsChoice(allowed: boolean) {
   }
 }
 
+export function setAnalyticsChoice(allowed: boolean) {
+  const choice = allowed ? 'yes' : 'no'
+  saveSharedChoice(choice)
+  try { localStorage.setItem(consentKey, choice) } catch { /* In-memory choice still applies. */ }
+  applyAnalyticsChoice(allowed)
+}
+
 function tag(): Gtag | undefined {
-  if (!analyticsAvailable || !enabled) return
+  if (!analyticsAvailable) return
+  const shared = sharedChoice()
+  if (shared !== null) applyAnalyticsChoice(shared === 'yes')
+  if (!enabled) return
   const target = window as TagWindow
   if (!configured) {
     target.dataLayer ??= []

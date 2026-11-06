@@ -44,3 +44,26 @@ it('waits for consent and reports the actual receipt once without private URLs',
     page_referrer: '',
   })]])
 })
+
+it('carries an existing home-page choice across hosts and honors a later opt-out', async () => {
+  let cookie = ''
+  const location = { hostname: 'rethinkresume.com', protocol: 'https:' }
+  const local = vi.fn(() => 'yes')
+  vi.stubGlobal('window', { location })
+  vi.stubGlobal('document', {
+    get cookie() { return cookie.split(';')[0] },
+    set cookie(value: string) { cookie = value },
+  })
+  vi.stubGlobal('localStorage', { getItem: local, setItem: vi.fn() })
+  const analytics = await import('./google')
+  analytics.restoreAnalyticsChoice()
+  expect(cookie).toContain('rr-analytics-consent=yes; Domain=rethinkresume.com')
+  location.hostname = 'app.rethinkresume.com'
+  local.mockReturnValue('')
+  expect(analytics.analyticsChoice()).toBe('yes')
+  analytics.setAnalyticsChoice(false)
+  location.hostname = 'rethinkresume.com'
+  local.mockReturnValue('yes')
+  analytics.restoreAnalyticsChoice()
+  expect(analytics.analyticsChoice()).toBe('no')
+})
