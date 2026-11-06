@@ -203,6 +203,18 @@ try {
     if (!savedVersions.length) savedVersions.push(version)
     return route.fulfill({ json: version })
   })
+  let recheckSubmissions = 0
+  await page.route('**/api/v1/analyses/example-a/rechecks', (route) => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({ json: { originalAnalysisId: '', rechecks: [] } })
+    }
+    assert.deepEqual(route.request().postDataJSON(), { documentId: 'snapshot-1', retry: false })
+    recheckSubmissions++
+    return route.fulfill({ status: 202, json: { analysisId: 'recheck-1' } })
+  })
+  await page.route('**/api/v1/payments/review-credits', (route) =>
+    route.fulfill({ json: { available: 1, price: 16900, currency: 'INR' } }),
+  )
   await page.evaluate(() => localStorage.setItem('auth_token', 'fictional-test-token'))
   await start()
   const finish = page.getByRole('navigation', { name: 'Review sections' }).getByRole('button', { name: 'Save for this job', exact: true })
@@ -220,6 +232,12 @@ try {
   await start()
   await finish.click()
   await visible(page.getByText(/Example · Engineer.docx/))
+  await button('Recheck this version').click()
+  await visible(page.getByText(/original job description using 1 paid review credit/))
+  assert.equal(recheckSubmissions, 0)
+  await button('Use 1 review credit').click()
+  await visible(button('Use 1 review credit'))
+  assert.equal(recheckSubmissions, 1)
   assert.deepEqual(errors, [])
   console.log(
     'Guided review browser checks passed: edits, confirmations, draft preservation, answer/no-change/clarification, choice recovery, analysis/access isolation, locked views, export guards, 1280/390/320px layouts.',

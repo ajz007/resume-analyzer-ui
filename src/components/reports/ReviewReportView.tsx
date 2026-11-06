@@ -13,6 +13,8 @@ import { Link } from 'react-router-dom'
 import { useWorkspaceIdentity } from '../../auth/useWorkspaceIdentity'
 import type { UploadedDoc } from '../../api/documents'
 import { downloadTailoredResume, listTailoredResumes, previewTailoredResume, saveTailoredResume, type ResumePreview } from '../../api/tailoredResumes'
+import { fetchRechecks, type ApplicationRechecks } from '../../api/rechecks'
+import RecheckVersionAction from './RecheckVersionAction'
 import TailoredResumePreview from './TailoredResumePreview'
 import { apiDownload } from '../../api/client'
 import { triggerBrowserDownload } from '../../api/resumes'
@@ -81,6 +83,7 @@ function GuidedReview({
   )
   const review = useReviewSession(initialReport, transport)
   const canSave = signedIn && !!transport && !readOnly && !localPreview && !referencePreview
+  const [rechecks, setRechecks] = useState<ApplicationRechecks>()
   const [versions, setVersions] = useState<UploadedDoc[]>([])
   const [versionAction, setVersionAction] = useState('')
   const [versionError, setVersionError] = useState('')
@@ -88,6 +91,9 @@ function GuidedReview({
   useEffect(() => {
     let active = true
     if (canSave) {
+      void fetchRechecks(result.analysisId).then((items) => {
+        if (active) setRechecks(items)
+      }).catch(() => { /* The recheck endpoint may be unavailable during rollout. */ })
       void listTailoredResumes(result.analysisId).then((items) => {
         if (active) setVersions((current) => [
           ...current.filter((saved) => !items.some((item) => item.documentId === saved.documentId)),
@@ -885,6 +891,9 @@ function GuidedReview({
                 {canSave && versions.length ? (
                   <section className="space-y-3 border-t border-slate-200 pt-3">
                     <h3 className={ui.results.text.cardTitle}>Saved versions for this job</h3>
+                    {rechecks?.rechecks.length && typeof getJobMatchScore(result) === 'number' ? (
+                      <p className={ui.results.text.meta}>Original submitted resume · {getJobMatchScore(result)}/100</p>
+                    ) : null}
                     <ul className="space-y-2">
                       {versions.map((version) => (
                         <li key={version.documentId} className="flex flex-wrap items-center gap-x-3">
@@ -902,6 +911,13 @@ function GuidedReview({
                           }}>
                             {versionAction === version.documentId ? 'Preparing…' : 'Download Word file'}
                           </button>
+                          {rechecks && !rechecks.originalAnalysisId ? (
+                            <RecheckVersionAction
+                              analysisId={result.analysisId}
+                              documentId={version.documentId}
+                              recheck={rechecks.rechecks.find((item) => item.documentId === version.documentId)}
+                            />
+                          ) : null}
                         </li>
                       ))}
                     </ul>
