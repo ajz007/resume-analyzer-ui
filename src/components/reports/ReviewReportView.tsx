@@ -120,6 +120,7 @@ function GuidedReview({
   const excluded = new Set(review.session.excludedIds)
   const answerEditIds = new Set(review.session.answers.flatMap((answer) => (answer.edit ? [answer.edit.id] : [])))
   const [notice, setNotice] = useState('')
+  const [answerNotice, setAnswerNotice] = useState('')
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'manual'>('idle')
   const copyField = useRef<HTMLTextAreaElement>(null)
   useEffect(() => {
@@ -133,7 +134,7 @@ function GuidedReview({
   const [allQuestions, setAllQuestions] = useState(false)
   const [allEdits, setAllEdits] = useState(false)
   const hasDiagnosis = result.analysisMode !== 'resume_only' && !!result.jobMatchScoring?.requirementScores?.length
-  const [panel, setPanel] = useState<'edits' | 'requirements' | 'answers' | 'use'>(hasDiagnosis && !result.locked && initialReport.edits ? 'requirements' : 'edits')
+  const [panel, setPanel] = useState<'edits' | 'requirements' | 'use'>(hasDiagnosis && !result.locked && initialReport.edits ? 'requirements' : 'edits')
   const [focusTarget, setFocusTarget] = useState('')
   useEffect(() => {
     if (!focusTarget) return
@@ -226,18 +227,24 @@ function GuidedReview({
           (question.requirementIds?.length === 1 && question.requirementIds[0] === answer.requirementId),
       ),
   )
+  const answers = review.session.answers
   useEffect(() => {
     if (review.loading || !review.ready) return
-    if (previousAnswerCount.current !== null && review.session.answers.length > previousAnswerCount.current) {
-      setPanel('answers')
-      setView('new')
+    const latestAnswer = answers.at(-1)
+    if (latestAnswer && previousAnswerCount.current !== null && answers.length > previousAnswerCount.current) {
+      setPanel('edits')
+      setView('changes')
       setAllEdits(true)
       setActiveQuestion(null)
-      setNotice('Answer recorded. Your earlier edits and choices remain.')
-      setFocusTarget('review-answer-updates')
+      setAnswerNotice(latestAnswer.edit
+        ? 'Answer saved. A new edit is ready for your review.'
+        : latestAnswer.delta.nextQuestion
+          ? 'Answer saved. A follow-up question is available.'
+          : 'Answer saved. No resume edit was added.')
+      setFocusTarget('review-edit-list')
     }
-    previousAnswerCount.current = review.session.answers.length
-  }, [review.loading, review.ready, review.session.answers.length])
+    previousAnswerCount.current = answers.length
+  }, [review.loading, review.ready, answers])
   const outcomes = unresolvedOutcomes(report)
 
   function openEdits(id?: string) {
@@ -263,6 +270,7 @@ function GuidedReview({
     question.requirementIds?.includes(featuredGap.requirementId),
   )
   const selectedEditCount = edits.filter(edit => !excluded.has(edit.id)).length
+  const originalsKept = [...excluded].filter(id => !answerEditIds.has(id)).length
   const exportBlocked = busy || review.busy || !!versionAction
   const finishLabel = canSave ? 'Save for this job' : 'Preview and download'
   const hasQuestionsPanel = hasDiagnosis || questions.length > 0 || !!(transport && eligible)
@@ -388,13 +396,16 @@ function GuidedReview({
               ['edits', 'Tailor your resume'],
               ['use', finishLabel],
             ] as const).map(([step, label], index) => {
-              const current = step === panel || (step === 'edits' && panel === 'answers')
+              const current = step === panel
               return (
                 <li key={step} className="relative">
                   <button
                     type="button"
                     aria-current={current ? 'step' : undefined}
-                    onClick={() => setPanel(step)}
+                    onClick={() => {
+                      setPanel(step)
+                      if (step === 'edits') setView('changes')
+                    }}
                     className={`flex min-h-14 w-full items-center gap-3 rounded-lg border px-3 py-2 text-left font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 ${current ? 'border-teal-800 bg-teal-800 text-white' : 'border-teal-200 bg-white text-slate-800 hover:border-teal-600 hover:bg-teal-50'}`}
                   >
                     <span aria-hidden="true" className={`flex size-7 shrink-0 items-center justify-center rounded-full text-sm ${current ? 'bg-white text-teal-900' : 'bg-teal-100 text-teal-900'}`}>{index + 1}</span>
@@ -414,9 +425,6 @@ function GuidedReview({
             [
               ...(hasQuestionsPanel ? [['requirements', hasDiagnosis ? 'Job match report' : 'Requirements & questions']] : []),
               ['edits', `Suggested resume changes${locked ? '' : ` (${edits.length})`}`],
-              ...(answerCount
-                ? [['answers', `Answer updates (${answerCount})`]]
-                : []),
               ...(!locked ? [['use', finishLabel]] : []),
             ] as [typeof panel, string][]
           ).map(([id, label]) => (
@@ -432,26 +440,6 @@ function GuidedReview({
           ))}
         </nav>
       )}
-      {showJourney && answerCount > 0 && (panel === 'edits' || panel === 'answers') ? (
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Tailor your resume sections">
-          <button
-            type="button"
-            className={ui.button.secondary}
-            aria-pressed={panel === 'edits'}
-            onClick={() => openEdits()}
-          >
-            Suggested resume changes ({edits.length})
-          </button>
-          <button
-            type="button"
-            className={ui.button.secondary}
-            aria-pressed={panel === 'answers'}
-            onClick={() => setPanel('answers')}
-          >
-            Answer updates ({answerCount})
-          </button>
-        </div>
-      ) : null}
       {panel === 'requirements' && hasDiagnosis ? (
         <ReportCard>
           <section id="job-requirement-diagnosis" tabIndex={-1} className="scroll-mt-6">
@@ -594,86 +582,11 @@ function GuidedReview({
               </div>
             </div>
           ) : null}
-          {panel === 'answers' && review.session.answers.length ? (
-            <ReportCard>
-              <div id="review-answer-updates" tabIndex={-1} className="scroll-mt-6 space-y-4">
-                <h2 className={ui.results.section.title}>What your answers changed</h2>
-                <p>
-                  Your earlier edits and keep-original choices remain. New evidence is self-reported and has not been
-                  independently verified.
-                </p>
-                {[...review.session.answers].reverse().map((answer) => (
-                  <section key={answer.id} className="space-y-2 border-t border-slate-200 pt-3">
-                    <p>
-                      <strong>
-                        {result.jobRequirementProfile?.topPriorities?.find((item) => item.id === answer.requirementId)
-                          ?.priority ?? answer.requirementId}
-                      </strong>
-                    </p>
-                    <details>
-                      <summary className={reviewLink}>Your answer</summary>
-                      <p>{answer.question}</p>
-                      <p className="whitespace-pre-wrap">{answer.text}</p>
-                    </details>
-                    <p>{answer.delta.explanation}</p>
-                    <p>
-                      <strong>What this establishes:</strong>{' '}
-                      {answer.delta.establishes || 'No additional experience confirmed.'}
-                    </p>
-                    <p>
-                      <strong>Still unproven:</strong> {answer.delta.stillUnproven}
-                    </p>
-                    {answer.edit ? (
-                      <button
-                        type="button"
-                        className={reviewLink}
-                        onClick={() => {
-                          setPanel('edits')
-                          setView('new')
-                          setAllEdits(true)
-                          setFocusTarget(`review-edit-${answer.edit!.id}`)
-                        }}
-                      >
-                        Review new edit
-                      </button>
-                    ) : (
-                      <p>No resume edit was added.</p>
-                    )}
-                    {answer.delta.nextQuestion && transport ? (
-                      <button
-                        type="button"
-                        className={reviewLink}
-                        disabled={review.busy || review.session.attempts >= 6}
-                        onClick={() => {
-                          setPanel('requirements')
-                          setActiveQuestion({
-                            questionId: `followup-${answer.id}`,
-                            requirementId: answer.requirementId,
-                            text: answer.delta.nextQuestion,
-                            initialAnswer: answer.text + '\nAdditional detail: ',
-                          })
-                          setFocusTarget('review-focused-questions')
-                        }}
-                      >
-                        Clarify the remaining detail
-                      </button>
-                    ) : null}
-                  </section>
-                ))}
-                <button
-                  type="button"
-                  className={ui.button.secondary}
-                  onClick={() => {
-                    openEdits()
-                  }}
-                >
-                  Review all {edits.length} edits
-                </button>
-              </div>
-            </ReportCard>
-          ) : null}
           {panel === 'edits' ? (
             <section id="review-edit-list" tabIndex={-1} className="space-y-5 scroll-mt-6">
+              <div role="status" className={answerNotice ? 'text-sm text-teal-900' : 'sr-only'}>
+                {answerNotice}
+              </div>
               <div>
                 <h2 className={ui.results.section.title}>Suggested resume changes</h2>
                 <p className="mt-2">
@@ -714,7 +627,7 @@ function GuidedReview({
                   <p className="text-sm text-slate-600">
                     {readOnly
                       ? 'This shared view shows suggested wording. Original comparisons and source excerpts are private.'
-                      : 'Highlighting marks new wording. Suggestions from confirmed answers start selected. Choose Keep original to leave one out.'}
+                      : 'Highlighting marks new wording. Review proposed additions from your answers before including them.'}
                   </p>
                   {!displayedEdits.length ? (
                     <ReportCard>
@@ -738,7 +651,7 @@ function GuidedReview({
                             ? (readOnly ? 'A passage is recommended for removal.' : 'Remove this passage; the original is available below.')
                             : readOnly
                               ? edit.after
-                              : addedWords(edit.before, chosenEditText(edit, excluded)).map((token, i) =>
+                              : addedWords(edit.before, answerEditIds.has(edit.id) ? edit.after : chosenEditText(edit, excluded)).map((token, i) =>
                                 token.changed ? (
                                   <mark key={i} className="bg-emerald-100 text-emerald-950">
                                     {token.text}
@@ -794,7 +707,9 @@ function GuidedReview({
                             aria-pressed={excluded.has(edit.id)}
                             onClick={() => review.choose(edit.id)}
                           >
-                            {excluded.has(edit.id) ? 'Use proposed edit' : 'Keep original'}
+                            {answerEditIds.has(edit.id)
+                              ? (excluded.has(edit.id) ? 'Include proposed edit' : 'Leave out proposed edit')
+                              : (excluded.has(edit.id) ? 'Use proposed edit' : 'Keep original')}
                           </button>
                         ) : null}
                       </section>
@@ -863,12 +778,81 @@ function GuidedReview({
             </section>
           ) : null}
 
+          {panel === 'edits' && answerCount > 0 ? (
+            <ReportCard>
+              <details>
+                <summary className={reviewLink}>What your answers changed</summary>
+                <div className="mt-3 space-y-4">
+                  <p>
+                    Your earlier edits and keep-original choices remain. New evidence is self-reported and has not been
+                    independently verified.
+                  </p>
+                  {[...answers].reverse().map((answer) => (
+                    <section key={answer.id} className="space-y-2 border-t border-slate-200 pt-3">
+                      <p>
+                        <strong>
+                          {result.jobRequirementProfile?.topPriorities?.find((item) => item.id === answer.requirementId)
+                            ?.priority ?? answer.requirementId}
+                        </strong>
+                      </p>
+                      <details>
+                        <summary className={reviewLink}>Your answer</summary>
+                        <p>{answer.question}</p>
+                        <p className="whitespace-pre-wrap">{answer.text}</p>
+                      </details>
+                      <p>{answer.delta.explanation}</p>
+                      <p>
+                        <strong>What this establishes:</strong>{' '}
+                        {answer.delta.establishes || 'No additional experience confirmed.'}
+                      </p>
+                      <p>
+                        <strong>Still unproven:</strong> {answer.delta.stillUnproven}
+                      </p>
+                      {answer.edit ? (
+                        <button
+                          type="button"
+                          className={reviewLink}
+                          onClick={() => {
+                            openEdits(answer.edit!.id)
+                          }}
+                        >
+                          Review new edit
+                        </button>
+                      ) : (
+                        <p>No resume edit was added.</p>
+                      )}
+                      {answer.delta.nextQuestion && transport ? (
+                        <button
+                          type="button"
+                          className={reviewLink}
+                          disabled={review.busy || review.session.attempts >= 6}
+                          onClick={() => {
+                            setPanel('requirements')
+                            setActiveQuestion({
+                              questionId: `followup-${answer.id}`,
+                              requirementId: answer.requirementId,
+                              text: answer.delta.nextQuestion,
+                              initialAnswer: answer.text + '\nAdditional detail: ',
+                            })
+                            setFocusTarget('review-focused-questions')
+                          }}
+                        >
+                          Clarify the remaining detail
+                        </button>
+                      ) : null}
+                    </section>
+                  ))}
+                </div>
+              </details>
+            </ReportCard>
+          ) : null}
+
           {panel === 'use' ? (
             <ReportCard>
               <div id="review-export" tabIndex={-1} className="scroll-mt-6 space-y-3">
                 <h2 className={ui.results.section.title}>Prepare your resume for this job</h2>
                 <p>
-                  {selectedEditCount} proposed {selectedEditCount === 1 ? 'passage' : 'passages'} selected · {excluded.size}{' '}
+                  {selectedEditCount} proposed {selectedEditCount === 1 ? 'passage' : 'passages'} selected · {originalsKept}{' '}
                   originals kept.
                 </p>
                 <p>Check names, dates and factual accuracy before sending your resume.</p>
@@ -1036,11 +1020,9 @@ function GuidedReview({
                       limitReached={review.session.attempts >= 6}
                       onClose={() => setActiveQuestion(null)}
                       onSubmit={async (input) => {
+                        setAnswerNotice('')
                         const success = await review.answer(input)
-                        if (success) {
-                          setNotice('Answer submitted. Your earlier edits and choices remain.')
-                          setActiveQuestion(null)
-                        }
+                        if (success) setActiveQuestion(null)
                         return success
                       }}
                     />
