@@ -132,10 +132,11 @@ function Fixture() {
         return snapshot();
       },
       answer: async (request) => {
+        const pending = new URLSearchParams(location.search).has("queued") ? snapshot() : null;
         const action =
-          request.kind === "none"
+          request.kind !== "experience"
             ? "no_change"
-            : request.kind === "not_sure"
+            : request.answer === "I helped with Terraform."
               ? "needs_detail"
               : "add_evidence";
         const edit =
@@ -144,6 +145,7 @@ function Fixture() {
                 ...report.edits![0],
                 id: `answer-${response.session.answers.length}`,
                 operation: "add" as const,
+                section: "Personal project",
                 before: "",
                 after: "Implemented Terraform for a personal project.",
                 confirmedAnswerId: request.requestId,
@@ -153,6 +155,7 @@ function Fixture() {
           ...response.session,
           version: response.session.version + 1,
           attempts: response.session.attempts + 1,
+          excludedIds: edit ? [...request.excludedIds, edit.id] : request.excludedIds,
           answers: [
             ...response.session.answers,
             {
@@ -161,7 +164,11 @@ function Fixture() {
               questionId: request.questionId,
               requirementId: request.requirementId,
               question: "Terraform experience?",
-              text: request.answer,
+              text: request.kind === "none"
+                ? "No relevant experience to add."
+                : request.kind === "not_sure"
+                  ? "Not sure; no experience confirmed."
+                  : request.answer,
               kind: request.kind,
               createdAt: "2026-11-01T00:00:00Z",
               edit,
@@ -192,7 +199,13 @@ function Fixture() {
           response.report = {
             ...response.report,
             edits: [...response.report.edits!, edit],
+            sections: [...response.report.sections!, { heading: "Personal project", editIds: [edit.id], retained: [] }],
           };
+        if (pending) {
+          pending.session.version = response.session.version++;
+          pending.session.pending = { requestId: request.requestId, startedAt: "2026-11-01T00:00:00Z" };
+          return pending;
+        }
         return snapshot();
       },
     } satisfies ReviewSessionTransport;
