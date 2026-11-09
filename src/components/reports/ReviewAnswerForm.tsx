@@ -7,6 +7,7 @@ export type ActiveReviewQuestion = {
   questionId: string
   requirementId: string
   text: string
+  requirementIds?: string[]
   initialAnswer?: string
 }
 

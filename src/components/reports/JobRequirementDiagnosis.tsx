@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
 import type { NormalizedAnalysis } from '../../analysis/normalizeAnalysisResponse'
-import type { ReviewAnswer } from '../../api/reviewSession'
 import { ui } from '../../app/uiTokens'
 import { reviewLink } from './reviewStyles'
 
@@ -23,21 +22,17 @@ export default function JobRequirementDiagnosis({
   locked,
   onReviewEdit,
   onReviewQuestions,
-  onClarifyRequirement,
-  featuredQuestion,
-  answers = [],
+  renderEvidenceQuestions,
 }: {
   result: NormalizedAnalysis
   locked: boolean
   onReviewEdit: (id: string) => void
   onReviewQuestions: () => void
-  onClarifyRequirement?: (id: string) => void
-  featuredQuestion?: { requirementId: string; content: ReactNode }
-  answers?: ReviewAnswer[]
+  renderEvidenceQuestions?: (id: string) => ReactNode
 }) {
   const requirements = result.jobMatchScoring?.requirementScores ?? []
   const priorities = result.jobRequirementProfile?.topPriorities ?? []
-  const hasQuestions = !locked && !!result.report?.questions?.length
+  const hasUnlinkedQuestions = !locked && result.report?.questions?.some(question => !question.requirementIds?.length)
   return (
     <div className="space-y-4">
       <p>{result.jobRequirementProfile?.recruiterIntentSummary}</p>
@@ -63,7 +58,7 @@ export default function JobRequirementDiagnosis({
             /^N\d+$/.test(requirement.requirementId)
           const edits = locked
             ? []
-            : (result.report?.edits ?? []).filter((edit) => edit.requirementIds.includes(requirement.requirementId))
+            : (result.report?.edits ?? []).filter((edit) => !edit.confirmedAnswerId && edit.requirementIds.includes(requirement.requirementId))
           return (
             <li key={requirement.requirementId} className="space-y-4 border-b border-slate-200 py-5 last:border-0">
               <div className="space-y-1">
@@ -109,41 +104,17 @@ export default function JobRequirementDiagnosis({
                     {edits.map((edit) => (
                       <button type="button" key={edit.id} className={reviewLink} onClick={() => onReviewEdit(edit.id)}>
                         Review suggested change: {edit.section}
-                        {edit.confirmedAnswerId ? ' (from your answer)' : ''}
                       </button>
                     ))}
                   </div>
                 </div>
               ) : null}
-              {featuredQuestion?.requirementId === requirement.requirementId ? (
-                featuredQuestion.content
-              ) : !locked && onClarifyRequirement ? (
-                <button
-                  type="button"
-                  className={reviewLink}
-                  onClick={() => onClarifyRequirement(requirement.requirementId)}
-                >
-                  Add relevant experience
-                </button>
-              ) : hasQuestions && requirement.matchStatus.toUpperCase() !== 'STRONG' ? (
+              {!locked ? renderEvidenceQuestions?.(requirement.requirementId) : null}
+              {hasUnlinkedQuestions && requirement.matchStatus.toUpperCase() !== 'STRONG' ? (
                 <button type="button" className={reviewLink} onClick={onReviewQuestions}>
                   Review focused questions
                 </button>
               ) : null}
-              {answers
-                .filter((answer) => answer.requirementId === requirement.requirementId)
-                .map((answer) => (
-                  <div key={answer.id} className="space-y-1 border-l-2 border-teal-300 pl-3">
-                    <p>
-                      <strong>Answer update:</strong>{' '}
-                      {answer.delta.establishes || 'No additional experience confirmed.'}
-                    </p>
-                    <p>Still unproven: {answer.delta.stillUnproven}</p>
-                    <p className={ui.results.text.meta}>
-                      Candidate-confirmed context; original evidence rating and score have not been recalculated.
-                    </p>
-                  </div>
-                ))}
               <details>
                 <summary className={reviewLink}>Scoring detail</summary>
                 <p className="mt-2">
