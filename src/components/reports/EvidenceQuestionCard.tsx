@@ -3,6 +3,7 @@ import type { RequirementScore, JobPriority } from '../../api/types'
 import type { ReviewAnswer } from '../../api/reviewSession'
 import { ui } from '../../app/uiTokens'
 import { reviewLink } from './reviewStyles'
+import { evidenceLabel } from './JobRequirementDiagnosis'
 
 type Props = {
   question: EvidenceQuestion
@@ -10,6 +11,7 @@ type Props = {
   priorities: JobPriority[]
   skipped: boolean
   compact?: boolean
+  featured?: { requirement: RequirementScore; followup?: ReviewAnswer; onExplore: () => void }
   excluded: ReadonlySet<string>
   answeredQuestionIds: ReadonlySet<string>
   onAnswer?: () => void
@@ -20,7 +22,7 @@ type Props = {
 }
 
 export default function EvidenceQuestionCard({
-  question, requirements, priorities, skipped, compact, excluded, answeredQuestionIds,
+  question, requirements, priorities, skipped, compact, featured, excluded, answeredQuestionIds,
   onAnswer, onSkip, onFollowup, onReviewEdit, busy,
 }: Props) {
   const latest = question.answers.at(-1)
@@ -34,15 +36,31 @@ export default function EvidenceQuestionCard({
           : skipped ? 'Skipped for now' : 'Unanswered'
   const tone = hasEdit || establishesEvidence ? 'bg-teal-50 text-teal-900'
     : latest ? 'bg-amber-50 text-amber-900' : 'bg-slate-100 text-slate-700'
+  const followup = featured?.followup
+  const questionText = followup?.delta.nextQuestion ?? question.text
   const requirementIds = question.requirementIds.length ? question.requirementIds : latest ? [latest.requirementId] : []
 
   return (
-    <article aria-label={question.text} className="space-y-3 rounded-lg border border-slate-200 p-4">
+    <article
+      id={featured ? `priority-evidence-${question.key}` : undefined}
+      tabIndex={featured ? -1 : undefined}
+      aria-label={questionText}
+      className="scroll-mt-6 space-y-3 rounded-lg border border-slate-200 p-4"
+    >
       <div className="space-y-2">
-        <p className="font-semibold">{question.text}</p>
-        <span className={`inline-block rounded px-2 py-1 text-sm font-medium ${tone}`}>{status}</span>
+        {featured ? (
+          <>
+            <h3 className={ui.results.text.cardTitle}>{featured.requirement.requirement}</h3>
+            <p className={ui.results.text.meta}>{evidenceLabel(featured.requirement.matchStatus)} · {status}</p>
+            <p className="text-sm"><strong>What your resume shows</strong> · {featured.requirement.evidence || 'No specific resume evidence was recorded.'}</p>
+            {featured.requirement.gap ? (
+              <p className="text-sm"><strong>What's still unclear</strong> · {featured.requirement.gap}</p>
+            ) : null}
+          </>
+        ) : <span className={`inline-block rounded px-2 py-1 text-sm font-medium ${tone}`}>{status}</span>}
+        <p className="font-semibold">{questionText}</p>
       </div>
-      {!compact ? (
+      {!compact && !featured ? (
         <div className="space-y-2 text-sm">
           {requirementIds.length ? requirementIds.map(id => {
             const assessment = requirements.find(item => item.requirementId === id)
@@ -57,17 +75,24 @@ export default function EvidenceQuestionCard({
         </div>
       ) : null}
       {!latest && question.why ? <p className={ui.results.text.secondary}>{question.why}</p> : null}
+      {followup && onFollowup ? (
+        <button type="button" className={reviewLink} disabled={busy} onClick={() => onFollowup(followup)}>
+          Clarify my experience
+        </button>
+      ) : null}
       {!latest && onAnswer ? (
         <div className="flex flex-wrap gap-3">
           <button type="button" className={reviewLink} disabled={busy} onClick={onAnswer}>
-            {skipped ? 'Revisit question' : 'Add relevant experience'}
+            {skipped ? 'Revisit question' : featured ? 'Clarify my experience' : 'Add relevant experience'}
           </button>
           {!skipped && onSkip ? (
             <button type="button" className={reviewLink} disabled={busy} onClick={onSkip}>Skip for now</button>
           ) : null}
         </div>
       ) : null}
-      {question.answers.map(answer => {
+      {featured ? (
+        <button type="button" className={reviewLink} onClick={featured.onExplore}>Explore this requirement</button>
+      ) : question.answers.map(answer => {
         const editId = answer.edit?.id
         const followupId = `followup-${answer.id}`
         return (

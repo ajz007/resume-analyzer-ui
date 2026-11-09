@@ -28,6 +28,7 @@ import { reviewSessionApi, type ReviewAnswer, type ReviewSessionTransport } from
 import { useReviewSession } from '../../analysis/useReviewSession'
 import { evidenceQuestions, type EvidenceQuestion } from '../../analysis/evidenceQuestions'
 import EvidenceQuestionCard from './EvidenceQuestionCard'
+import { prioritizeEvidenceQuestions, type PriorityEvidenceQuestion } from '../../analysis/prioritizeEvidenceQuestions'
 
 const Lines = ({ items }: { items?: string[] }) =>
   items?.length ? (
@@ -148,6 +149,10 @@ function GuidedReview({
   useEffect(() => {
     if (!focusTarget) return
     const element = document.getElementById(focusTarget)
+    if (focusTarget === 'job-requirement-diagnosis' || focusTarget.startsWith('review-requirement-')) {
+      const breakdown = element?.closest('details')
+      if (breakdown) breakdown.open = true
+    }
     element?.focus()
     element?.scrollIntoView({ block: 'start' })
     setFocusTarget('')
@@ -294,7 +299,7 @@ function GuidedReview({
     return question.requirementIds.find(id => requirements.some(item => item.requirementId === id))
   }
 
-  function renderQuestion(question: EvidenceQuestion, compact = false) {
+  function renderQuestion(question: EvidenceQuestion, compact = false, featured?: PriorityEvidenceQuestion) {
     const linkedPriorities = priorities.filter(item => question.requirementIds.includes(item.id))
     const availablePriorities = question.requirementIds.length ? linkedPriorities : priorities
     const canAnswer = !!transport && availablePriorities.length > 0
@@ -305,13 +310,18 @@ function GuidedReview({
         requirements={requirements}
         priorities={priorities}
         compact={compact && question.requirementIds.length === 1}
+        featured={featured && {
+          requirement: featured.requirement,
+          followup: featured.followup,
+          onExplore: () => setFocusTarget(`review-requirement-${featured.requirement.requirementId}`),
+        }}
         skipped={skippedQuestions.includes(question.id)}
         excluded={excluded}
         answeredQuestionIds={answeredQuestionIds}
         busy={answerBusy}
         onAnswer={canAnswer ? () => openQuestion({
           questionId: question.id,
-          requirementId: availablePriorities.length === 1 ? availablePriorities[0].id : '',
+          requirementId: featured?.requirement.requirementId ?? (availablePriorities.length === 1 ? availablePriorities[0].id : ''),
           requirementIds: question.requirementIds,
           text: question.text,
         }) : undefined}
@@ -322,6 +332,14 @@ function GuidedReview({
     )
   }
 
+  const featuredQuestions = showJourney && transport && panel === 'requirements' && review.session.attempts < 6
+    ? prioritizeEvidenceQuestions(
+        questions,
+        requirements.filter(requirement => priorities.some(priority => priority.id === requirement.requirementId)),
+        result.jobRequirementProfile,
+        new Set(skippedQuestions),
+      )
+    : []
   const selectedEditCount = edits.filter(edit => !excluded.has(edit.id)).length
   const originalsKept = [...excluded].filter(id => !answerEditIds.has(id)).length
   const exportBlocked = busy || review.busy || !!versionAction
@@ -493,37 +511,60 @@ function GuidedReview({
           ))}
         </nav>
       )}
-      {panel === 'requirements' && hasDiagnosis ? (
+      {featuredQuestions.length ? (
         <ReportCard>
-          <section id="job-requirement-diagnosis" tabIndex={-1} className="scroll-mt-6">
-            <h2 className={ui.results.section.title}>Job requirements</h2>
-            <div className="mt-4">
-              <JobRequirementDiagnosis
-                result={{ ...result, report }}
-                locked={locked}
-                renderEvidenceQuestions={(id) => {
-                  const linked = questions.filter(question => questionRequirement(question) === id)
-                  if (linked.length) return linked.map(question => renderQuestion(question, true))
-                  if (transport && review.ready && priorities.some(item => item.id === id) &&
-                    !questions.some(question => question.requirementIds.includes(id))) {
-                    const priority = priorities.find(item => item.id === id)!
-                    return (
-                      <button type="button" className={reviewLink} disabled={answerBusy} onClick={() => openQuestion({
-                        questionId: '',
-                        requirementId: id,
-                        text: `What experience can you confirm for this requirement: ${priority.priority}?`,
-                      })}>
-                        Add relevant experience
-                      </button>
-                    )
-                  }
-                  return null
-                }}
-                onReviewEdit={openEdits}
-                onReviewQuestions={() => setFocusTarget('review-focused-questions')}
-              />
+          <section aria-labelledby="priority-evidence-title" className="space-y-4">
+            <h2 id="priority-evidence-title" className={ui.results.section.title}>Strengthen your application</h2>
+            <p>Your resume may not tell the full story. These questions help uncover relevant experience that could strengthen your application.</p>
+            <p className={ui.results.text.secondary}>Answer any question you choose. We’ll show what your answer establishes and let you review any proposed edit. Your original score stays the same.</p>
+            <div className="grid items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {featuredQuestions.map(item => renderQuestion(item.question, false, item))}
             </div>
           </section>
+        </ReportCard>
+      ) : null}
+      {panel === 'requirements' && hasDiagnosis ? (
+        <ReportCard>
+          <details open={!showJourney || !transport ? true : undefined}>
+            <summary className={reviewLink}>Explore all job requirements</summary>
+            <section id="job-requirement-diagnosis" tabIndex={-1} className="mt-4 scroll-mt-6">
+              <h2 className={ui.results.section.title}>Job requirements</h2>
+              <div className="mt-4">
+                <JobRequirementDiagnosis
+                  result={{ ...result, report }}
+                  locked={locked}
+                  renderEvidenceQuestions={(id) => {
+                    const linked = questions.filter(question => questionRequirement(question) === id)
+                    if (linked.length) return linked.map(question => {
+                      const isFeatured = !question.answers.length && featuredQuestions.some(item => item.question === question)
+                      return isFeatured ? (
+                        <button type="button" key={question.key} className={reviewLink}
+                          onClick={() => setFocusTarget(`priority-evidence-${question.key}`)}>
+                          Go to evidence question
+                        </button>
+                      ) : renderQuestion(question, true)
+                    })
+                    if (transport && review.ready && priorities.some(item => item.id === id) &&
+                      !questions.some(question => question.requirementIds.includes(id))) {
+                      const priority = priorities.find(item => item.id === id)!
+                      return (
+                        <button type="button" className={reviewLink} disabled={answerBusy} onClick={() => openQuestion({
+                          questionId: '',
+                          requirementId: id,
+                          text: `What experience can you confirm for this requirement: ${priority.priority}?`,
+                        })}>
+                          Add relevant experience
+                        </button>
+                      )
+                    }
+                    return null
+                  }}
+                  onReviewEdit={openEdits}
+                  onReviewQuestions={() => setFocusTarget('review-focused-questions')}
+                />
+              </div>
+            </section>
+          </details>
         </ReportCard>
       ) : null}
 

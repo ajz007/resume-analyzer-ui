@@ -6,6 +6,7 @@ import type { ReviewReport } from '../../api/reviewReport'
 import JobMatchReport from './JobMatchReport'
 import AtsReport from './AtsReport'
 import JobRequirementDiagnosis, { evidenceLabel } from './JobRequirementDiagnosis'
+import EvidenceQuestionCard from './EvidenceQuestionCard'
 
 const report: ReviewReport = {
   schemaVersion: '3', scope: 'SELECTED_PASSAGES', priorities: [{ title: 'Clarify implementation', reason: 'Use existing evidence.', editIds: ['e1'] }],
@@ -97,5 +98,29 @@ describe('job requirement diagnosis', () => {
     expect(html).not.toContain('>Suggested resume changes</h2>')
     expect(evidenceLabel('unexpected')).toBe('Needs review')
     expect(evidenceLabel('WEAK')).toBe('Partially supported')
+  })
+})
+
+describe('priority evidence card', () => {
+  it('displays the actual requirement, coverage, resume evidence, gap and verbatim question', () => {
+    const text = 'What geographically distributed system did you personally help design, if any?'
+    const requirement = {
+      requirementId: 'R1', requirement: 'Design highly available distributed systems', matchStatus: 'PARTIAL',
+      weight: 25, score: 60, evidence: 'Kafka trading systems and automated failover.', gap: 'Geographic distribution and design ownership.',
+    }
+    const html = renderToStaticMarkup(
+      <EvidenceQuestionCard
+        question={{ key: 'q1', id: 'q1', text, requirementIds: ['R1'], answers: [] }}
+        requirements={[requirement]} priorities={[]} skipped={false} excluded={new Set()} answeredQuestionIds={new Set()}
+        featured={{ requirement, onExplore: () => {} }} onAnswer={() => {}} onReviewEdit={() => {}} busy={false}
+      />,
+    )
+    expect(html).toContain('Design highly available distributed systems')
+    expect(html).toContain('Partially supported')
+    expect(html).toContain(requirement.evidence)
+    expect(html).toContain(requirement.gap)
+    expect(html).toContain(text)
+    expect(html).toContain('Clarify my experience')
+    expect(html).toContain('Explore this requirement')
   })
 })

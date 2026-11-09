@@ -60,7 +60,7 @@ export default function JobRequirementDiagnosis({
             ? []
             : (result.report?.edits ?? []).filter((edit) => !edit.confirmedAnswerId && edit.requirementIds.includes(requirement.requirementId))
           return (
-            <li key={requirement.requirementId} className="space-y-4 border-b border-slate-200 py-5 last:border-0">
+            <li key={requirement.requirementId} id={`review-requirement-${requirement.requirementId}`} tabIndex={-1} className="scroll-mt-6 space-y-4 border-b border-slate-200 py-5 last:border-0">
               <div className="space-y-1">
                 <p className="text-xs font-medium text-slate-600">
                   {optional ? 'Job preference summary' : 'Job requirement summary'}
