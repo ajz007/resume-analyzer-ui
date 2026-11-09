@@ -36,6 +36,9 @@ export default function EvidenceQuestionCard({
           : skipped ? 'Skipped for now' : 'Unanswered'
   const tone = hasEdit || establishesEvidence ? 'bg-teal-50 text-teal-900'
     : latest ? 'bg-amber-50 text-amber-900' : 'bg-slate-100 text-slate-700'
+  const pendingFollowup = latest?.delta.nextQuestion && !answeredQuestionIds.has(`followup-${latest.id}`)
+    ? latest
+    : undefined
   const followup = featured?.followup
   const questionText = followup?.delta.nextQuestion ?? question.text
   const requirementIds = question.requirementIds.length ? question.requirementIds : latest ? [latest.requirementId] : []
@@ -76,28 +79,33 @@ export default function EvidenceQuestionCard({
       ) : null}
       {!latest && question.why ? <p className={ui.results.text.secondary}>{question.why}</p> : null}
       {followup && onFollowup ? (
-        <button type="button" className={reviewLink} disabled={busy} onClick={() => onFollowup(followup)}>
+        <button type="button" className={ui.button.primary} disabled={busy} onClick={() => onFollowup(followup)}>
           Clarify my experience
         </button>
       ) : null}
       {!latest && onAnswer ? (
         <div className="flex flex-wrap gap-3">
-          <button type="button" className={reviewLink} disabled={busy} onClick={onAnswer}>
+          <button type="button" className={featured ? ui.button.primary : ui.button.secondary} disabled={busy} onClick={onAnswer}>
             {skipped ? 'Revisit question' : featured ? 'Clarify my experience' : 'Add relevant experience'}
           </button>
           {!skipped && onSkip ? (
-            <button type="button" className={reviewLink} disabled={busy} onClick={onSkip}>Skip for now</button>
+            <button type="button" className={`${reviewLink} min-h-10 py-2`} disabled={busy} onClick={onSkip}>Skip for now</button>
           ) : null}
         </div>
       ) : null}
+      {compact && pendingFollowup && onFollowup ? (
+        <button type="button" className={ui.button.secondary} disabled={busy} onClick={() => onFollowup(pendingFollowup)}>
+          Continue clarification
+        </button>
+      ) : null}
       {featured ? (
-        <button type="button" className={reviewLink} onClick={featured.onExplore}>Explore this requirement</button>
+        <button type="button" className={`${reviewLink} min-h-10 py-2`} onClick={featured.onExplore}>Explore this requirement</button>
       ) : question.answers.map(answer => {
         const editId = answer.edit?.id
         const followupId = `followup-${answer.id}`
         return (
           <details key={answer.id} className="border-t border-slate-200 pt-2">
-            <summary className={reviewLink}>Answer and outcome</summary>
+            <summary className={`${reviewLink} min-h-10 py-2`}>Answer and outcome</summary>
             <div className="mt-2 space-y-2 text-sm">
               <p className="whitespace-pre-wrap"><strong>Your answer</strong> · {answer.text}</p>
               {answer.delta.explanation && answer.delta.explanation !== answer.delta.establishes ? <p>{answer.delta.explanation}</p> : null}
@@ -112,7 +120,7 @@ export default function EvidenceQuestionCard({
               {answer.delta.nextQuestion && !answeredQuestionIds.has(followupId) ? (
                 <>
                   <p><strong>Follow-up</strong> · {answer.delta.nextQuestion}</p>
-                  {onFollowup ? (
+                  {onFollowup && (!compact || answer !== pendingFollowup) ? (
                     <button type="button" className={reviewLink} disabled={busy} onClick={() => onFollowup(answer)}>
                       Clarify the remaining detail
                     </button>
