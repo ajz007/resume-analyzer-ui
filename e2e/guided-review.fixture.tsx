@@ -163,7 +163,9 @@ function Fixture() {
               requestId: request.requestId,
               questionId: request.questionId,
               requirementId: request.requirementId,
-              question: "Terraform experience?",
+              question: request.questionId.startsWith("followup-")
+                ? "What did you personally build?"
+                : report.questions![0].question,
               text: request.kind === "none"
                 ? "No relevant experience to add."
                 : request.kind === "not_sure"

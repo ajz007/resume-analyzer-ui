@@ -6,7 +6,6 @@ import {
   chosenEditText,
   revisedPassages,
   sectionPassages,
-  questionFocus,
   unresolvedOutcomes,
 } from '../../analysis/reviewEdits'
 import { Link } from 'react-router-dom'
@@ -25,8 +24,10 @@ import AtsChecksSection from './AtsChecksSection'
 import ScoreDisclaimer from './ScoreDisclaimer'
 import JobRequirementDiagnosis from './JobRequirementDiagnosis'
 import ReviewAnswerForm, { type ActiveReviewQuestion } from './ReviewAnswerForm'
-import { reviewSessionApi, type ReviewSessionTransport } from '../../api/reviewSession'
+import { reviewSessionApi, type ReviewAnswer, type ReviewSessionTransport } from '../../api/reviewSession'
 import { useReviewSession } from '../../analysis/useReviewSession'
+import { evidenceQuestions, type EvidenceQuestion } from '../../analysis/evidenceQuestions'
+import EvidenceQuestionCard from './EvidenceQuestionCard'
 
 const Lines = ({ items }: { items?: string[] }) =>
   items?.length ? (
@@ -130,8 +131,16 @@ function GuidedReview({
     }
   }, [copyStatus])
   const [busy, setBusy] = useState(false)
-  const [skippedQuestionId, setSkippedQuestionId] = useState('')
-  const [allQuestions, setAllQuestions] = useState(false)
+  const skipKey = `review-skipped-questions:${result.analysisId}`
+  const [skippedQuestions, setSkippedQuestions] = useState<string[]>(() => {
+    if (!transport) return []
+    try {
+      const stored: unknown = JSON.parse(localStorage.getItem(skipKey) ?? '[]')
+      return Array.isArray(stored) ? stored.filter((id): id is string => typeof id === 'string') : []
+    } catch {
+      return []
+    }
+  })
   const [allEdits, setAllEdits] = useState(false)
   const hasDiagnosis = result.analysisMode !== 'resume_only' && !!result.jobMatchScoring?.requirementScores?.length
   const [panel, setPanel] = useState<'edits' | 'requirements' | 'use'>(hasDiagnosis && !result.locked && initialReport.edits ? 'requirements' : 'edits')
@@ -219,14 +228,6 @@ function GuidedReview({
     }
   }
   const previousAnswerCount = useRef<number | null>(null)
-  const questions = (report.questions ?? []).filter(
-    (question) =>
-      !review.session.answers.some(
-        (answer) =>
-          answer.questionId === question.id ||
-          (question.requirementIds?.length === 1 && question.requirementIds[0] === answer.requirementId),
-      ),
-  )
   const answers = review.session.answers
   useEffect(() => {
     if (review.loading || !review.ready) return
@@ -253,22 +254,74 @@ function GuidedReview({
     setAllEdits(true)
     if (id) setFocusTarget(`review-edit-${id}`)
   }
-  function openQuestions() {
+  const requirements = result.jobMatchScoring?.requirementScores ?? []
+  const priorities = result.jobRequirementProfile?.topPriorities ?? []
+  const questions = transport && !review.ready ? [] : evidenceQuestions(report.questions, answers)
+  const answeredQuestionIds = new Set(answers.map(answer => answer.questionId ?? ''))
+  const answerBusy = review.busy || review.session.attempts >= 6
+  const showJourney = hasDiagnosis && !locked && !readOnly
+
+  function openQuestion(question: ActiveReviewQuestion) {
     setPanel('requirements')
-    setAllQuestions(true)
+    setActiveQuestion(question)
     setFocusTarget('review-focused-questions')
   }
-  const answerCount = readOnly ? 0 : review.session.answers.length
-  const showJourney = hasDiagnosis && !locked && !readOnly
-  const evidenceGaps = (result.jobMatchScoring?.requirementScores ?? [])
-    .filter((item) => item.matchStatus.toUpperCase() !== 'STRONG')
-    .sort((first, second) => second.weight - first.weight)
-  const featuredGap = evidenceGaps.find((gap) =>
-    questions.some((question) => question.requirementIds?.includes(gap.requirementId)),
-  )
-  const featuredQuestion = featuredGap && questions.find((question) =>
-    question.requirementIds?.includes(featuredGap.requirementId),
-  )
+
+  function skipQuestion(questionId: string) {
+    const next = [...skippedQuestions, questionId]
+    setSkippedQuestions(next)
+    try {
+      localStorage.setItem(skipKey, JSON.stringify(next))
+    } catch {
+      // Keep the skip in this open review when browser storage is unavailable.
+    }
+    openEdits()
+    setFocusTarget('review-edit-list')
+  }
+
+  function continueClarification(answer: ReviewAnswer) {
+    openQuestion({
+      questionId: `followup-${answer.id}`,
+      requirementId: answer.requirementId,
+      text: answer.delta.nextQuestion,
+      initialAnswer: answer.text + '\nAdditional detail: ',
+    })
+  }
+
+  function questionRequirement(question: EvidenceQuestion) {
+    const answeredRequirement = question.answers.at(-1)?.requirementId
+    if (answeredRequirement && requirements.some(item => item.requirementId === answeredRequirement)) return answeredRequirement
+    return question.requirementIds.find(id => requirements.some(item => item.requirementId === id))
+  }
+
+  function renderQuestion(question: EvidenceQuestion, compact = false) {
+    const linkedPriorities = priorities.filter(item => question.requirementIds.includes(item.id))
+    const availablePriorities = question.requirementIds.length ? linkedPriorities : priorities
+    const canAnswer = !!transport && availablePriorities.length > 0
+    return (
+      <EvidenceQuestionCard
+        key={question.key}
+        question={question}
+        requirements={requirements}
+        priorities={priorities}
+        compact={compact && question.requirementIds.length === 1}
+        skipped={skippedQuestions.includes(question.id)}
+        excluded={excluded}
+        answeredQuestionIds={answeredQuestionIds}
+        busy={answerBusy}
+        onAnswer={canAnswer ? () => openQuestion({
+          questionId: question.id,
+          requirementId: availablePriorities.length === 1 ? availablePriorities[0].id : '',
+          requirementIds: question.requirementIds,
+          text: question.text,
+        }) : undefined}
+        onSkip={canAnswer ? () => skipQuestion(question.id) : undefined}
+        onFollowup={transport ? continueClarification : undefined}
+        onReviewEdit={openEdits}
+      />
+    )
+  }
+
   const selectedEditCount = edits.filter(edit => !excluded.has(edit.id)).length
   const originalsKept = [...excluded].filter(id => !answerEditIds.has(id)).length
   const exportBlocked = busy || review.busy || !!versionAction
@@ -448,71 +501,26 @@ function GuidedReview({
               <JobRequirementDiagnosis
                 result={{ ...result, report }}
                 locked={locked}
-                answers={review.session.answers}
-                featuredQuestion={
-                  transport && review.ready && review.session.attempts < 6 && featuredGap && featuredQuestion &&
-                  skippedQuestionId !== featuredQuestion.id
-                    ? {
-                        requirementId: featuredGap.requirementId,
-                        content: (
-                          <div className="space-y-2 rounded-lg border border-teal-200 bg-teal-50 p-4">
-                            <p className="font-semibold">Make your experience clearer for this requirement</p>
-                            <p>{featuredQuestion.question}</p>
-                            {featuredQuestion.why ? <p className={ui.results.text.secondary}>{featuredQuestion.why}</p> : null}
-                            <div className="flex flex-wrap gap-3">
-                              <button
-                                type="button"
-                                className={reviewLink}
-                                disabled={review.busy}
-                                onClick={() => {
-                                  setActiveQuestion({
-                                    questionId: featuredQuestion.id,
-                                    requirementId: featuredQuestion.requirementIds?.length === 1 ? featuredGap.requirementId : '',
-                                    text: featuredQuestion.question,
-                                  })
-                                  setFocusTarget('review-focused-questions')
-                                }}
-                              >
-                                Add relevant experience
-                              </button>
-                              <button
-                                type="button"
-                                className={reviewLink}
-                                onClick={() => {
-                                  setSkippedQuestionId(featuredQuestion.id)
-                                  openEdits()
-                                  setFocusTarget('review-edit-list')
-                                }}
-                              >
-                                Skip for now
-                              </button>
-                            </div>
-                          </div>
-                        ),
-                      }
-                    : undefined
-                }
-                onClarifyRequirement={
-                  transport && !review.busy && review.session.attempts < 6
-                    ? (id) => {
-                        const requirement = result.jobRequirementProfile?.topPriorities?.find((item) => item.id === id)
-                        if (requirement) {
-                          setActiveQuestion({
-                            questionId: '',
-                            requirementId: id,
-                            text: `What experience can you confirm for: ${requirement.priority}?`,
-                          })
-                          setFocusTarget('review-focused-questions')
-                        }
-                      }
-                    : undefined
-                }
-                onReviewEdit={(id) => {
-                  openEdits(id)
+                renderEvidenceQuestions={(id) => {
+                  const linked = questions.filter(question => questionRequirement(question) === id)
+                  if (linked.length) return linked.map(question => renderQuestion(question, true))
+                  if (transport && review.ready && priorities.some(item => item.id === id) &&
+                    !questions.some(question => question.requirementIds.includes(id))) {
+                    const priority = priorities.find(item => item.id === id)!
+                    return (
+                      <button type="button" className={reviewLink} disabled={answerBusy} onClick={() => openQuestion({
+                        questionId: '',
+                        requirementId: id,
+                        text: `What experience can you confirm for this requirement: ${priority.priority}?`,
+                      })}>
+                        Add relevant experience
+                      </button>
+                    )
+                  }
+                  return null
                 }}
-                onReviewQuestions={() => {
-                  openQuestions()
-                }}
+                onReviewEdit={openEdits}
+                onReviewQuestions={() => setFocusTarget('review-focused-questions')}
               />
             </div>
           </section>
@@ -778,70 +786,12 @@ function GuidedReview({
             </section>
           ) : null}
 
-          {panel === 'edits' && answerCount > 0 ? (
+          {panel === 'edits' && !readOnly && questions.length ? (
             <ReportCard>
               <details>
-                <summary className={reviewLink}>What your answers changed</summary>
+                <summary className={reviewLink}>Evidence questions and answers</summary>
                 <div className="mt-3 space-y-4">
-                  <p>
-                    Your earlier edits and keep-original choices remain. New evidence is self-reported and has not been
-                    independently verified.
-                  </p>
-                  {[...answers].reverse().map((answer) => (
-                    <section key={answer.id} className="space-y-2 border-t border-slate-200 pt-3">
-                      <p>
-                        <strong>
-                          {result.jobRequirementProfile?.topPriorities?.find((item) => item.id === answer.requirementId)
-                            ?.priority ?? answer.requirementId}
-                        </strong>
-                      </p>
-                      <details>
-                        <summary className={reviewLink}>Your answer</summary>
-                        <p>{answer.question}</p>
-                        <p className="whitespace-pre-wrap">{answer.text}</p>
-                      </details>
-                      <p>{answer.delta.explanation}</p>
-                      <p>
-                        <strong>What this establishes:</strong>{' '}
-                        {answer.delta.establishes || 'No additional experience confirmed.'}
-                      </p>
-                      <p>
-                        <strong>Still unproven:</strong> {answer.delta.stillUnproven}
-                      </p>
-                      {answer.edit ? (
-                        <button
-                          type="button"
-                          className={reviewLink}
-                          onClick={() => {
-                            openEdits(answer.edit!.id)
-                          }}
-                        >
-                          Review new edit
-                        </button>
-                      ) : (
-                        <p>No resume edit was added.</p>
-                      )}
-                      {answer.delta.nextQuestion && transport ? (
-                        <button
-                          type="button"
-                          className={reviewLink}
-                          disabled={review.busy || review.session.attempts >= 6}
-                          onClick={() => {
-                            setPanel('requirements')
-                            setActiveQuestion({
-                              questionId: `followup-${answer.id}`,
-                              requirementId: answer.requirementId,
-                              text: answer.delta.nextQuestion,
-                              initialAnswer: answer.text + '\nAdditional detail: ',
-                            })
-                            setFocusTarget('review-focused-questions')
-                          }}
-                        >
-                          Clarify the remaining detail
-                        </button>
-                      ) : null}
-                    </section>
-                  ))}
+                  {questions.map(question => renderQuestion(question))}
                 </div>
               </details>
             </ReportCard>
@@ -1015,7 +965,9 @@ function GuidedReview({
                     <ReviewAnswerForm
                       key={`${activeQuestion.questionId}:${activeQuestion.requirementId}`}
                       question={activeQuestion}
-                      requirements={result.jobRequirementProfile?.topPriorities ?? []}
+                      requirements={activeQuestion.requirementIds?.length
+                        ? priorities.filter(item => activeQuestion.requirementIds?.includes(item.id))
+                        : priorities}
                       busy={review.busy}
                       limitReached={review.session.attempts >= 6}
                       onClose={() => setActiveQuestion(null)}
@@ -1027,52 +979,8 @@ function GuidedReview({
                       }}
                     />
                   ) : null}
-                  {!questions.length && transport ? (
-                    <p>
-                      You have answered the current suggested questions. You can review the remaining gaps in the
-                      diagnosis and clarify another requirement if useful.
-                    </p>
-                  ) : null}
-                  {(allQuestions ? questions : questions.slice(0, 1)).map((question) => (
-                    <div key={question.id}>
-                      <p>
-                        <strong>{questionFocus(question.question)}</strong>
-                      </p>
-                      <p className={ui.results.text.secondary}>{question.why}</p>
-                      {questionFocus(question.question) !== question.question ? (
-                        <details>
-                          <summary className={reviewLink}>More context</summary>
-                          <p>{question.question}</p>
-                        </details>
-                      ) : null}
-                      {transport ? (
-                        <button
-                          type="button"
-                          className={reviewLink}
-                          disabled={review.busy || review.session.attempts >= 6}
-                          onClick={() =>
-                            setActiveQuestion({
-                              questionId: question.id,
-                              requirementId: question.requirementIds?.length === 1 ? question.requirementIds[0] : '',
-                              text: question.question,
-                            })
-                          }
-                        >
-                          Clarify this experience
-                        </button>
-                      ) : null}
-                    </div>
-                  ))}
-                  {questions.length > 1 ? (
-                    <button
-                      type="button"
-                      className={reviewLink}
-                      aria-expanded={allQuestions}
-                      onClick={() => setAllQuestions(!allQuestions)}
-                    >
-                      {allQuestions ? 'Show only the next question' : `Show ${questions.length - 1} optional questions`}
-                    </button>
-                  ) : null}
+                  {questions.filter(question => !hasDiagnosis || !questionRequirement(question))
+                    .map(question => renderQuestion(question))}
                   {transport ? (
                     <p className={ui.results.text.meta}>
                       {review.session.attempts}/6 answer attempts used for this analysis. Scores still describe your
