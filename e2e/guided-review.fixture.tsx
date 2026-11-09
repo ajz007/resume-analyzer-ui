@@ -105,7 +105,9 @@ function Fixture() {
   const [readOnly, setReadOnly] = useState(false);
   const [locked, setLocked] = useState(false);
   const [transport] = useState(() => {
-    let response: ReviewSessionResponse = {
+    const persist = new URLSearchParams(location.search).has("persist");
+    const stored = persist ? sessionStorage.getItem("fictional-review-session") : null;
+    let response: ReviewSessionResponse = stored ? JSON.parse(stored) : {
       session: { version: 0, excludedIds: [], answers: [], attempts: 0 },
       report: structuredClone(report),
     };
@@ -203,6 +205,7 @@ function Fixture() {
             edits: [...response.report.edits!, edit],
             sections: [...response.report.sections!, { heading: "Personal project", editIds: [edit.id], retained: [] }],
           };
+        if (persist) sessionStorage.setItem("fictional-review-session", JSON.stringify(response));
         if (pending) {
           pending.session.version = response.session.version++;
           pending.session.pending = { requestId: request.requestId, startedAt: "2026-11-01T00:00:00Z" };
