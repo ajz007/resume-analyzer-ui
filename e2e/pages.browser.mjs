@@ -302,8 +302,8 @@ try {
   assert.deepEqual(verifications[0], verifications[1])
 
   const assertMatchReportOpensFirst = async () => {
-    await visible(page.getByRole('heading', { name: 'Job requirements', exact: true }))
-    assert.equal(await button('Job match report').getAttribute('aria-pressed'), 'true')
+    await visible(page.locator('summary').filter({ hasText: /^Explore all job requirements$/ }))
+    assert.equal(await button('Understand your fit').getAttribute('aria-current'), 'step')
     assert.equal(await page.getByRole('heading', { name: 'Suggested resume changes', exact: true }).count(), 0)
   }
   await assertMatchReportOpensFirst()

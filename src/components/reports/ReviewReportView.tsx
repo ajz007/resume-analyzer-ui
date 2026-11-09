@@ -164,8 +164,9 @@ function GuidedReview({
   const previewAction = locked && result.analysisMode !== 'resume_only'
     ? report.previewNextStep || result.fixThisFirst?.find((item) => item.action?.trim())?.action
     : undefined
+  const originalScore = result.analysisMode === 'resume_only' ? undefined : getJobMatchScore(result)
   const scores = [
-    ...(result.analysisMode === 'resume_only' ? [] : [{ label: 'Job match', value: getJobMatchScore(result) }]),
+    { label: 'Job match', value: originalScore },
     { label: 'ATS readiness', value: getATSScore(result) },
     { label: 'AI screening readiness', value: getAIScreeningScore(result) },
   ].filter((item) => typeof item.value === 'number')
@@ -246,7 +247,7 @@ function GuidedReview({
         ? 'Answer saved. A new edit is ready for your review.'
         : latestAnswer.delta.nextQuestion
           ? 'Answer saved. A follow-up question is available.'
-          : 'Answer saved. No resume edit was added.')
+          : 'Answer saved. No new resume change was needed.')
       setFocusTarget('review-edit-list')
     }
     previousAnswerCount.current = answers.length
@@ -340,7 +341,20 @@ function GuidedReview({
         new Set(skippedQuestions),
       )
     : []
-  const selectedEditCount = edits.filter(edit => !excluded.has(edit.id)).length
+  const unlinkedQuestions = questions.filter(question => !hasDiagnosis || !questionRequirement(question))
+  const selectedEdits = edits.filter(edit => !excluded.has(edit.id))
+  const selectedEditCount = selectedEdits.length
+  const answerAdditionCount = selectedEdits.filter(edit => answerEditIds.has(edit.id) && edit.operation === 'add').length
+  const existingResumeChangeCount = selectedEdits.filter(edit => !answerEditIds.has(edit.id) && edit.operation !== 'retain').length
+  const submittedEvidence = [...requirements].sort((first, second) => second.weight - first.weight)
+  const strongestSignal = verdict?.strongestSignal || submittedEvidence.find(item =>
+    item.matchStatus.toUpperCase() === 'STRONG' && item.evidence?.trim(),
+  )?.evidence || submittedEvidence.find(item =>
+    ['PARTIAL', 'WEAK'].includes(item.matchStatus.toUpperCase()) && item.evidence?.trim(),
+  )?.evidence
+  const mainGap = verdict?.mainConcern || submittedEvidence.find(item =>
+    ['MISSING', 'PARTIAL', 'WEAK'].includes(item.matchStatus.toUpperCase()) && item.gap?.trim(),
+  )?.gap
   const originalsKept = [...excluded].filter(id => !answerEditIds.has(id)).length
   const exportBlocked = busy || review.busy || !!versionAction
   const finishLabel = canSave ? 'Save for this job' : 'Preview and download'
@@ -348,26 +362,39 @@ function GuidedReview({
   return (
     <div className="space-y-6 text-slate-800">
       <ReportCard>
-        <div className="space-y-5">
-          <p className="text-xs font-semibold uppercase tracking-widest text-teal-800">Your application review</p>
-          <h2 className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
-            {result.analysisMode === 'resume_only' ? 'Your resume review' : 'Your fit for this role'}
-          </h2>
-          <p>{result.summary || verdict?.oneLineVerdict}</p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {verdict?.strongestSignal ? (
-              <div className="border-l-2 border-teal-600 pl-4">
-                <p className="text-sm font-semibold text-teal-900">Strongest evidence</p>
-                <p>{verdict.strongestSignal}</p>
-              </div>
-            ) : null}
-            {verdict?.mainConcern ? (
-              <div className="border-l-2 border-amber-500 pl-4">
-                <p className="text-sm font-semibold text-amber-900">Main concern</p>
-                <p>{verdict.mainConcern}</p>
+        <div className="space-y-4">
+          <div className="grid items-start gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-6">
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-widest text-slate-600">Your application review</p>
+              <h2 className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
+                {result.analysisMode === 'resume_only' ? 'Your resume review' : 'Your fit for this role'}
+              </h2>
+              <p className="leading-relaxed">{result.summary || verdict?.oneLineVerdict}</p>
+            </div>
+            {typeof originalScore === 'number' ? (
+              <div className="grid w-fit grid-cols-[auto_auto] items-baseline gap-x-3 rounded-lg bg-slate-50 px-4 py-2 sm:block sm:py-3">
+                <p className="text-sm font-medium text-slate-700">Original Job Match</p>
+                <p className="text-2xl font-semibold tabular-nums text-slate-950">{originalScore}/100</p>
+                <p className={`${ui.results.text.meta} col-span-2`}>Based on your submitted resume</p>
               </div>
             ) : null}
           </div>
+          {strongestSignal || mainGap ? (
+            <dl className="grid gap-3 text-sm leading-relaxed sm:grid-cols-2 sm:gap-5">
+              {strongestSignal ? (
+                <div>
+                  <dt className="font-semibold text-slate-950">Strongest resume evidence</dt>
+                  <dd>{strongestSignal}</dd>
+                </div>
+              ) : null}
+              {mainGap ? (
+                <div>
+                  <dt className="font-semibold text-slate-950">Main evidence gap</dt>
+                  <dd>{mainGap}</dd>
+                </div>
+              ) : null}
+            </dl>
+          ) : null}
           {previewAction ? (
             <div className="border-l-2 border-teal-600 pl-4">
               <p className="text-sm font-semibold text-teal-900">One thing to check before applying</p>
@@ -376,6 +403,11 @@ function GuidedReview({
           ) : null}
           {!locked ? (
             <div className="flex flex-wrap items-center gap-3">
+              {featuredQuestions.length ? (
+                <button type="button" className={ui.button.primary} onClick={() => setFocusTarget('priority-evidence-title')}>
+                  Review evidence questions
+                </button>
+              ) : null}
               <button
                 type="button"
                 className={hasDiagnosis ? ui.button.secondary : ui.button.primary}
@@ -409,7 +441,7 @@ function GuidedReview({
           ) : null}
           <details className="border-t border-slate-200 pt-4">
             <summary className={reviewLink}>
-              {scores[0] ? `${scores[0].label} ${scores[0].value}/100 · based on your submitted resume` : 'Submitted resume scores'}
+              Scoring and reviewer context
             </summary>
             <div className="mt-3 flex flex-wrap gap-5">
               {scores.map((score) => (
@@ -425,13 +457,13 @@ function GuidedReview({
                 : 'Scores assess the submitted resume. Proposed edits and confirmed answers have not been rescored.'}
             </p>
             <ScoreDisclaimer />
-          </details>
-          {result.jobRequirementProfile?.hiddenExpectations?.length ||
-          result.jobRequirementProfile?.niceToHaveSignals?.length ||
-          result.scoreExplanation?.components?.length ||
-          result.aiScreening?.scoreBreakdown?.length ? (
-            <details className="border-t border-slate-200 pt-4">
-              <summary className={reviewLink}>Scoring and reviewer context</summary>
+            {result.jobRequirementProfile?.recruiterIntentSummary ? (
+              <p className="mt-3">{result.jobRequirementProfile.recruiterIntentSummary}</p>
+            ) : null}
+            {result.jobRequirementProfile?.hiddenExpectations?.length ||
+            result.jobRequirementProfile?.niceToHaveSignals?.length ||
+            result.scoreExplanation?.components?.length ||
+            result.aiScreening?.scoreBreakdown?.length ? (
               <div className="mt-3 space-y-4">
                 <Lines
                   items={(result.jobRequirementProfile?.hiddenExpectations ?? []).map(
@@ -454,14 +486,14 @@ function GuidedReview({
                   </p>
                 ))}
               </div>
-            </details>
-          ) : null}
+            ) : null}
+          </details>
         </div>
       </ReportCard>
 
       {showJourney ? (
         <nav aria-label="Review sections">
-          <ol aria-label="Application review progress" className="grid gap-3 rounded-xl border border-teal-200 bg-teal-50/60 p-3 sm:grid-cols-3 sm:gap-6 sm:p-4">
+          <ol aria-label="Application review progress" className="grid grid-cols-3 gap-1.5 rounded-xl border border-teal-200 bg-teal-50/60 p-1.5 sm:gap-6 sm:p-3">
             {([
               ['requirements', 'Understand your fit'],
               ['edits', 'Tailor your resume'],
@@ -477,13 +509,13 @@ function GuidedReview({
                       setPanel(step)
                       if (step === 'edits') setView('changes')
                     }}
-                    className={`flex min-h-14 w-full items-center gap-3 rounded-lg border px-3 py-2 text-left font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 ${current ? 'border-teal-800 bg-teal-800 text-white' : 'border-teal-200 bg-white text-slate-800 hover:border-teal-600 hover:bg-teal-50'}`}
+                    className={`flex h-full min-h-14 w-full min-w-0 flex-col items-center justify-center gap-1 rounded-lg border px-1 py-2 text-center text-xs font-semibold leading-snug sm:flex-row sm:justify-start sm:gap-3 sm:px-3 sm:text-left sm:text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800 ${current ? 'border-teal-800 bg-teal-800 text-white' : 'border-teal-200 bg-white text-slate-800 hover:border-teal-600 hover:bg-teal-50'}`}
                   >
                     <span aria-hidden="true" className={`flex size-7 shrink-0 items-center justify-center rounded-full text-sm ${current ? 'bg-white text-teal-900' : 'bg-teal-100 text-teal-900'}`}>{index + 1}</span>
                     <span>{label}</span>
                   </button>
                   {index < 2 ? (
-                    <span aria-hidden="true" className="absolute -bottom-3.5 left-6 rotate-90 text-teal-700 sm:bottom-auto sm:left-auto sm:-right-5 sm:top-1/2 sm:-translate-y-1/2 sm:rotate-0">→</span>
+                    <span aria-hidden="true" className="absolute hidden text-teal-700 sm:-right-5 sm:top-1/2 sm:block sm:-translate-y-1/2">→</span>
                   ) : null}
                 </li>
               )
@@ -514,10 +546,11 @@ function GuidedReview({
       {featuredQuestions.length ? (
         <ReportCard>
           <section aria-labelledby="priority-evidence-title" className="space-y-4">
-            <h2 id="priority-evidence-title" className={ui.results.section.title}>Strengthen your application</h2>
+            <h2 id="priority-evidence-title" tabIndex={-1} className={`${ui.results.section.title} scroll-mt-6`}>Strengthen your application</h2>
             <p>Your resume may not tell the full story. These questions help uncover relevant experience that could strengthen your application.</p>
             <p className={ui.results.text.secondary}>Answer any question you choose. We’ll show what your answer establishes and let you review any proposed edit. Your original score stays the same.</p>
-            <div className="grid items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <div className={`grid items-start gap-3 ${featuredQuestions.length === 1 ? ''
+              : featuredQuestions.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-2 xl:grid-cols-3'}`}>
               {featuredQuestions.map(item => renderQuestion(item.question, false, item))}
             </div>
           </section>
@@ -526,9 +559,11 @@ function GuidedReview({
       {panel === 'requirements' && hasDiagnosis ? (
         <ReportCard>
           <details open={!showJourney || !transport ? true : undefined}>
-            <summary className={reviewLink}>Explore all job requirements</summary>
-            <section id="job-requirement-diagnosis" tabIndex={-1} className="mt-4 scroll-mt-6">
-              <h2 className={ui.results.section.title}>Job requirements</h2>
+            <summary className={`${reviewLink} min-h-10 py-2`}>
+              <h2 className={`${ui.results.section.title} inline`}>Explore all job requirements</h2>
+            </summary>
+            <section id="job-requirement-diagnosis" tabIndex={-1} className="mt-3 scroll-mt-6">
+              <p className="text-sm text-slate-600">See how your submitted resume supports each requirement and where more evidence may help.</p>
               <div className="mt-4">
                 <JobRequirementDiagnosis
                   result={{ ...result, report }}
@@ -695,22 +730,40 @@ function GuidedReview({
                           {edit.operation === 'retain' ? 'Keep this passage' : edit.operation} ·{' '}
                           {answerEditIds.has(edit.id) ? 'New from your confirmed answer' : 'Based on your resume'}
                         </p>
-                        <p>
-                          {edit.operation === 'remove' && !excluded.has(edit.id)
-                            ? (readOnly ? 'A passage is recommended for removal.' : 'Remove this passage; the original is available below.')
-                            : readOnly
-                              ? edit.after
-                              : addedWords(edit.before, answerEditIds.has(edit.id) ? edit.after : chosenEditText(edit, excluded)).map((token, i) =>
-                                token.changed ? (
-                                  <mark key={i} className="bg-emerald-100 text-emerald-950">
-                                    {token.text}
-                                  </mark>
-                                ) : (
-                                  token.text
-                                ),
-                              )}
-                        </p>
-                        {!readOnly ? (
+                        {showJourney && edit.operation !== 'retain' ? (
+                          <p className="w-fit rounded bg-slate-100 px-2 py-1 text-sm font-medium text-slate-800">
+                            {excluded.has(edit.id)
+                              ? (answerEditIds.has(edit.id) ? 'Proposed · not included' : 'Original kept')
+                              : 'Included in your selection'}
+                          </p>
+                        ) : null}
+                        <div className={showJourney && edit.before && edit.operation !== 'retain' ? 'grid gap-3 sm:grid-cols-2' : undefined}>
+                          {showJourney && edit.before && edit.operation !== 'retain' ? (
+                            <div className="min-w-0 rounded-lg bg-slate-50 p-3">
+                              <p className="mb-1 text-sm font-semibold">Original</p>
+                              <p className="whitespace-pre-wrap">{edit.before}</p>
+                            </div>
+                          ) : null}
+                          <div className={showJourney && edit.operation !== 'retain' ? 'min-w-0 rounded-lg bg-slate-50 p-3' : undefined}>
+                            {showJourney && edit.operation !== 'retain' ? <p className="mb-1 text-sm font-semibold">Proposed change</p> : null}
+                            <p className="whitespace-pre-wrap">
+                              {edit.operation === 'remove' && (showJourney || !excluded.has(edit.id))
+                                ? (readOnly ? 'A passage is recommended for removal.' : 'Remove this passage.')
+                                : readOnly
+                                  ? edit.after
+                                  : addedWords(edit.before, (showJourney || answerEditIds.has(edit.id)) ? edit.after : chosenEditText(edit, excluded)).map((token, i) =>
+                                    token.changed ? (
+                                      <mark key={i} className="bg-emerald-100 text-emerald-950">
+                                        {token.text}
+                                      </mark>
+                                    ) : (
+                                      token.text
+                                    ),
+                                  )}
+                            </p>
+                          </div>
+                        </div>
+                        {!readOnly && (!showJourney || edit.operation === 'retain') ? (
                           <details>
                             <summary className={reviewLink}>
                               {edit.before ? 'Compare with original' : 'New passage'}
@@ -841,11 +894,24 @@ function GuidedReview({
           {panel === 'use' ? (
             <ReportCard>
               <div id="review-export" tabIndex={-1} className="scroll-mt-6 space-y-3">
-                <h2 className={ui.results.section.title}>Prepare your resume for this job</h2>
-                <p>
-                  {selectedEditCount} proposed {selectedEditCount === 1 ? 'passage' : 'passages'} selected · {originalsKept}{' '}
-                  originals kept.
-                </p>
+                <h2 className={ui.results.section.title}>{showJourney ? 'Your tailored resume' : 'Prepare your resume for this job'}</h2>
+                {showJourney && review.ready ? (
+                  <>
+                    <dl className="grid gap-3 rounded-lg bg-slate-50 p-4 text-sm sm:grid-cols-3">
+                      <div><dt>Changes to your existing resume</dt><dd className="text-lg font-semibold tabular-nums">{existingResumeChangeCount}</dd></div>
+                      <div><dt>Additions from your answers</dt><dd className="text-lg font-semibold tabular-nums">{answerAdditionCount}</dd></div>
+                      <div><dt>Originals kept</dt><dd className="text-lg font-semibold tabular-nums">{originalsKept}</dd></div>
+                    </dl>
+                    {typeof originalScore === 'number' ? (
+                      <p><strong>Original Job Match: {originalScore}/100</strong><span className="block text-sm text-slate-600">Based on your submitted resume</span></p>
+                    ) : null}
+                  </>
+                ) : !showJourney ? (
+                  <p>
+                    {selectedEditCount} proposed {selectedEditCount === 1 ? 'passage' : 'passages'} selected · {originalsKept}{' '}
+                    originals kept.
+                  </p>
+                ) : null}
                 <p>Check names, dates and factual accuracy before sending your resume.</p>
                 <details>
                   <summary className={reviewLink}>Preview selected passages</summary>
@@ -859,36 +925,38 @@ function GuidedReview({
                     <TailoredResumePreview preview={fullPreview.preview} />
                   </details>
                 ) : null}
-                <div className="flex flex-wrap gap-3">
+                <div className="space-y-3">
                   {canSave ? (
-                    <>
+                    <div role="group" aria-label="Save and preview" className="flex flex-wrap gap-3">
                       <button type="button" className={ui.button.primary} disabled={exportBlocked || !review.ready} onClick={saveVersion}>
                         {versionAction === 'save' ? 'Saving…' : 'Save for this job'}
                       </button>
                       <button type="button" className={ui.button.secondary} disabled={exportBlocked || !review.ready} onClick={previewVersion}>
                         {versionAction === 'preview' ? 'Preparing preview…' : 'Preview full resume'}
                       </button>
-                    </>
+                    </div>
                   ) : null}
-                  <button type="button" className={ui.button.secondary} disabled={review.busy || !selectedPassages} onClick={copyPassages}>
-                    Copy selected passages
-                  </button>
-                  <button
-                    type="button"
-                    className={canSave ? ui.button.secondary : ui.button.primary}
-                    disabled={exportBlocked || readOnly || referencePreview || localPreview}
-                    onClick={download}
-                  >
-                    {readOnly
-                      ? 'Download available to report owner'
-                      : referencePreview
-                        ? 'Download unavailable in reference preview'
-                        : localPreview
-                          ? 'Download unavailable in test preview'
-                          : busy
-                            ? 'Preparing download…'
-                            : 'Download reviewed resume'}
-                  </button>
+                  <div role="group" aria-label="Export resume" className="flex flex-wrap gap-3">
+                    <button type="button" className={ui.button.secondary} disabled={review.busy || !selectedPassages} onClick={copyPassages}>
+                      Copy selected passages
+                    </button>
+                    <button
+                      type="button"
+                      className={canSave ? ui.button.secondary : ui.button.primary}
+                      disabled={exportBlocked || readOnly || referencePreview || localPreview}
+                      onClick={download}
+                    >
+                      {readOnly
+                        ? 'Download available to report owner'
+                        : referencePreview
+                          ? 'Download unavailable in reference preview'
+                          : localPreview
+                            ? 'Download unavailable in test preview'
+                            : busy
+                              ? 'Preparing download…'
+                              : 'Download reviewed resume'}
+                    </button>
+                  </div>
                 </div>
                 {copyStatus === 'copied' ? (
                   <p role="status" className="text-sm text-teal-900">Selected passages copied.</p>
@@ -904,8 +972,8 @@ function GuidedReview({
                 {canSave && versions.length ? (
                   <section className="space-y-3 border-t border-slate-200 pt-3">
                     <h3 className={ui.results.text.cardTitle}>Saved versions for this job</h3>
-                    {rechecks?.rechecks.length && typeof getJobMatchScore(result) === 'number' ? (
-                      <p className={ui.results.text.meta}>Original submitted resume · {getJobMatchScore(result)}/100</p>
+                    {!showJourney && rechecks?.rechecks.length && typeof originalScore === 'number' ? (
+                      <p className={ui.results.text.meta}>Original submitted resume · {originalScore}/100</p>
                     ) : null}
                     <ul className="space-y-2">
                       {versions.map((version) => (
@@ -997,11 +1065,14 @@ function GuidedReview({
             <div hidden={panel !== 'requirements'}>
               <ReportCard>
                 <div id="review-focused-questions" tabIndex={-1} className="scroll-mt-6 space-y-3">
-                  <h2 className={ui.results.section.title}>Strengthen this application</h2>
-                  <p>
-                    Your earlier edits are ready to review. Answer an optional, job-specific question to uncover
-                    evidence those edits cannot add yet. “None” or “not sure” is useful too.
-                  </p>
+                  {activeQuestion || unlinkedQuestions.length ? (
+                    <>
+                      <h2 className={ui.results.section.title}>{activeQuestion ? 'Clarify your experience' : 'More evidence questions'}</h2>
+                      <p className={ui.results.text.secondary}>
+                        Answering is optional. “None” or “not sure” is useful too.
+                      </p>
+                    </>
+                  ) : null}
                   {activeQuestion && transport ? (
                     <ReviewAnswerForm
                       key={`${activeQuestion.questionId}:${activeQuestion.requirementId}`}
@@ -1020,8 +1091,7 @@ function GuidedReview({
                       }}
                     />
                   ) : null}
-                  {questions.filter(question => !hasDiagnosis || !questionRequirement(question))
-                    .map(question => renderQuestion(question))}
+                  {unlinkedQuestions.map(question => renderQuestion(question))}
                   {transport ? (
                     <p className={ui.results.text.meta}>
                       {review.session.attempts}/6 answer attempts used for this analysis. Scores still describe your
